@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "oyasaimusicmiditranslator",
+  "version": "${version}",
+  "name": "OMMT",
+  "description": "",
+  "authors": [],
+  "contact": {},
+  "license": "All-Rights-Reserved",
+  "icon": "assets/oyasaimusicmiditranslator/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "fabric-datagen": [
+      "com.github.sahyuya.oyasaimusicmiditranslator.client.OyasaimusicmiditranslatorDataGenerator"
+    ],
+    "client": [
+      "com.github.sahyuya.oyasaimusicmiditranslator.client.OyasaimusicmiditranslatorClient"
+    ],
+    "main": [
+      "com.github.sahyuya.oyasaimusicmiditranslator.Oyasaimusicmiditranslator"
+    ]
+  },
+  "mixins": [
+    "oyasaimusicmiditranslator.mixins.json",
+    {
+      "config": "oyasaimusicmiditranslator.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-language-kotlin": ">=${kotlin_loader_version}",
+    "fabric-api": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
