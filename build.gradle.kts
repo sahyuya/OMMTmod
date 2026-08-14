@@ -46,6 +46,7 @@ repositories {
     // Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
     // See https://docs.gradle.org/current/userguide/declaring_repositories.html
     // for more information about repositories.
+    mavenCentral()
 }
 
 dependencies {
@@ -56,6 +57,10 @@ dependencies {
     modImplementation("net.fabricmc:fabric-language-kotlin:${project.property("kotlin_loader_version")}")
 
     modImplementation("net.fabricmc.fabric-api:fabric-api:${project.property("fabric_version")}")
+
+    // Minecraft 1.21.11-aware Dear ImGui integration. This owns the render/input bridge so OMMT
+    // does not have to inject raw OpenGL calls into Minecraft's extracted GUI render pipeline.
+    modImplementation("cn.enaium:fabric-gui-imgui:${project.property("fabric_gui_imgui_version")}")
 }
 
 tasks.processResources {
@@ -85,6 +90,20 @@ tasks.withType<JavaCompile>().configureEach {
 
 tasks.withType<KotlinCompile>().configureEach {
     compilerOptions.jvmTarget.set(JvmTarget.fromTarget(targetJavaVersion.toString()))
+}
+
+tasks.test {
+    // Fabric Loom's split runtime does not expose Kotlin-only test classes to the JUnit worker.
+    // The pure codec verifier below runs on the exact test runtime classpath instead.
+    enabled = false
+}
+
+tasks.register<JavaExec>("verifyUploadCodec") {
+    group = "verification"
+    description = "Runs pure upload codec golden/malformed/boundary verification."
+    dependsOn(tasks.named("compileTestKotlin"))
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass.set("com.github.sahyuya.oyasaimusicmiditranslator.interop.UploadV2CodecVerification")
 }
 
 tasks.jar {

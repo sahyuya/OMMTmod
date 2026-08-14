@@ -20,8 +20,9 @@ class OyasaimusicmiditranslatorClient : ClientModInitializer {
             )
         )
         UploadClient.initialize()
+        PlaybackClient.initialize()
         ClientTickEvents.END_CLIENT_TICK.register { client ->
-            while (openEditor.wasPressed()) { client.setScreen(OyasaiEditorScreen()); UploadClient.checkAvailability() }
+            while (openEditor.wasPressed()) { client.setScreen(OyasaiEditorScreen(EditorSession)); UploadClient.checkAvailability() }
             UploadClient.tick()
         }
     }

@@ -31,6 +31,7 @@
     "fabricloader": ">=${loader_version}",
     "fabric-language-kotlin": ">=${kotlin_loader_version}",
     "fabric-api": "*",
+    "fabric-gui-imgui": ">=1.21.11-1.0.11+imgui.1.92.0",
     "minecraft": "${minecraft_version}"
   }
 }
