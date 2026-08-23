@@ -132,7 +132,8 @@ object UploadClient {
         if (words[1] == "UPLOAD2" && protocol == 2) {
           val wanted = if (encodingPreference == "BASE64") "b64c1" else "u15c1"
           if (wanted !in capabilities) { abortLocal("OyasaiMusic does not advertise required upload encoding"); friendly(false, "UNSUPPORTED"); return true }
-          if (pending?.oymiVersion == 2 && "cs1" !in capabilities) { abortLocal("OyasaiMusic does not support custom Minecraft sounds"); friendly(false, "CUSTOM_SOUND_UNSUPPORTED"); return true }
+          if (pending?.oymiVersion == 2 && "cs1" !in capabilities) { abortLocal("OyasaiMusic does not support legacy custom Minecraft sounds"); friendly(false, "CUSTOM_SOUND_UNSUPPORTED"); return true }
+          if (pending?.oymiVersion == 3 && "csp1" !in capabilities) { abortLocal("OyasaiMusic does not support fixed Minecraft sound patterns"); friendly(false, "CUSTOM_SOUND_PATTERN_UNSUPPORTED"); return true }
         }
         ready = true
         val prepared = pending
@@ -181,7 +182,7 @@ object UploadClient {
     statusVisibleUntilMs = System.currentTimeMillis() + lingerMs
   }
   private fun fallbackV1() {
-    if (pending?.oymiVersion == 2) { abortLocal("OyasaiMusic does not support custom Minecraft sounds"); friendly(false, "CUSTOM_SOUND_UNSUPPORTED"); return }
+    if ((pending?.oymiVersion ?: 1) > 1) { abortLocal("OyasaiMusic does not support custom Minecraft sound patterns"); friendly(false, "CUSTOM_SOUND_UNSUPPORTED"); return }
     // The probe identity and retained payload identity are one state transition.  A READY for the
     // fresh v1 id must authorize the same Prepared instance, never the superseded v2 id.
     val fresh=id22(UUID.randomUUID()); protocol=1; v1Retried=true; requestId=fresh; pending=pending?.copy(id=fresh)
@@ -197,7 +198,7 @@ object UploadClient {
     val input = ByteBuffer.wrap(bytes)
     require(input.int == 0x4F594D49) { "invalid OYMI header" }
     val version = input.short.toInt()
-    require(version in 1..2 && input.short.toInt() == 0) { "unsupported OYMI version" }
+    require(version in 1..3 && input.short.toInt() == 0) { "unsupported OYMI version" }
     val metadataSize = input.int
     val noteCount = input.int
     input.int // OYMI v1 duration is retained for Paper's authoritative importer.

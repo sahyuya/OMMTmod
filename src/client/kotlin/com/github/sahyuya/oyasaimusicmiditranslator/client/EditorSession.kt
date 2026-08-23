@@ -24,6 +24,8 @@ data class EditorNote(
     var retriggerOverride: RetriggerProfile? = null,
     /** Built-in Minecraft sound event ID. null uses the stable note-block instrument. */
     var customSound: String? = null,
+    /** One-based sound-catalog variant. null is valid only when [customSound] is null. */
+    var customSoundPattern: Int? = null,
 )
 
 data class EditorSnapshot(

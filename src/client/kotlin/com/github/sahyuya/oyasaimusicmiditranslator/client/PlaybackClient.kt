@@ -10,7 +10,6 @@ import kotlin.math.pow
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry
 import net.minecraft.client.MinecraftClient
 import net.minecraft.sound.SoundEvents
 
@@ -45,7 +44,7 @@ object PlaybackClient {
   fun initialize() {
     if (initialized) return
     initialized = true
-    PayloadTypeRegistry.playS2C().register(PlaybackPayload.ID, PlaybackPayload.CODEC)
+    PlaybackPayload.registerCodec()
     ClientPlayNetworking.registerGlobalReceiver(PlaybackPayload.ID) { payload, _ -> receive(payload.bytes) }
     ClientTickEvents.END_CLIENT_TICK.register { tick() }
     // Capability is intentionally not announced at JOIN. Paper probes only when this

@@ -66,6 +66,13 @@ dependencies {
 }
 
 tasks.processResources {
+    // The formal server catalog is the single source of truth for fixed Minecraft sound patterns.
+    // Embed an immutable copy in the release JAR so runtime selection never depends on server I/O.
+    val formalSoundCatalog = rootProject.layout.projectDirectory.file("../MainOyasaiMusic/src/main/resources/sound-catalog.json")
+    inputs.file(formalSoundCatalog)
+    from(formalSoundCatalog) {
+        into("assets/oyasaimusicmiditranslator")
+    }
     inputs.property("version", project.version)
     inputs.property("minecraft_version", project.property("minecraft_version"))
     inputs.property("loader_version", project.property("loader_version"))

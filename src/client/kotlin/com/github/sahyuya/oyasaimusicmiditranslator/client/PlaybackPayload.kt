@@ -3,6 +3,7 @@ package com.github.sahyuya.oyasaimusicmiditranslator.client
 import net.minecraft.network.RegistryByteBuf
 import net.minecraft.network.packet.CustomPayload
 import net.minecraft.util.Identifier
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry
 
 /** Raw, deliberately bounded S2C envelope for Paper's `oyasaimusic:playback_v1` plugin channel. */
 data class PlaybackPayload(val bytes: ByteArray) : CustomPayload {
@@ -19,6 +20,10 @@ data class PlaybackPayload(val bytes: ByteArray) : CustomPayload {
         PlaybackPayload(ByteArray(remaining).also { buffer.readBytes(it) })
       }
     )
+
+    fun registerCodec() {
+      PayloadTypeRegistry.playS2C().register(ID, CODEC)
+    }
   }
   override fun getId(): CustomPayload.Id<out CustomPayload> = ID
 }
