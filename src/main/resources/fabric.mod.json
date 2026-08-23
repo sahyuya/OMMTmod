@@ -3,8 +3,8 @@
   "id": "oyasaimusicmiditranslator",
   "version": "${version}",
   "name": "OMMT",
-  "description": "",
-  "authors": [],
+  "description": "OyasaiMusic専用のMIDI編集・プレビュー・下書き送信クライアント",
+  "authors": ["sahyuya"],
   "contact": {},
   "license": "All-Rights-Reserved",
   "icon": "assets/oyasaimusicmiditranslator/icon.png",
@@ -31,7 +31,7 @@
     "fabricloader": ">=${loader_version}",
     "fabric-language-kotlin": ">=${kotlin_loader_version}",
     "fabric-api": "*",
-    "fabric-gui-imgui": ">=1.21.11-1.0.11+imgui.1.92.0",
+    "fabric-gui-imgui": ">=${fabric_gui_imgui_version}",
     "minecraft": "${minecraft_version}"
   }
 }

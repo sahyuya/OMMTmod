@@ -14,6 +14,10 @@ import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry
 import net.minecraft.client.MinecraftClient
 import net.minecraft.sound.SoundEvents
 
+fun bufferedElapsedMillis(nowNanos: Long, startAtNanos: Long): Int? =
+    if (startAtNanos <= 0L || nowNanos < startAtNanos) null
+    else ((nowNanos - startAtNanos) / 1_000_000L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+
 /** Client half of the bounded buffered route. Invalid or incomplete sessions are simply discarded. */
 object PlaybackClient {
   private const val VERSION = 1
@@ -97,7 +101,11 @@ object PlaybackClient {
 
   private fun tick() {
     if (sessionId == null || startAtNanos == 0L) return
-    val elapsed = elapsed(); var sent = 0; val player = MinecraftClient.getInstance().player ?: return
+    val now = System.nanoTime()
+    // START carries a future common deadline. Treating a negative elapsed time as 0 caused all
+    // time-zero notes to sound immediately, before the server/local route switch had completed.
+    val elapsed = bufferedElapsedMillis(now, startAtNanos) ?: return
+    var sent = 0; val player = MinecraftClient.getInstance().player ?: return
     while (cursor < notes.size && notes[cursor].time <= elapsed && sent++ < MAX_NOTES_PER_TICK) {
       val note = notes[cursor++]; val pitch = 2.0.pow((note.pitch - 12) / 12.0).toFloat()
       // The server's DEFAULT route uses the vanilla note-block instrument order.  Client-local
@@ -106,7 +114,6 @@ object PlaybackClient {
     }
     if (cursor == notes.size) clear()
   }
-  private fun elapsed(): Int = ((System.nanoTime() - startAtNanos) / 1_000_000L).coerceAtLeast(0).toInt()
   private fun noteBlockSound(instrument: Int) = when (instrument) {
     0 -> SoundEvents.BLOCK_NOTE_BLOCK_HARP.value(); 1 -> SoundEvents.BLOCK_NOTE_BLOCK_BASEDRUM.value()
     2 -> SoundEvents.BLOCK_NOTE_BLOCK_SNARE.value(); 3 -> SoundEvents.BLOCK_NOTE_BLOCK_HAT.value()

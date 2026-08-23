@@ -14,7 +14,7 @@ base {
     archivesName.set(project.property("archives_base_name") as String)
 }
 
-val targetJavaVersion = 21
+val targetJavaVersion = (findProperty("java_version")?.toString() ?: "21").toInt()
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
     // Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
@@ -52,21 +52,24 @@ repositories {
 dependencies {
     // To change the versions see the gradle.properties file
     minecraft("com.mojang:minecraft:${project.property("minecraft_version")}")
-    mappings("net.fabricmc:yarn:${project.property("yarn_mappings")}:v2")
-    modImplementation("net.fabricmc:fabric-loader:${project.property("loader_version")}")
-    modImplementation("net.fabricmc:fabric-language-kotlin:${project.property("kotlin_loader_version")}")
-
-    modImplementation("net.fabricmc.fabric-api:fabric-api:${project.property("fabric_version")}")
+    add("mappings", "net.fabricmc:yarn:${project.property("yarn_mappings")}:v2")
+    add("modImplementation", "net.fabricmc:fabric-loader:${project.property("loader_version")}")
+    add("modImplementation", "net.fabricmc:fabric-language-kotlin:${project.property("kotlin_loader_version")}")
+    add("modImplementation", "net.fabricmc.fabric-api:fabric-api:${project.property("fabric_version")}")
 
     // Minecraft 1.21.11-aware Dear ImGui integration. This owns the render/input bridge so OMMT
     // does not have to inject raw OpenGL calls into Minecraft's extracted GUI render pipeline.
-    modImplementation("cn.enaium:fabric-gui-imgui:${project.property("fabric_gui_imgui_version")}")
+    add("modImplementation", "cn.enaium:fabric-gui-imgui:${project.property("fabric_gui_imgui_version")}")
+
+    // Pure editor-model verification reuses the compiled client source set without starting MC.
+    testImplementation(sourceSets["client"].output)
 }
 
 tasks.processResources {
     inputs.property("version", project.version)
     inputs.property("minecraft_version", project.property("minecraft_version"))
     inputs.property("loader_version", project.property("loader_version"))
+    inputs.property("fabric_gui_imgui_version", project.property("fabric_gui_imgui_version"))
     filteringCharset = "UTF-8"
 
     filesMatching("fabric.mod.json") {
@@ -74,7 +77,8 @@ tasks.processResources {
             "version" to project.version,
             "minecraft_version" to (project.property("minecraft_version") as String),
             "loader_version" to (project.property("loader_version") as String),
-            "kotlin_loader_version" to (project.property("kotlin_loader_version") as String)
+            "kotlin_loader_version" to (project.property("kotlin_loader_version") as String),
+            "fabric_gui_imgui_version" to (project.property("fabric_gui_imgui_version") as String),
         )
     }
 }
@@ -102,8 +106,12 @@ tasks.register<JavaExec>("verifyUploadCodec") {
     group = "verification"
     description = "Runs pure upload codec golden/malformed/boundary verification."
     dependsOn(tasks.named("compileTestKotlin"))
-    classpath = sourceSets["test"].runtimeClasspath
+    classpath = sourceSets["test"].runtimeClasspath + sourceSets["client"].runtimeClasspath
     mainClass.set("com.github.sahyuya.oyasaimusicmiditranslator.interop.UploadV2CodecVerification")
+}
+
+tasks.named("compileTestKotlin") {
+    dependsOn(tasks.named("compileClientKotlin"))
 }
 
 tasks.jar {

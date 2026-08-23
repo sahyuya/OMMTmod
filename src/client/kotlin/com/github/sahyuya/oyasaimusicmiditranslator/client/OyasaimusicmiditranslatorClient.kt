@@ -22,7 +22,9 @@ class OyasaimusicmiditranslatorClient : ClientModInitializer {
         UploadClient.initialize()
         PlaybackClient.initialize()
         ClientTickEvents.END_CLIENT_TICK.register { client ->
-            while (openEditor.wasPressed()) { client.setScreen(OyasaiEditorScreen(EditorSession)); UploadClient.checkAvailability() }
+            // Upload capability is checked only after UPLOAD DRAFT is pressed. Opening the editor
+            // must not create a transient command exchange or a status bar the user did not ask for.
+            while (openEditor.wasPressed()) client.setScreen(OyasaiEditorScreen(EditorSession))
             UploadClient.tick()
         }
     }

@@ -14,6 +14,16 @@ data class EditorNote(
     var pan: Int,
     val id: Long = EditorSession.nextStableId(),
     var part: Int = 0,
+    /** Original MIDI identity. Tracks/channels remain separate even after instrument conversion. */
+    var sourceTrack: Int = -1,
+    var sourceChannel: Int = -1,
+    /** Musical position retained for tempo-envelope retiming. Negative means "derive from ms". */
+    var sourceTick: Long = -1L,
+    var sourceDurationTicks: Long = -1L,
+    /** A note-level pseudo-release override. null inherits part, then global settings. */
+    var retriggerOverride: RetriggerProfile? = null,
+    /** Built-in Minecraft sound event ID. null uses the stable note-block instrument. */
+    var customSound: String? = null,
 )
 
 data class EditorSnapshot(
@@ -23,6 +33,9 @@ data class EditorSnapshot(
     val pitchMin: Int, val visiblePitches: Int,
     val snapDivisor: Int, val followPlayback: Boolean, val playheadMs: Int, val allPartsView: Boolean,
     val tempos: List<TempoMark>, val signatures: List<SignatureMark>, val grid: List<GridMark>,
+    val tempoControls: List<TempoControlPoint> = emptyList(),
+    val globalRetrigger: RetriggerProfile = RetriggerProfile(),
+    val partRetriggers: Map<Int, RetriggerProfile> = emptyMap(),
 )
 
 data class TempoMark(val tick: Long, val timeMs: Int, val microsPerQuarter: Int)
@@ -35,7 +48,7 @@ object EditorSession {
   /** Process-lifetime editing auxiliaries survive closing/reopening a Screen. */
   val history = EditorHistory()
   fun nextStableId(): Long = nextId++
-  fun restore(): EditorSnapshot? = snapshot?.copy(notes = snapshot!!.notes.map { it.copy() }, selectedIds = snapshot!!.selectedIds.toSet(), parts = snapshot!!.parts.toList(), tempos = snapshot!!.tempos.toList(), signatures = snapshot!!.signatures.toList(), grid = snapshot!!.grid.toList())
-  fun save(value: EditorSnapshot) { snapshot = value.copy(notes = value.notes.map { it.copy() }, selectedIds = value.selectedIds.toSet(), parts = value.parts.toList(), tempos = value.tempos.toList(), signatures = value.signatures.toList(), grid = value.grid.toList()) }
+  fun restore(): EditorSnapshot? = snapshot?.copy(notes = snapshot!!.notes.map { it.copy() }, selectedIds = snapshot!!.selectedIds.toSet(), parts = snapshot!!.parts.toList(), tempos = snapshot!!.tempos.toList(), signatures = snapshot!!.signatures.toList(), grid = snapshot!!.grid.toList(), tempoControls = snapshot!!.tempoControls.map { it.copy() }, partRetriggers = snapshot!!.partRetriggers.toMap())
+  fun save(value: EditorSnapshot) { snapshot = value.copy(notes = value.notes.map { it.copy() }, selectedIds = value.selectedIds.toSet(), parts = value.parts.toList(), tempos = value.tempos.toList(), signatures = value.signatures.toList(), grid = value.grid.toList(), tempoControls = value.tempoControls.map { it.copy() }, partRetriggers = value.partRetriggers.toMap()) }
   fun replace() { snapshot = null }
 }

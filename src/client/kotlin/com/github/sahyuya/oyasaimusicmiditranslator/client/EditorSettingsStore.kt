@@ -18,10 +18,11 @@ data class EditorSettings(
   val uploadEncoding: String = "AUTO",
   val uiScalePercent: Int = 100,
   val keymap: EditorKeymap = EditorKeymap(),
-  val wheelPlain: WheelAction = WheelAction.TIMELINE_SCROLL,
-  val wheelShift: WheelAction = WheelAction.PITCH_ZOOM,
+  // Default navigation favors direct vertical movement. Every gesture remains user-remappable.
+  val wheelPlain: WheelAction = WheelAction.PITCH_SCROLL,
+  val wheelShift: WheelAction = WheelAction.TIMELINE_SCROLL,
   val wheelControl: WheelAction = WheelAction.TIME_ZOOM,
-  val wheelAlt: WheelAction = WheelAction.PITCH_SCROLL,
+  val wheelAlt: WheelAction = WheelAction.PITCH_ZOOM,
   val rangeSelectionModifier: GestureModifier = GestureModifier.SHIFT,
   val additiveSelectionModifier: GestureModifier = GestureModifier.CONTROL,
   val panMouseButton: PanMouseButton = PanMouseButton.RIGHT,
@@ -36,7 +37,7 @@ object EditorSettingsStore {
       gridDensity=str(text,"gridDensity","AUTO").uppercase().takeIf { it in setOf("AUTO","SPARSE","NORMAL","DENSE") }?:"AUTO", showOtherParts=bool(text,"showOtherParts",true),
       followLead=int(text,"followLead",45).coerceIn(20,70), lastTool=enum(text,"lastTool",EditorTool.SELECT), uploadEncoding=str(text,"uploadEncoding","AUTO").uppercase().takeIf{it in setOf("AUTO","U15","BASE64") }?:"AUTO",
       uiScalePercent=int(text,"uiScalePercent",100).coerceIn(75,150), keymap=keymap,
-      wheelPlain=enum(text,"wheelPlain",WheelAction.TIMELINE_SCROLL), wheelShift=enum(text,"wheelShift",WheelAction.PITCH_ZOOM), wheelControl=enum(text,"wheelControl",WheelAction.TIME_ZOOM), wheelAlt=enum(text,"wheelAlt",WheelAction.PITCH_SCROLL),
+      wheelPlain=enum(text,"wheelPlain",WheelAction.PITCH_SCROLL), wheelShift=enum(text,"wheelShift",WheelAction.TIMELINE_SCROLL), wheelControl=enum(text,"wheelControl",WheelAction.TIME_ZOOM), wheelAlt=enum(text,"wheelAlt",WheelAction.PITCH_ZOOM),
       rangeSelectionModifier=enum(text,"rangeSelectionModifier",GestureModifier.SHIFT), additiveSelectionModifier=enum(text,"additiveSelectionModifier",GestureModifier.CONTROL), panMouseButton=enum(text,"panMouseButton",PanMouseButton.RIGHT),
     )
   } catch (_: Exception) { EditorSettings() }
