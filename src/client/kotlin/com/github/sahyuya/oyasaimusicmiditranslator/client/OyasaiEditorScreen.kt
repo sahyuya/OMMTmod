@@ -205,7 +205,6 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
   override fun init() {
     ensureDirectories(); refreshMidiLibrary()
     if (state == "Select a MIDI file from the library") state = t("Select a MIDI file from the library", "ライブラリからMIDIファイルを選択してください")
-    UploadClient.setEncodingPreference(settings.uploadEncoding)
     val restored = editorSession.restore()
     restored?.let { saved ->
       notes.clear(); notes += saved.notes.map { it.copy() }; selectedIds.clear(); selectedIds += saved.selectedIds
@@ -773,10 +772,6 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
   private fun cycleGridDensity() {
     settings = settings.copy(gridDensity = when (settings.gridDensity) { "AUTO" -> "SPARSE"; "SPARSE" -> "NORMAL"; "NORMAL" -> "DENSE"; else -> "AUTO" })
   }
-  private fun cycleEncoding() {
-    settings = settings.copy(uploadEncoding = when (settings.uploadEncoding) { "AUTO" -> "U15"; "U15" -> "BASE64"; else -> "AUTO" })
-    UploadClient.setEncodingPreference(settings.uploadEncoding)
-  }
   private fun cycleSnap() { snapDivisor = when (snapDivisor) { 4 -> 8; 8 -> 16; 16 -> 32; 32 -> 64; 64 -> 0; else -> 4 }; state=t("Snap ${if(snapDivisor==0) "off" else "1/$snapDivisor"}", "スナップ: ${if(snapDivisor==0) "オフ" else "1/$snapDivisor"}") }
   private fun switchPart(direction: Int) { if(parts.isEmpty()) return; activePart=Math.floorMod(activePart+direction,parts.size); allPartsView=false; state=t("Editing ${parts[activePart]}", "${parts[activePart]}を編集中") }
   private fun cycleTool() { tool = when (tool) { EditorTool.SELECT -> EditorTool.DRAW; EditorTool.DRAW -> EditorTool.PAN; EditorTool.PAN -> EditorTool.SELECT } }
@@ -812,7 +807,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
       6 -> settings.copy(followLead = (settings.followLead + 5).let { if (it > 70) 20 else it })
       else -> settings
     }
-    when (row) { 4 -> cycleGridDensity(); 7 -> cycleTool(); 8 -> cycleEncoding() }
+    when (row) { 4 -> cycleGridDensity(); 7 -> cycleTool() }
     applyPanelVisibility()
     saveSettings(); state = t("Editor settings saved", "エディター設定を保存しました"); return true
   }
@@ -1938,7 +1933,6 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
         if (ImGui.sliderInt("${t("OMMT UI scale", "OMMT UIスケール")}###uiScale", scale, 75, 150, "%d%%")) { settings = settings.copy(uiScalePercent = (scale[0] / 5 * 5).coerceIn(75, 150)); changed = true }
         ImGui.textDisabled(t("Font-safe scale; independent from Minecraft GUI Scale", "MinecraftのGUIサイズとは独立した安全な表示倍率です"))
         if (ImGui.button("${t("Grid", "グリッド")}: ${settings.gridDensity}###GRID")) { cycleGridDensity(); changed = true }
-        ImGui.sameLine(); if (ImGui.button("${t("Encoding", "送信形式")}: ${settings.uploadEncoding}###ENCODING")) { cycleEncoding(); changed = true }
         ImGui.textWrapped(t("Windows can be moved, resized, tabbed and docked. The supplied Studio One-like layout is the first-run default.", "ウィンドウは移動・リサイズ・タブ化・ドッキングできます。添付のStudio One風配置が初回起動時の標準です。"))
       }else{
         capturingBinding?.let{ImGui.textColored(.73f,.91f,.41f,1f,t("Press a key combination; Backspace clears; Esc cancels", "割り当てるキーを押す / Backspaceで解除 / Escで中止"))}
@@ -1971,8 +1965,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
       "Grid density: ${settings.gridDensity}",
       "Compact toolbar: ${if (settings.compactToolbar) "on" else "off"}",
       "Follow lead: ${settings.followLead}%",
-      "Tool: $tool",
-      "Upload encoding: ${settings.uploadEncoding}"
+      "Tool: $tool"
     )
     rows.forEachIndexed { index, text -> context.drawTextWithShadow(textRenderer, text, left+10, top+38+index*20, 0xFFBFC7D5.toInt()) }
     context.drawTextWithShadow(textRenderer,"Click a row to change it. O key: Minecraft Controls.",left+10,top+178,0xFF778295.toInt())

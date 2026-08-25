@@ -15,7 +15,6 @@ data class EditorSettings(
   val showOtherParts: Boolean = true,
   val followLead: Int = 45,
   val lastTool: EditorTool = EditorTool.SELECT,
-  val uploadEncoding: String = "AUTO",
   val uiScalePercent: Int = 100,
   val keymap: EditorKeymap = EditorKeymap(),
   // Default navigation favors direct vertical movement. Every gesture remains user-remappable.
@@ -35,7 +34,7 @@ object EditorSettingsStore {
     EditorSettings(
       compactToolbar=bool(text,"compactToolbar",true), showLibrary=bool(text,"showLibrary",true), showInspector=bool(text,"showInspector",true), showAutomation=bool(text,"showAutomation",true),
       gridDensity=str(text,"gridDensity","AUTO").uppercase().takeIf { it in setOf("AUTO","SPARSE","NORMAL","DENSE") }?:"AUTO", showOtherParts=bool(text,"showOtherParts",true),
-      followLead=int(text,"followLead",45).coerceIn(20,70), lastTool=enum(text,"lastTool",EditorTool.SELECT), uploadEncoding=str(text,"uploadEncoding","AUTO").uppercase().takeIf{it in setOf("AUTO","U15","BASE64") }?:"AUTO",
+      followLead=int(text,"followLead",45).coerceIn(20,70), lastTool=enum(text,"lastTool",EditorTool.SELECT),
       uiScalePercent=int(text,"uiScalePercent",100).coerceIn(75,150), keymap=keymap,
       wheelPlain=enum(text,"wheelPlain",WheelAction.PITCH_SCROLL), wheelShift=enum(text,"wheelShift",WheelAction.TIMELINE_SCROLL), wheelControl=enum(text,"wheelControl",WheelAction.TIME_ZOOM), wheelAlt=enum(text,"wheelAlt",WheelAction.PITCH_ZOOM),
       rangeSelectionModifier=enum(text,"rangeSelectionModifier",GestureModifier.SHIFT), additiveSelectionModifier=enum(text,"additiveSelectionModifier",GestureModifier.CONTROL), panMouseButton=enum(text,"panMouseButton",PanMouseButton.RIGHT),
@@ -44,7 +43,7 @@ object EditorSettingsStore {
   fun save(value: EditorSettings) { try {
     Files.createDirectories(path.parent)
     val bindings=value.keymap.bindings.entries.sortedBy { it.key.name }.joinToString("") { (action,stroke) -> ",\"key_${action.name}\":\"${stroke.encode()}\"" }
-    val json="{\"version\":3,\"compactToolbar\":${value.compactToolbar},\"showLibrary\":${value.showLibrary},\"showInspector\":${value.showInspector},\"showAutomation\":${value.showAutomation},\"gridDensity\":\"${value.gridDensity}\",\"showOtherParts\":${value.showOtherParts},\"followLead\":${value.followLead},\"lastTool\":\"${value.lastTool}\",\"uploadEncoding\":\"${value.uploadEncoding}\",\"uiScalePercent\":${value.uiScalePercent},\"wheelPlain\":\"${value.wheelPlain}\",\"wheelShift\":\"${value.wheelShift}\",\"wheelControl\":\"${value.wheelControl}\",\"wheelAlt\":\"${value.wheelAlt}\",\"rangeSelectionModifier\":\"${value.rangeSelectionModifier}\",\"additiveSelectionModifier\":\"${value.additiveSelectionModifier}\",\"panMouseButton\":\"${value.panMouseButton}\"$bindings}"
+    val json="{\"version\":3,\"compactToolbar\":${value.compactToolbar},\"showLibrary\":${value.showLibrary},\"showInspector\":${value.showInspector},\"showAutomation\":${value.showAutomation},\"gridDensity\":\"${value.gridDensity}\",\"showOtherParts\":${value.showOtherParts},\"followLead\":${value.followLead},\"lastTool\":\"${value.lastTool}\",\"uiScalePercent\":${value.uiScalePercent},\"wheelPlain\":\"${value.wheelPlain}\",\"wheelShift\":\"${value.wheelShift}\",\"wheelControl\":\"${value.wheelControl}\",\"wheelAlt\":\"${value.wheelAlt}\",\"rangeSelectionModifier\":\"${value.rangeSelectionModifier}\",\"additiveSelectionModifier\":\"${value.additiveSelectionModifier}\",\"panMouseButton\":\"${value.panMouseButton}\"$bindings}"
     val temp=path.resolveSibling(path.fileName.toString()+".tmp"); Files.writeString(temp,json,StandardCharsets.UTF_8); try { Files.move(temp,path,StandardCopyOption.REPLACE_EXISTING,StandardCopyOption.ATOMIC_MOVE) } catch (_: java.nio.file.AtomicMoveNotSupportedException) { Files.move(temp,path,StandardCopyOption.REPLACE_EXISTING) }
   } catch (_: Exception) { } }
   private fun str(t:String,k:String,d:String)=Regex("\"$k\"\\s*:\\s*\"([^\"]*)\"").find(t)?.groupValues?.get(1)?:d

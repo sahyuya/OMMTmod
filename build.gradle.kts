@@ -68,7 +68,8 @@ dependencies {
 tasks.processResources {
     // The formal server catalog is the single source of truth for fixed Minecraft sound patterns.
     // Embed an immutable copy in the release JAR so runtime selection never depends on server I/O.
-    val formalSoundCatalog = rootProject.layout.projectDirectory.file("../MainOyasaiMusic/src/main/resources/sound-catalog.json")
+    val formalSoundCatalog = rootProject.layout.projectDirectory.file("../platform/plugins/OyasaiMusic/src/main/resources/sound-catalog.json")
+    check(formalSoundCatalog.asFile.isFile) { "Required OyasaiMusic sound catalog is missing: ${formalSoundCatalog.asFile}" }
     inputs.file(formalSoundCatalog)
     from(formalSoundCatalog) {
         into("assets/oyasaimusicmiditranslator")
@@ -119,6 +120,55 @@ tasks.register<JavaExec>("verifyUploadCodec") {
 
 tasks.named("compileTestKotlin") {
     dependsOn(tasks.named("compileClientKotlin"))
+}
+
+/** Build and verify only the maintained 1.21.11 artifact (Java 21). */
+tasks.register("build12111") {
+    group = "ommt"
+    description = "Builds and verifies the Minecraft 1.21.11 OMMT artifact."
+    dependsOn(tasks.named("build"), tasks.named("verifyUploadCodec"))
+}
+
+/** The 26.x adapter is an isolated Java-25 build; do not load it into the Java-21 Loom daemon. */
+fun register26Target(name: String, minecraft: String) =
+    tasks.register<Exec>(name) {
+        group = "ommt"
+        description = "Builds and verifies the Minecraft $minecraft OMMT artifact."
+        workingDir = file("versions/adapter-26")
+        isIgnoreExitValue = false
+        commandLine(
+            "cmd", "/d", "/c",
+            "call \"${file("gradlew.bat").absolutePath}\" --no-daemon --console=plain --project-dir . \"-Pminecraft_version=$minecraft\" clean build verifyUploadCodec",
+        )
+    }
+
+val build2612 = register26Target("build2612", "26.1.2")
+val build262 = register26Target("build262", "26.2")
+build2612.configure { mustRunAfter(tasks.named("build12111")) }
+build262.configure { mustRunAfter(build2612) }
+
+tasks.register("verify2612") {
+    group = "verification"
+    description = "Verifies the Minecraft 26.1.2 OMMT artifact and codec."
+    dependsOn(build2612)
+}
+
+tasks.register("verify262") {
+    group = "verification"
+    description = "Verifies the Minecraft 26.2 OMMT artifact and codec."
+    dependsOn(build262)
+}
+
+tasks.register("buildAllSupported") {
+    group = "ommt"
+    description = "Builds all supported OMMT artifacts: 1.21.11, 26.1.2 and 26.2."
+    dependsOn(tasks.named("build12111"), build2612, build262)
+}
+
+tasks.register("verifyAllSupported") {
+    group = "verification"
+    description = "Runs build and upload-codec verification for every supported OMMT target."
+    dependsOn(tasks.named("build12111"), tasks.named("verify2612"), tasks.named("verify262"))
 }
 
 tasks.jar {

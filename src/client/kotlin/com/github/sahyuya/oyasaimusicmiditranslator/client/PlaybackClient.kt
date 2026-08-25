@@ -4,12 +4,12 @@ import java.io.ByteArrayInputStream
 import java.io.DataInputStream
 import java.security.MessageDigest
 import java.util.UUID
-import java.util.Base64
 import java.util.zip.InflaterInputStream
 import kotlin.math.pow
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking
+import com.github.sahyuya.oyasaimusicmiditranslator.interop.OmmtPluginWire
 import net.minecraft.client.MinecraftClient
 import net.minecraft.sound.SoundEvents
 
@@ -19,19 +19,11 @@ fun bufferedElapsedMillis(nowNanos: Long, startAtNanos: Long): Int? =
 
 /** Client half of the bounded buffered route. Invalid or incomplete sessions are simply discarded. */
 object PlaybackClient {
-  private const val VERSION = 1
   private const val MAX_BUFFER = 4 * 1024 * 1024
   private const val MAX_CHUNKS = 256
   private const val MAX_NOTES_PER_TICK = 64
-  private const val TYPE_PROBE = 1
-  private const val TYPE_BEGIN = 2
-  private const val TYPE_CHUNK = 3
-  private const val TYPE_START = 4
-  private const val TYPE_PAUSE = 5
-  private const val TYPE_RESUME = 6
-  private const val TYPE_STOP = 7
   private data class Note(val time: Int, val instrument: Int, val pitch: Int, val volume: Int, val pan: Int)
-  private data class Pending(val id: UUID, val chunks: Int, val compressedBytes: Int, val hash: ByteArray, val data: Array<ByteArray?>, var decoded: List<Note>? = null)
+  private data class Pending(val id: UUID, val chunks: Int, val compressedBytes: Int, val hash: ByteArray, val data: Array<ByteArray?>, var joined: ByteArray? = null, var decoded: List<Note>? = null)
   private var pending: Pending? = null
   private var notes: List<Note> = emptyList()
   private var sessionId: UUID? = null
@@ -56,44 +48,57 @@ object PlaybackClient {
   private fun receive(raw: ByteArray) {
     try {
       val input = DataInputStream(ByteArrayInputStream(raw))
-      if (input.readUnsignedByte() != VERSION) return; val type = input.readUnsignedByte()
+      if (input.readUnsignedByte() != OmmtPluginWire.VERSION) return; val type = input.readUnsignedByte()
       val id = UUID(input.readLong(), input.readLong())
       when (type) {
-        TYPE_PROBE -> {
+        OmmtPluginWire.PLAYBACK_PROBE -> {
           val nonce = input.readUTF()
           if (input.available() != 0 || !nonce.matches(Regex("[A-Za-z0-9_-]{22}"))) return
           if (nonce == answeredProbeNonce) return
-          MinecraftClient.getInstance().networkHandler?.sendChatCommand("ommtclient a 1 $nonce")
-          answeredProbeNonce = nonce
+          if (ClientPlayNetworking.canSend(PlaybackPayload.ID)) {
+            ClientPlayNetworking.send(PlaybackPayload(OmmtPluginWire.playbackProbeResponse(nonce)))
+            answeredProbeNonce = nonce
+          }
         }
-        TYPE_BEGIN -> {
+        OmmtPluginWire.PLAYBACK_BEGIN -> {
           val total = input.readUnsignedShort(); val compressed = input.readInt(); val hash = input.readNBytes(32); val duration = input.readInt(); val mode = input.readUnsignedByte(); val lead = input.readInt()
           if (input.available() != 0 || total !in 1..MAX_CHUNKS || compressed !in 1..MAX_BUFFER || hash.size != 32 || duration < 0 || mode != 0 || lead !in 500..30_000) return
           pending = Pending(id, total, compressed, hash, arrayOfNulls(total)); notes = emptyList(); sessionId = null
         }
-        TYPE_CHUNK -> {
+        OmmtPluginWire.PLAYBACK_CHUNK -> {
           val active = pending ?: return; if (active.id != id) return
           val sequence = input.readUnsignedShort(); val total = input.readUnsignedShort(); val length = input.readUnsignedShort(); val bytes = input.readNBytes(length)
           if (input.available() != 0 || total != active.chunks || sequence !in 0 until active.chunks || length != bytes.size || length > 24 * 1024) return
           if (active.data[sequence] == null) active.data[sequence] = bytes
           if (active.data.all { it != null }) {
-            val joined=active.data.fold(ByteArray(0)) { all,next -> all+next!! }
+            val joined = ByteArray(active.compressedBytes)
+            var offset = 0
+            for (chunk in active.data) {
+              val bytes = chunk ?: return
+              if (bytes.size > joined.size - offset) { clear(); return }
+              bytes.copyInto(joined, offset)
+              offset += bytes.size
+            }
+            if (offset != joined.size) { clear(); return }
             if (joined.size != active.compressedBytes || !MessageDigest.isEqual(MessageDigest.getInstance("SHA-256").digest(joined),active.hash)) { clear(); return }
             // READY proves the exact compressed bytes can inflate and fully decode, not merely hash.
             active.decoded = try { decode(inflate(joined)) } catch (_: Exception) { clear(); return }
-            MinecraftClient.getInstance().networkHandler?.sendChatCommand("ommtclient r 1 $id ${Base64.getUrlEncoder().withoutPadding().encodeToString(active.hash)}")
+            active.joined = joined
+            if (ClientPlayNetworking.canSend(PlaybackPayload.ID)) {
+              ClientPlayNetworking.send(PlaybackPayload(OmmtPluginWire.playbackReady(id, active.hash)))
+            } else clear()
           }
         }
-        TYPE_START -> {
+        OmmtPluginWire.PLAYBACK_START -> {
           val active = pending ?: return; if (active.id != id) return
           val delay = input.readInt(); val position=input.readInt(); if (input.available() != 0 || delay !in 0..30_000 || position != 0 || active.data.any { it == null }) return
-          val joined = active.data.fold(ByteArray(0)) { all, next -> all + next!! }
+          val joined = active.joined ?: return
           if (joined.size != active.compressedBytes || !MessageDigest.isEqual(MessageDigest.getInstance("SHA-256").digest(joined), active.hash)) return
           notes = active.decoded ?: return; sessionId = id; cursor = notes.indexOfFirst { it.time >= position }.coerceAtLeast(0); pausedAtMs = 0; startAtNanos = System.nanoTime() + delay * 1_000_000L; pending = null
         }
-        TYPE_PAUSE -> if (id == sessionId) { val position = input.readInt(); if (input.available() == 0 && position >= 0) { pausedAtMs = position; startAtNanos = 0L } }
-        TYPE_RESUME -> if (id == sessionId) { val delay = input.readInt(); val position=input.readInt(); if (input.available()==0 && delay in 0..30_000 && position>=0) { pausedAtMs=position; startAtNanos = System.nanoTime() + delay * 1_000_000L - position * 1_000_000L } }
-        TYPE_STOP -> if (id == sessionId) { input.readUnsignedByte(); if (input.available()==0) clear() }
+        OmmtPluginWire.PLAYBACK_PAUSE -> if (id == sessionId) { val position = input.readInt(); if (input.available() == 0 && position >= 0) { pausedAtMs = position; startAtNanos = 0L } }
+        OmmtPluginWire.PLAYBACK_RESUME -> if (id == sessionId) { val delay = input.readInt(); val position=input.readInt(); if (input.available()==0 && delay in 0..30_000 && position>=0) { pausedAtMs=position; startAtNanos = System.nanoTime() + delay * 1_000_000L - position * 1_000_000L } }
+        OmmtPluginWire.PLAYBACK_STOP -> if (id == sessionId) { input.readUnsignedByte(); if (input.available()==0) clear() }
       }
     } catch (_: Exception) { clear() }
   }

@@ -20,7 +20,7 @@ import com.github.sahyuya.oyasaimusicmiditranslator.client.TempoMark
 
 object UploadV2CodecVerification {
   @JvmStatic fun main(args: Array<String>) {
-    unicode15RoundTripAndThreeByteAlphabet(); compactCanonicalRoundTripAndMalformedRejection(); commandBoundaryUsesUtf16AndUtf8Limits(); playbackWireGoldenAndState(); uploadFallbackState(); editorTempoAndRetriggerModel(); editorHistoryTempoIsolation(); bufferedPlaybackDoesNotStartEarly()
+    unicode15RoundTripAndThreeByteAlphabet(); compactCanonicalRoundTripAndMalformedRejection(); packetBoundaryUsesRawBytes(); playbackWireGoldenAndState(); editorTempoAndRetriggerModel(); editorHistoryTempoIsolation(); bufferedPlaybackDoesNotStartEarly()
     println("UploadV2CodecVerification: PASS")
   }
   private inline fun rejects(block: () -> Unit) { try { block(); error("expected rejection") } catch (_: IllegalArgumentException) { } }
@@ -58,11 +58,11 @@ object UploadV2CodecVerification {
     rejects { UploadV2Codec.compact(UploadV2Codec.Compact(byteArrayOf(), 100_000, tooMany)) }
   }
 
-  private fun commandBoundaryUsesUtf16AndUtf8Limits() {
-    val payload = UploadV2Codec.unicode15(ByteArray(375) { it.toByte() })
-    check(payload.length == 200 && payload.toByteArray(StandardCharsets.UTF_8).size == 600)
-    val command = "ommtupload c 2 0123456789012345678901 0 $payload"
-    check(command.length <= 255 && command.toByteArray(StandardCharsets.UTF_8).size <= 765)
+  private fun packetBoundaryUsesRawBytes() {
+    val id = UUID(1, 2)
+    val chunk = OmmtPluginWire.uploadChunk(id, 0, 1, ByteArray(OmmtPluginWire.CHUNK_BYTES))
+    check(chunk.size == OmmtPluginWire.ENVELOPE_BYTES + 6 + OmmtPluginWire.CHUNK_BYTES)
+    rejects { OmmtPluginWire.uploadChunk(id, 0, 1, ByteArray(OmmtPluginWire.CHUNK_BYTES + 1)) }
   }
   private fun playbackWireGoldenAndState() {
     val id=UUID(1,2)
@@ -74,17 +74,6 @@ object UploadV2CodecVerification {
     var generation=7L; val hash="h"; var ready:Pair<Long,String>?=null; fun local()=ready?.first==generation&&ready?.second==hash
     check(!local()); ready=generation to hash; check(local()); generation++; check(!local())
   }
-  private fun uploadFallbackState() {
-    data class Prepared(val id:String); var protocol=2;var retried=false;var request="v2";var pending=Prepared(request);val queued=mutableListOf<String>()
-    fun fallback(){val fresh="fresh-v1";protocol=1;retried=true;request=fresh;pending=pending.copy(id=fresh);queued.clear();queued+="h 1 $fresh"}
-    // Legacy MALFORMED is examined before protocol state changes, then the fallback atomically
-    // gives the retained prepared payload the fresh request id. Protocol-1 ERROR never enters it.
-    val legacyMalformed=true; if (protocol==2&&!retried&&legacyMalformed) fallback()
-    check(protocol==1&&retried&&request==pending.id&&queued.single()=="h 1 fresh-v1")
-    // READY now targets the retained fresh Prepared and queues complete v1 upload; an ERROR is terminal.
-    if (pending.id==request) queued+="b 1 ${pending.id}";check(queued.any{it.startsWith("b 1 fresh-v1")});val before=queued.size;val protocol1Error=true;if(protocol1Error) { /* terminal: no fallback */ };check(queued.size==before)
-  }
-
   private fun editorTempoAndRetriggerModel() {
     val old = listOf(TempoMark(0, 0, 500_000))
     val controls = listOf(TempoControlPoint(0, 120), TempoControlPoint(1_920, 240, AutomationCurve.SMOOTH))
