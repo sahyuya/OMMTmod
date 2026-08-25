@@ -13,7 +13,7 @@ OMMT は、Minecraft クライアント内で MIDI を編集し、OyasaiMusic �
 - 独立してドック／タブ化できる、音量、定位、テンポ、リリースの下部編集パネル
 - バニラ音域外のノートも画面上では保持し、試聴・送信時だけ再生可能音域へ収める処理
 - ノートブロック16音色に加え、「その他のMinecraftサウンド」からサウンドIDと固定パターンを検索して選択
-- OyasaiMusic への圧縮・分割コマンド送信と進捗表示
+- OyasaiMusic への圧縮・分割Plugin Message送信と進捗表示（サーバーREADY後のみ本体送信）
 - 対応サーバーでの先読みバッファ再生。MOD未導入クライアントは通常のサーバー再生へ安全にフォールバック
 
 ## 必要な前提 MOD
@@ -46,7 +46,7 @@ Minecraft 1.21.11 の現在の開発・検証構成は次の通りです。
 4. MIDIファイルを `OMMT/midi` に置き、ゲーム内で `O` キーを押してエディターを開きます。
 5. 左のMIDIライブラリから曲を選び、編集後に「下書き送信」を押します。
 
-GUIスケール、表示パネル、追従、グリッド密度、送信方式、各操作のキーマップはエディターの設定画面に保存されます。ImGuiのドッキング配置はMinecraftの `config/ommt-imgui-layout.ini` に保存されます。
+GUIスケール、表示パネル、追従、グリッド密度、各操作のキーマップはエディターの設定画面に保存されます。旧設定に残る送信形式の選択値は安全に無視され、送信形式は常に圧縮バイナリです。ImGuiのドッキング配置はMinecraftの `config/ommt-imgui-layout.ini` に保存されます。
 
 ## Minecraftサウンドの選択
 
@@ -71,25 +71,25 @@ Minecraft 26.1以降はゲーム本体が難読化されなくなり、従来の
 | 26.1.2 | 公式名API対応ビルド（実ゲーム受入は別途必要） | `OyasaiMusicMidiTranslator-mc26.1.2-1.0.0.jar` |
 | 26.2 | 公式名API対応ビルド（実ゲーム受入は別途必要） | `OyasaiMusicMidiTranslator-mc26.2-1.0.0.jar` |
 
-`OMMT-26/` は26.1.2／26.2用の独立ビルド入口です。編集モデルとImGui画面は1.21.11版と共有し、画面基底・入力・キー登録・通信ペイロードだけを26系の公式名APIへ接続します。1.21.11用JARの `fabric.mod.json` 対応範囲は広げず、Minecraft版ごとに別JARを使用してください。
+`versions/adapter-26/` は26.1.2／26.2用の最小アダプターです。編集モデルとImGui画面は1.21.11版と共有し、画面基底・入力・キー登録・通信ペイロードだけを26系の公式名APIへ接続します。1.21.11用JARの `fabric.mod.json` 対応範囲は広げず、Minecraft版ごとに別JARを使用してください。
 
 ## 開発者向けビルド
 
 1.21.11版は Java 21 で次を実行します。
 
 ```powershell
-.\gradlew.bat --offline --no-daemon clean build verifyUploadCodec
+.\gradlew.bat --no-daemon build12111
 ```
 
-26.x版は Java 25 と Gradle 9.6.1を使用します。既定の26.2版は `OMMT-26/` で同じタスクを実行します。26.1.2版は次のGradleプロジェクトプロパティを環境変数で指定して同じタスクを実行します。
+26.x版は Java 25 を使用します。同じ`OMMT`ディレクトリから個別または一括で実行できます。
 
 ```powershell
-$env:ORG_GRADLE_PROJECT_minecraft_version='26.1.2'
-$env:ORG_GRADLE_PROJECT_fabric_version='0.155.2+26.1.2'
-$env:ORG_GRADLE_PROJECT_fabric_gui_imgui_version='26.1-1.0.11+imgui.1.92.0'
-gradle --offline --no-daemon clean build verifyUploadCodec
+.\gradlew.bat --no-daemon build2612
+.\gradlew.bat --no-daemon build262
+.\gradlew.bat --no-daemon buildAllSupported
+.\gradlew.bat --no-daemon verifyAllSupported
 ```
 
-成果物は `OMMT-26/build/26.1.2/libs/` と `OMMT-26/build/26.2/libs/` に分離され、一方のビルドで他方を削除しません。ビルド・codec検証の成功は、実ゲームでの描画・入力・接続確認を代替しません。
+成果物は `build/libs/`、`versions/adapter-26/build/26.1.2/libs/`、`versions/adapter-26/build/26.2/libs/` に分離され、一方のビルドで他方を削除しません。ビルド・codec検証の成功は、実ゲームでの描画・入力・接続確認を代替しません。
 
 共有通信仕様、サイズ上限、互換性、失敗時のフォールバックは [`../docs/interop/INTEROP_CONTRACT.md`](../docs/interop/INTEROP_CONTRACT.md) を参照してください。
