@@ -134,11 +134,16 @@ fun register26Target(name: String, minecraft: String) =
     tasks.register<Exec>(name) {
         group = "ommt"
         description = "Builds and verifies the Minecraft $minecraft OMMT artifact."
-        workingDir = file("versions/adapter-26")
+        val adapterProjectDir = file("versions/adapter-26").absoluteFile
+        val adapterWrapper = adapterProjectDir.resolve("gradlew.bat")
+        check(adapterWrapper.isFile) {
+            "Missing isolated Gradle wrapper for the Java-25 adapter: $adapterWrapper"
+        }
+        workingDir = adapterProjectDir
         isIgnoreExitValue = false
         commandLine(
             "cmd", "/d", "/c",
-            "call \"${file("gradlew.bat").absolutePath}\" --no-daemon --console=plain --project-dir . \"-Pminecraft_version=$minecraft\" clean build verifyUploadCodec",
+            "call \"${adapterWrapper.absolutePath}\" --no-daemon --console=plain --project-dir \"${adapterProjectDir.absolutePath}\" \"-Pminecraft_version=$minecraft\" clean build verifyUploadCodec",
         )
     }
 
