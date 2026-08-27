@@ -63,6 +63,14 @@ data class RenderedNoteEvent(
 )
 
 object EditorAutomation {
+  fun durationForDivision(note: EditorNote, divisor: Int, marks: List<TempoMark>, ppq: Int): Int {
+    require(divisor in setOf(1, 2, 4, 8, 16, 32, 64)) { "Unsupported note-length division" }
+    val safePpq = ppq.coerceAtLeast(1)
+    val startTick = note.sourceTick.takeIf { it >= 0 } ?: tickAtTime(note.time, marks, safePpq)
+    val durationTicks = divisionTicks(safePpq, divisor, 1)
+    return (timeAtTick(startTick + durationTicks, marks, safePpq) - timeAtTick(startTick, marks, safePpq)).coerceIn(1, 60_000)
+  }
+
   fun timeAtTick(tick: Long, marks: List<TempoMark>, ppq: Int): Int {
     val safeMarks = marks.ifEmpty { listOf(TempoMark(0, 0, 500_000)) }
     val point = safeMarks.lastOrNull { it.tick <= tick } ?: safeMarks.first()

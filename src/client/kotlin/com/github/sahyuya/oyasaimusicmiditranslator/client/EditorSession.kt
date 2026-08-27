@@ -20,7 +20,7 @@ data class EditorNote(
     /** Musical position retained for tempo-envelope retiming. Negative means "derive from ms". */
     var sourceTick: Long = -1L,
     var sourceDurationTicks: Long = -1L,
-    /** A note-level pseudo-release override. null inherits part, then global settings. */
+    /** Note-level pseudo-release. null means that pseudo-release is disabled for this note. */
     var retriggerOverride: RetriggerProfile? = null,
     /** Built-in Minecraft sound event ID. null uses the stable note-block instrument. */
     var customSound: String? = null,

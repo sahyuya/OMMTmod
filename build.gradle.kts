@@ -1,5 +1,6 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.gradle.api.tasks.bundling.AbstractArchiveTask
 
 plugins {
     kotlin("jvm") version "2.4.10"
@@ -12,6 +13,13 @@ group = project.property("maven_group") as String
 
 base {
     archivesName.set(project.property("archives_base_name") as String)
+}
+
+val minecraftVersion = project.property("minecraft_version") as String
+tasks.withType<AbstractArchiveTask>().configureEach {
+    if (name == "remapJar") {
+        archiveFileName.set("${project.property("archives_base_name")}-${project.version}-fabric$minecraftVersion.jar")
+    }
 }
 
 val targetJavaVersion = (findProperty("java_version")?.toString() ?: "21").toInt()

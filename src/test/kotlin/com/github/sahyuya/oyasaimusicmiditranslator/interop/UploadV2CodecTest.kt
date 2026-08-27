@@ -11,16 +11,27 @@ import kotlin.math.roundToInt
 import com.github.sahyuya.oyasaimusicmiditranslator.client.AutomationCurve
 import com.github.sahyuya.oyasaimusicmiditranslator.client.bufferedElapsedMillis
 import com.github.sahyuya.oyasaimusicmiditranslator.client.EditorAutomation
+import com.github.sahyuya.oyasaimusicmiditranslator.client.EditorAction
 import com.github.sahyuya.oyasaimusicmiditranslator.client.EditorHistory
+import com.github.sahyuya.oyasaimusicmiditranslator.client.EditorKeyStroke
+import com.github.sahyuya.oyasaimusicmiditranslator.client.EditorKeymap
 import com.github.sahyuya.oyasaimusicmiditranslator.client.EditorNote
+import com.github.sahyuya.oyasaimusicmiditranslator.client.EditorProjectCodec
+import com.github.sahyuya.oyasaimusicmiditranslator.client.EditorSelection
+import com.github.sahyuya.oyasaimusicmiditranslator.client.EditorSettings
+import com.github.sahyuya.oyasaimusicmiditranslator.client.EditorSettingsBundleCodec
+import com.github.sahyuya.oyasaimusicmiditranslator.client.EditorSnapshot
+import com.github.sahyuya.oyasaimusicmiditranslator.client.EditorTheme
+import com.github.sahyuya.oyasaimusicmiditranslator.client.GridMark
 import com.github.sahyuya.oyasaimusicmiditranslator.client.ReleaseControlPoint
 import com.github.sahyuya.oyasaimusicmiditranslator.client.RetriggerProfile
+import com.github.sahyuya.oyasaimusicmiditranslator.client.SignatureMark
 import com.github.sahyuya.oyasaimusicmiditranslator.client.TempoControlPoint
 import com.github.sahyuya.oyasaimusicmiditranslator.client.TempoMark
 
 object UploadV2CodecVerification {
   @JvmStatic fun main(args: Array<String>) {
-    unicode15RoundTripAndThreeByteAlphabet(); compactCanonicalRoundTripAndMalformedRejection(); packetBoundaryUsesRawBytes(); playbackWireGoldenAndState(); editorTempoAndRetriggerModel(); editorHistoryTempoIsolation(); bufferedPlaybackDoesNotStartEarly()
+    unicode15RoundTripAndThreeByteAlphabet(); compactCanonicalRoundTripAndMalformedRejection(); packetBoundaryUsesRawBytes(); playbackWireGoldenAndState(); editorTempoAndRetriggerModel(); editorHistoryTempoIsolation(); editorProjectAndSettingsRoundTrip(); selectionAndMusicalLength(); bufferedPlaybackDoesNotStartEarly()
     println("UploadV2CodecVerification: PASS")
   }
   private inline fun rejects(block: () -> Unit) { try { block(); error("expected rejection") } catch (_: IllegalArgumentException) { } }
@@ -113,6 +124,47 @@ object UploadV2CodecVerification {
     history.push(state)
     history.clear()
     check(history.undo(state) == null)
+  }
+
+  private fun editorProjectAndSettingsRoundTrip() {
+    val release = RetriggerProfile(true, 500, 125, 100, 55, AutomationCurve.SMOOTH, middlePoints=listOf(ReleaseControlPoint(40, 80)))
+    val first = EditorNote(250, 500, 0, 12, 90, -10, part=0, sourceTrack=1, sourceChannel=2, sourceTick=240, sourceDurationTicks=480, retriggerOverride=release)
+    val second = EditorNote(1_000, 250, 0, 36, 70, 20, part=1, sourceTrack=3, sourceChannel=4, sourceTick=960, sourceDurationTicks=240, customSound="minecraft:block.note_block.harp", customSoundPattern=1)
+    val snapshot = EditorSnapshot(
+        notes=listOf(first,second), selectedIds=setOf(second.id), selected=1, title="Project テスト", bpm=120, offset=200, span=4_000,
+        part=1, parts=listOf("Lead","Bass renamed"), ppq=480, beats=4, unit=4, pitchMin=-12, visiblePitches=49,
+        snapDivisor=16, followPlayback=true, playheadMs=750, allPartsView=false,
+        tempos=listOf(TempoMark(0,0,500_000)), signatures=listOf(SignatureMark(0,4,4)),
+        grid=listOf(GridMark(0,0,1,1,0,true,true)), tempoControls=listOf(TempoControlPoint(0,120)),
+    )
+    val encoded = EditorProjectCodec.encode(snapshot)
+    val decoded = EditorProjectCodec.decode(encoded)
+    check(decoded.title==snapshot.title && decoded.parts==snapshot.parts && decoded.notes.size==2)
+    check(decoded.notes[0].retriggerOverride==release.normalized())
+    check(decoded.notes[1].customSound==second.customSound && decoded.notes[1].customSoundPattern==1)
+    check(decoded.selectedIds==setOf(decoded.notes[1].id) && decoded.selected==1)
+    rejects { EditorProjectCodec.decode(encoded.copyOf().also { it[0]=0 }) }
+    rejects { EditorProjectCodec.decode(encoded + 0) }
+
+    // Keep this pure verifier independent from LWJGL's native DLL. Runtime key names are covered
+    // by the same codec, while UNBOUND exercises every action slot without native GLFW calls.
+    val portableKeymap = EditorKeymap(EditorAction.entries.associateWith { EditorKeyStroke.UNBOUND })
+    val settings = EditorSettings(theme=EditorTheme.MIDNIGHT_BLUE, uiScalePercent=125, showLibrary=false, keymap=portableKeymap)
+    val text = EditorSettingsBundleCodec.encode(settings,"[Window][PIANO ROLL]\nPos=1,2\n")
+    val bundle = EditorSettingsBundleCodec.decode(text)
+    check(bundle.settings.theme==EditorTheme.MIDNIGHT_BLUE && bundle.settings.uiScalePercent==125 && !bundle.settings.showLibrary)
+    check(bundle.layout.contains("PIANO ROLL"))
+    rejects { EditorSettingsBundleCodec.decode("not-an-ommt-setting") }
+  }
+
+  private fun selectionAndMusicalLength() {
+    check(!EditorSelection.intersectsMarquee(1_000,250,12,500,1_000,10,14))
+    check(EditorSelection.intersectsMarquee(400,250,12,500,1_000,10,14))
+    check(EditorSelection.intersectsMarquee(500,250,12,500,1_000,10,14))
+    val tempo=listOf(TempoMark(0,0,500_000))
+    val note=EditorNote(0,500,0,12,100,0,sourceTick=0,sourceDurationTicks=480)
+    check(EditorAutomation.durationForDivision(note,4,tempo,480)==500)
+    check(EditorAutomation.durationForDivision(note,64,tempo,480) in 31..32)
   }
 
   private fun bufferedPlaybackDoesNotStartEarly() {

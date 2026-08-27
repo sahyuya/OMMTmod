@@ -1,5 +1,6 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.gradle.api.tasks.bundling.AbstractArchiveTask
 
 plugins {
     kotlin("jvm") version "2.4.10"
@@ -24,6 +25,14 @@ check(formalSoundCatalog.isFile) { "Required OyasaiMusic sound catalog is missin
 layout.buildDirectory.set(layout.projectDirectory.dir("build/$minecraftVersion"))
 
 base { archivesName.set("${project.property("archives_base_name")}-mc$minecraftVersion") }
+
+tasks.withType<AbstractArchiveTask>().configureEach {
+    // Loom's 26.x official-name pipeline publishes the playable archive from `jar`
+    // (there is no remapJar task), while retaining this for future Loom compatibility.
+    if (name == "jar" || name == "remapJar") {
+        archiveFileName.set("${project.property("archives_base_name")}-${project.version}-fabric$minecraftVersion.jar")
+    }
+}
 
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(25)
