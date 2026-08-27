@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="OMMTの表示倍率、配色、レイアウト、キーマップ、設定共有と、よくある問題の解決方法。">
+  <title>設定・困ったとき · OMMTユーザーWiki</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">本文へ移動</a>
+  <header class="site-header"><div class="header-inner">
+    <a class="brand" href="index.html"><span class="brand-mark">OM</span><span>OMMT User Wiki</span></a>
+    <nav aria-label="メインナビゲーション"><ul class="nav-list">
+      <li><a href="index.html">はじめに</a></li><li><a href="install.html">導入</a></li><li><a href="editing.html">編集</a></li><li><a href="save-upload.html">保存・送信</a></li><li><a aria-current="page" href="settings-help.html">設定・ヘルプ</a></li>
+    </ul></nav>
+  </div></header>
+
+  <main id="main" class="page-shell">
+    <header class="page-heading">
+      <p class="eyebrow">Settings & support</p>
+      <h1>自分に合う画面と操作にする</h1>
+      <p>OMMT専用の表示倍率、配色、ウィンドウ配置、キー、ホイール操作を調整できます。設定は文字列でバックアップ・共有できます。</p>
+    </header>
+
+    <div class="content-layout">
+      <aside class="toc" aria-label="このページの目次"><strong>このページ</strong><ul>
+        <li><a href="#open">設定を開く</a></li>
+        <li><a href="#appearance">表示と配色</a></li>
+        <li><a href="#layout">レイアウト</a></li>
+        <li><a href="#keymap">キーとマウス</a></li>
+        <li><a href="#share">設定の保存・共有</a></li>
+        <li><a href="#troubleshooting">よくある問題</a></li>
+        <li><a href="#report">不具合報告</a></li>
+      </ul></aside>
+
+      <article class="article">
+        <section id="open">
+          <h2>設定を開く</h2>
+          <p>OMMT上部の<strong>「設定」</strong>、または初期キーの<kbd>Ctrl</kbd>+<kbd>,</kbd>で開きます。設定画面は次の3ページに分かれています。</p>
+          <table class="comparison">
+            <thead><tr><th>ページ</th><th>主な内容</th></tr></thead>
+            <tbody>
+              <tr><td>一般</td><td>OMMT UIスケール、配色、グリッド密度、表示パネルなど</td></tr>
+              <tr><td>キーマップ</td><td>ショートカット、ホイール、範囲選択、選択追加、パン操作</td></tr>
+              <tr><td>インポート／エクスポート</td><td>配色・レイアウト・キーマップ・編集設定のバックアップと共有</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section id="appearance">
+          <h2>表示倍率と配色</h2>
+          <h3>OMMT UIスケール</h3>
+          <p>OMMTはMinecraft本体のGUIサイズとは別に、75%～150%の表示倍率を持っています。文字が小さい場合は少し上げ、ノートインスペクターやボタンが収まりにくい場合は少し下げます。</p>
+          <div class="tip"><strong>調整の目安</strong>一度に大きく変えず、5%ずつ変更して文字、ピアノロール、右インスペクターが同時に見える倍率を探すと整えやすくなります。</div>
+
+          <h3>配色テーマ</h3>
+          <p>「配色テーマ」から好みの色を選べます。長時間編集する場合は、ノート、選択色、再生ヘッド、バニラ音域外の背景を見分けやすいテーマを選んでください。テーマを変えても楽曲内容は変わりません。</p>
+
+          <h3>グリッド密度</h3>
+          <p>グリッドが細かすぎて小節やノートが見づらい場合は密度を下げます。AUTOでは表示倍率に合わせて、小節、1/4、1/8、1/16、1/32、1/64の線を段階的に間引きます。</p>
+        </section>
+
+        <section id="layout">
+          <h2>ウィンドウの配置を変える</h2>
+          <p>MIDIライブラリ、ピアノロール、ノートインスペクター、音量、定位、テンポ、リリースは、移動、サイズ変更、タブ化、ドッキングができます。</p>
+          <ol>
+            <li>各パネル上部のタイトル部分をドラッグします。</li>
+            <li>配置候補が表示された場所で離すとドッキングします。</li>
+            <li>同じ場所へ重ねるとタブとしてまとめられます。</li>
+            <li>境界をドラッグすると、パネル同士の広さを調整できます。</li>
+          </ol>
+          <div class="example">
+            <div class="example-title">例: ピアノロールを広く使う</div>
+            <div class="example-body"><p>音量、定位、テンポ、リリースを画面下の同じ場所へ重ね、4つのタブとしてまとめます。ノートインスペクターを右端、ライブラリを左端に置くと、中央のピアノロールを広く保てます。</p></div>
+          </div>
+        </section>
+
+        <section id="keymap">
+          <h2>キーとマウス操作を変える</h2>
+          <p>キーマップでは、操作名の横にある現在のキーを押してから、新しい組み合わせを入力します。Backspaceで割り当て解除、Escで変更中止です。</p>
+          <p>マウスホイールは、修飾キーなし、Shift、Ctrl、Altのそれぞれへ次の操作を割り当てられます。</p>
+          <ul>
+            <li>タイムライン移動</li>
+            <li>時間方向の拡大縮小</li>
+            <li>音高方向の拡大縮小</li>
+            <li>音高方向の移動</li>
+            <li>無効</li>
+          </ul>
+          <p>範囲選択と選択への追加に使う修飾キー、タイムラインのパンに使う右／中クリックも変更できます。</p>
+          <div class="warning"><strong>同じキーの重複に注意</strong>複数の編集操作へ同じ組み合わせを割り当てると、意図した操作を呼び出しにくくなります。変更後は簡単なノート選択と再生で確認してください。</div>
+        </section>
+
+        <section id="share">
+          <h2>設定を文字列でバックアップ・共有する</h2>
+          <p>「インポート／エクスポート」では、現在の配色、ウィンドウ配置、キーマップ、表示・操作設定を1つの文字列にできます。</p>
+
+          <h3>エクスポートする</h3>
+          <ol>
+            <li><strong>「エクスポート」</strong>を押します。</li>
+            <li>表示された<code>OMMTCFG1:</code>から始まる文字列を<strong>「コピー」</strong>します。</li>
+            <li>自分だけが分かるメモなどへ保存します。</li>
+          </ol>
+
+          <h3>インポートする</h3>
+          <ol>
+            <li>設定文字列をコピーします。</li>
+            <li>OMMTの設定画面で<strong>「貼り付け」</strong>を押します。</li>
+            <li><strong>「インポート」</strong>を押し、配置と操作を確認します。</li>
+          </ol>
+          <div class="notice"><strong>曲は含まれません</strong>設定文字列にMIDI、<code>.ommt</code>プロジェクト、ノート、曲名は含まれません。曲を移す場合は<code>OMMT/midi</code>または<code>OMMT/saves</code>のファイルを別途コピーしてください。</div>
+        </section>
+
+        <section id="troubleshooting">
+          <h2>よくある問題</h2>
+
+          <h3>MIDIが一覧へ出ない</h3>
+          <ul>
+            <li>ファイルの拡張子が<code>.mid</code>または<code>.midi</code>か確認します。</li>
+            <li>「フォルダーを開く」で表示された場所へ入れたか確認します。</li>
+            <li>ファイル追加後に「更新」を押します。</li>
+          </ul>
+
+          <h3><code>.ommt</code>が見つからない</h3>
+          <p>左ライブラリを「MIDI」ではなく<strong>「プロジェクト」</strong>へ切り替えます。保存ファイルは<code>OMMT/saves</code>にあります。</p>
+
+          <h3>ボタンや項目が見切れる</h3>
+          <p>OMMT UIスケールを少し下げ、ウィンドウ境界をドラッグして広げます。使わないパネルをタブへまとめるとピアノロールを広くできます。</p>
+
+          <h3>ホイールの方向や役割が合わない</h3>
+          <p>設定→キーマップ→マウスホイールで、修飾キーごとの操作を変更します。自分が普段使うDAWと同じ割り当てにすると混乱しにくくなります。</p>
+
+          <h3>下書き送信が使えない／失敗する</h3>
+          <ul>
+            <li>おやさいサーバーへ接続しているか確認します。</li>
+            <li>送信権限があるか確認します。</li>
+            <li>進行中の送信を連続で開始せず、完了またはエラー表示まで待ちます。</li>
+            <li>エラーに使用できないサウンドや曲サイズが示された場合は、該当部分を直してから再送します。</li>
+          </ul>
+
+          <h3>配置が大きく崩れて操作できない</h3>
+          <p>正常なときにエクスポートした設定文字列があれば、それをインポートします。バックアップがない場合はMinecraftを終了し、プロフィールの<code>config/ommt-imgui-layout.ini</code>を別の場所へ退避してから再起動すると、初期配置を作り直せます。退避したファイルは、確認が終わるまで削除しないでください。</p>
+        </section>
+
+        <section id="report">
+          <h2>解決しない場合の報告先</h2>
+          <p>おやさいサーバーDiscordの<strong>showcaseにあるOMMTのスレッド</strong>へ報告してください。</p>
+          <p><a class="button primary" href="https://discord.gg/rgKayZPW6X">おやさいサーバーDiscordを開く</a></p>
+          <p>次の内容があると、状況を確認しやすくなります。</p>
+          <ul class="checklist">
+            <li>Minecraftのバージョン</li>
+            <li>OMMTのバージョン</li>
+            <li>行った操作と、期待した結果</li>
+            <li>実際に起きた内容</li>
+            <li>可能ならスクリーンショットまたはログ</li>
+          </ul>
+          <p>MIDIファイルは、共有してよい権利があり、自分が共有して問題ない場合だけ添付してください。</p>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer class="site-footer"><div class="footer-inner"><p>OMMT 2.1.0 · Oyasai Server専用</p><p>不具合報告: <a href="https://discord.gg/rgKayZPW6X">Discordのshowcase内OMMTスレッド</a></p></div></footer>
+</body>
+</html>

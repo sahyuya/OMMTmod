@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="OMMTのピアノロールでMIDIのノート、パート、楽器、音量、定位、テンポ、疑似リリースを編集する方法。">
+  <title>MIDIを編集する · OMMTユーザーWiki</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">本文へ移動</a>
+  <header class="site-header"><div class="header-inner">
+    <a class="brand" href="index.html"><span class="brand-mark">OM</span><span>OMMT User Wiki</span></a>
+    <nav aria-label="メインナビゲーション"><ul class="nav-list">
+      <li><a href="index.html">はじめに</a></li><li><a href="install.html">導入</a></li><li><a aria-current="page" href="editing.html">編集</a></li><li><a href="save-upload.html">保存・送信</a></li><li><a href="settings-help.html">設定・ヘルプ</a></li>
+    </ul></nav>
+  </div></header>
+
+  <main id="main" class="page-shell">
+    <header class="page-heading">
+      <p class="eyebrow">Guides 02–04</p>
+      <h1>MIDIを編集する</h1>
+      <p>曲全体を見渡し、必要な音を選び、パート・音高・長さ・楽器・音量・定位・テンポ・疑似リリースを整えます。</p>
+    </header>
+
+    <div class="content-layout">
+      <aside class="toc" aria-label="このページの目次"><strong>このページ</strong><ul>
+        <li><a href="#load">読み込み後の確認</a></li>
+        <li><a href="#view">全体／パート表示</a></li>
+        <li><a href="#notes">ノートの選択と編集</a></li>
+        <li><a href="#parts">パートの整理</a></li>
+        <li><a href="#instrument">楽器とサウンド</a></li>
+        <li><a href="#automation">音量・定位・テンポ</a></li>
+        <li><a href="#release">選択音の疑似リリース</a></li>
+        <li><a href="#shortcuts">初期操作一覧</a></li>
+      </ul></aside>
+
+      <article class="article">
+        <section id="load">
+          <h2>読み込み後に最初に確認する</h2>
+          <p>MIDIを読み込むと、OMMTは元のトラックとチャンネルをもとにパートを分け、各パートを色分けして表示します。同じ楽器でも元のMIDIで別パートなら、別のまま扱われます。</p>
+          <ol class="step-list">
+            <li><strong>曲名とBPMを見る。</strong><br>上部に曲名と現在のBPMが表示されます。まず想定した曲を読み込めたか確認します。</li>
+            <li><strong>「全体表示」を押す。</strong><br>曲の時間方向と音高方向を収め、どこにノートがあるかを見渡します。</li>
+            <li><strong>「全体」タブでパート構成を見る。</strong><br>異なる色のノートとパートタブを確認し、主旋律、伴奏、ベース、ドラムなどの役割をつかみます。</li>
+            <li><strong>再生して大まかに確認する。</strong><br>スペースまたは「再生」でローカル試聴し、楽器や音量が極端でないか確認します。</li>
+          </ol>
+          <div class="tip"><strong>ノートがバニラ音域の外にある場合</strong>ピアノロールでは元の音高のまま表示され、音域外の背景色で区別されます。試聴と送信時には、対応する音をMinecraftで鳴らせる音域へ収めます。</div>
+        </section>
+
+        <section id="view">
+          <h2>全体表示とパート編集を使い分ける</h2>
+          <table class="comparison">
+            <thead><tr><th>表示</th><th>向いている作業</th><th>見え方</th></tr></thead>
+            <tbody>
+              <tr><td><strong>全体</strong></td><td>曲の構成確認、パート間の重なり確認、複数パートにまたがる選択</td><td>すべてのパートを色分けして表示</td></tr>
+              <tr><td><strong>各パート</strong></td><td>主旋律だけを調整、ベースだけを移動、特定楽器の音量を整理</td><td>編集中パートを中心に表示し、ほかのパートは設定に応じて補助表示</td></tr>
+            </tbody>
+          </table>
+          <p>パート数が多い曲では、ピアノロール上のパートタブ専用スクロールを使って目的のパートを探します。タイムラインの表示位置とは別に動くため、パートを探しても曲の再生位置は変わりません。</p>
+        </section>
+
+        <section id="notes">
+          <h2>ノートを選択・移動・伸縮する</h2>
+          <p>次は初期設定の操作です。設定画面のキーマップとマウスホイール設定で、自分の操作へ変更できます。</p>
+          <div class="gesture-grid">
+            <div class="gesture"><strong>左クリック</strong><span>1音を選択します。</span></div>
+            <div class="gesture"><strong><kbd>Ctrl</kbd> + 左クリック</strong><span>選択へ追加します。空白上では新しいノートを追加します。</span></div>
+            <div class="gesture"><strong><kbd>Shift</kbd> + ドラッグ</strong><span>ボックス内のノートを範囲選択します。</span></div>
+            <div class="gesture"><strong>選択音をドラッグ</strong><span>少し動かすと移動を開始し、スナップに沿って配置します。</span></div>
+            <div class="gesture"><strong>ノート右端をドラッグ</strong><span>スナップに沿って長さを変更します。</span></div>
+            <div class="gesture"><strong>右ドラッグ</strong><span>ピアノロールをパンします。</span></div>
+          </div>
+
+          <h3>ノートインスペクターで数値を整える</h3>
+          <p>選択したノートは右側のノートインスペクターから編集できます。複数音を選択した場合は、代表音を基準に相対編集できます。</p>
+          <ul>
+            <li><strong>開始・長さ:</strong> 長さはミリ秒、または1/1～1/64の音価で指定できます。音価を使うと各ノート位置のテンポに合わせて長さが決まります。</li>
+            <li><strong>音高:</strong> ±1で半音、±12で1オクターブ移動します。</li>
+            <li><strong>楽器:</strong> 音符ブロック楽器または対応するMinecraftサウンドを選びます。</li>
+            <li><strong>音量・定位:</strong> 選択した音をまとめて大きく／小さく、左／右へ調整します。</li>
+          </ul>
+
+          <div class="example">
+            <div class="example-title">例: 主旋律だけを1オクターブ上げる</div>
+            <div class="example-body">
+              <p>主旋律のパートを開き、上げたい範囲を<kbd>Shift</kbd>+ドラッグで選択します。ノートインスペクターの<strong>+12</strong>を押すと、選択音だけが1オクターブ上へ移動します。再生して高すぎる場合は<strong>-12</strong>で戻せます。</p>
+            </div>
+          </div>
+
+          <h3>スナップの選び方</h3>
+          <p>「スナップ」ボタンを押すたびに間隔が切り替わります。大きな構成移動は1/4や1/8、細かい装飾音は1/16～1/64が便利です。スナップOFFでは自由に動かせますが、リズムがずれやすいため試聴で確認してください。</p>
+        </section>
+
+        <section id="parts">
+          <h2>選択音をパートへ整理する</h2>
+          <p>パートは、音色や役割ごとにノートをまとめる単位です。元のMIDIの分け方をそのまま使うことも、OMMT内で整理し直すこともできます。</p>
+
+          <h3>選択音から新しいパートを作る</h3>
+          <ol>
+            <li>分けたいノートを1音、追加選択、または範囲選択で選びます。</li>
+            <li>ノートインスペクターの<strong>「選択音からパート作成」</strong>を押します。</li>
+            <li>作成されたパートを開き、楽器や名前を調整します。</li>
+          </ol>
+
+          <h3>既存パートへ移動する</h3>
+          <ol>
+            <li>移動したいノートを選びます。</li>
+            <li>ノートインスペクターの<strong>「選択音の移動先」</strong>から目的のパートを選びます。</li>
+            <li><strong>「既存パートへ移動」</strong>を押します。</li>
+          </ol>
+
+          <h3>パート名を変更する</h3>
+          <p>変更したいパートをアクティブにして、「現在のパート名」へ分かりやすい名前を入力し、<strong>「パート名を変更」</strong>を押します。</p>
+
+          <div class="example">
+            <div class="example-title">例: 1つのピアノパートを「主旋律」と「伴奏」に分ける</div>
+            <div class="example-body">
+              <p>高音側の主旋律を範囲選択し、「選択音からパート作成」で分離します。新しいパート名を「主旋律」に変更し、元のパートを「伴奏」に変更します。その後、主旋律だけ楽器や音量を変えると役割が分かりやすくなります。</p>
+            </div>
+          </div>
+        </section>
+
+        <section id="instrument">
+          <h2>楽器とMinecraftサウンドを選ぶ</h2>
+          <p>通常は、ノートインスペクターの楽器一覧からハープ／ピアノ、ベース、バスドラム、スネアなどの音符ブロック楽器を選びます。楽器名の横には、その音になるブロック系統も表示されます。</p>
+          <p><strong>「その他のMinecraftサウンド」</strong>を選ぶと、サウンド検索、サウンドID、パターンの欄が現れます。</p>
+          <ol>
+            <li>検索欄へ<code>bell</code>、<code>ambient</code>など、探したい名前の一部を入力します。</li>
+            <li>候補から使いたいMinecraftサウンドを選びます。</li>
+            <li>同じIDに複数の音がある場合は、パターンを切り替えて単一の音を選びます。</li>
+            <li>「適用」を押し、ローカル再生で確認します。</li>
+          </ol>
+          <div class="warning"><strong>候補にない音</strong>おやさいサーバー側でまだ使用できない新しいMinecraftサウンドは、対応版クライアントでも候補に表示されない場合があります。</div>
+        </section>
+
+        <section id="automation">
+          <h2>音量・定位・テンポを整える</h2>
+          <p>ピアノロール下部には、音量、定位、テンポ、リリースの編集パネルがあります。各パネルは独立して移動・タブ化・配置できます。</p>
+          <ul>
+            <li><strong>音量:</strong> ノートごとの棒や点を上下に動かし、大きさを調整します。</li>
+            <li><strong>定位:</strong> 左右の広がりを調整します。中央は0です。</li>
+            <li><strong>テンポ:</strong> 再生位置にテンポ点を追加し、BPMと曲線を設定します。複数点を使うと曲の途中でテンポを変えられます。</li>
+          </ul>
+          <div class="example">
+            <div class="example-title">例: サビへ向けて少し速くする</div>
+            <div class="example-body"><p>テンポパネルを開き、変化を始める位置とサビの位置へテンポ点を置きます。最初の点を120 BPM、サビ側を128 BPMにし、段階的ではなく滑らかな曲線を選びます。ピアノロールの再生位置とテンポ点の位置を見比べながら試聴します。</p></div>
+          </div>
+        </section>
+
+        <section id="release">
+          <h2>選択音だけに疑似リリースを付ける</h2>
+          <p>疑似リリースは、長いノートを一定間隔で繰り返し鳴らし、音量カーブで減衰や上昇を作る機能です。OMMT 2.1.0では<strong>選択したノートだけ</strong>に適用されます。</p>
+          <ol class="step-list">
+            <li><strong>対象ノートを選ぶ。</strong><br>弦や持続音など、伸ばしたいノートだけを選択します。</li>
+            <li><strong>リリースパネルを開き、有効にする。</strong><br>選択音数が想定どおりか確認します。</li>
+            <li><strong>連打判定と間隔を決める。</strong><br>ミリ秒、または1/1～1/64などの音価から選びます。間隔はさらに1/128まで選べます。</li>
+            <li><strong>音量カーブを作る。</strong><br>開始音量、終了音量、曲線を決めます。必要なら中間点を最大2つ追加し、上下左右へ動かします。</li>
+            <li><strong>適用して試聴する。</strong><br>連打が細かすぎないか、終わり方が自然か確認します。</li>
+          </ol>
+          <div class="tip"><strong>安全な始め方</strong>まず長いノートを1音だけ選び、控えめな間隔と100%→55%程度の減衰で試してください。意図した音になったら同じ役割のノートを追加選択して適用すると調整しやすくなります。</div>
+        </section>
+
+        <section id="shortcuts">
+          <h2>よく使う初期操作</h2>
+          <table class="comparison">
+            <thead><tr><th>操作</th><th>初期入力</th><th>用途</th></tr></thead>
+            <tbody>
+              <tr><td>再生／一時停止</td><td><kbd>Space</kbd></td><td>現在位置からローカル試聴</td></tr>
+              <tr><td>先頭へ戻る</td><td><kbd>Home</kbd></td><td>再生位置を先頭へ</td></tr>
+              <tr><td>曲全体を表示</td><td><kbd>F</kbd></td><td>時間と音高を画面へ収める</td></tr>
+              <tr><td>コピー／切り取り／貼り付け</td><td><kbd>Ctrl</kbd>+<kbd>C</kbd>／<kbd>X</kbd>／<kbd>V</kbd></td><td>選択音を編集</td></tr>
+              <tr><td>Undo／Redo</td><td><kbd>Ctrl</kbd>+<kbd>Z</kbd>／<kbd>Y</kbd></td><td>編集を戻す／やり直す</td></tr>
+              <tr><td>削除</td><td><kbd>Delete</kbd></td><td>選択音を削除</td></tr>
+              <tr><td>全選択</td><td><kbd>Ctrl</kbd>+<kbd>A</kbd></td><td>現在の表示対象を全選択</td></tr>
+              <tr><td>スナップ切替</td><td><kbd>S</kbd></td><td>スナップ値を順番に切替</td></tr>
+              <tr><td>設定</td><td><kbd>Ctrl</kbd>+<kbd>,</kbd></td><td>OMMT設定を開く</td></tr>
+            </tbody>
+          </table>
+          <p>ホイールの初期設定は、通常が音高方向移動、<kbd>Shift</kbd>がタイムライン移動、<kbd>Ctrl</kbd>が時間方向ズーム、<kbd>Alt</kbd>が音高方向ズームです。すべて設定から変更できます。</p>
+          <div class="actions"><a class="button primary" href="save-upload.html">次へ: 保存して送信する</a></div>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer class="site-footer"><div class="footer-inner"><p>OMMT 2.1.0 · Oyasai Server専用</p><p>不具合報告: <a href="https://discord.gg/rgKayZPW6X">Discordのshowcase内OMMTスレッド</a></p></div></footer>
+</body>
+</html>

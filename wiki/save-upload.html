@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="OMMTで編集途中の曲を.ommtへ保存し、おやさいサーバーのOyasaiMusicへ非公開下書きとして送信する方法。">
+  <title>保存・試聴・下書き送信 · OMMTユーザーWiki</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">本文へ移動</a>
+  <header class="site-header"><div class="header-inner">
+    <a class="brand" href="index.html"><span class="brand-mark">OM</span><span>OMMT User Wiki</span></a>
+    <nav aria-label="メインナビゲーション"><ul class="nav-list">
+      <li><a href="index.html">はじめに</a></li><li><a href="install.html">導入</a></li><li><a href="editing.html">編集</a></li><li><a aria-current="page" href="save-upload.html">保存・送信</a></li><li><a href="settings-help.html">設定・ヘルプ</a></li>
+    </ul></nav>
+  </div></header>
+
+  <main id="main" class="page-shell">
+    <header class="page-heading">
+      <p class="eyebrow">Guides 05–06</p>
+      <h1>保存・試聴・下書き送信</h1>
+      <p>編集途中はローカルプロジェクトへ保存し、完成した曲だけをおやさいサーバーの非公開下書きへ送ります。</p>
+    </header>
+
+    <div class="content-layout">
+      <aside class="toc" aria-label="このページの目次"><strong>このページ</strong><ul>
+        <li><a href="#difference">3つの操作の違い</a></li>
+        <li><a href="#save">編集を保存する</a></li>
+        <li><a href="#resume">続きを再開する</a></li>
+        <li><a href="#preview">送信前に試聴する</a></li>
+        <li><a href="#upload">下書きを送信する</a></li>
+        <li><a href="#after">送信後</a></li>
+      </ul></aside>
+
+      <article class="article">
+        <section id="difference">
+          <h2>「保存」「試聴」「送信」の違い</h2>
+          <table class="comparison">
+            <thead><tr><th>操作</th><th>何が起きるか</th><th>サーバーへ送るか</th></tr></thead>
+            <tbody>
+              <tr><td><strong>編集を保存</strong></td><td><code>OMMT/saves</code>へ編集可能な<code>.ommt</code>プロジェクトを作る</td><td>送らない</td></tr>
+              <tr><td><strong>再生／試聴</strong></td><td>現在の編集内容を自分のクライアントで確認する</td><td>送らない</td></tr>
+              <tr><td><strong>下書き送信</strong></td><td>完成内容をおやさいサーバーへ送り、OyasaiMusicの非公開下書きを作る</td><td>送る</td></tr>
+            </tbody>
+          </table>
+          <div class="notice"><strong>元のMIDIは上書きしません</strong>OMMTで編集した内容は元の<code>.mid</code>／<code>.midi</code>へ書き戻されません。続きを編集したい場合は<code>.ommt</code>プロジェクトを保存してください。</div>
+        </section>
+
+        <section id="save">
+          <h2>編集途中を<code>.ommt</code>へ保存する</h2>
+          <ol class="step-list">
+            <li><strong>曲を読み込み、必要な編集を行う。</strong><br>ノート、パート名、テンポ、音量、定位、選択音の疑似リリースなどを調整します。</li>
+            <li><strong>上部の「編集を保存」を押す。</strong><br>現在の曲名をもとに<code>.ommt</code>ファイルが作られます。</li>
+            <li><strong>画面下部の完了表示を確認する。</strong><br>保存が完了したら、エディターを閉じても後から続けられます。</li>
+          </ol>
+          <p><code>.ommt</code>にはノートやパートだけでなく、テンポ、音量・定位、疑似リリース、表示位置など、作業を再開するための状態が含まれます。</p>
+          <div class="example">
+            <div class="example-title">例: 2日に分けて編集する</div>
+            <div class="example-body"><p>1日目にパート整理まで終えたら「編集を保存」を押して終了します。2日目は左ライブラリの「プロジェクト」から保存した<code>.ommt</code>を読み込み、テンポや音量の調整から再開します。元のMIDIを再読込する必要はありません。</p></div>
+          </div>
+          <div class="warning"><strong>大切なプロジェクトはバックアップ</strong><code>OMMT/saves</code>内の<code>.ommt</code>を別の場所へコピーしておくと、プロフィールを作り直す場合にも残せます。</div>
+        </section>
+
+        <section id="resume">
+          <h2>保存した編集の続きを再開する</h2>
+          <ol>
+            <li>OMMTを開き、左ライブラリの<strong>「プロジェクト」</strong>タブを選びます。</li>
+            <li>再開したい<code>.ommt</code>ファイルを選びます。</li>
+            <li>読み込み後、曲名、パート、テンポ、ノートが保存時の状態か確認します。</li>
+          </ol>
+          <p>MIDIライブラリとプロジェクトライブラリは別です。元のMIDIからやり直したい場合は「MIDI」、続きから編集したい場合は「プロジェクト」を選びます。</p>
+        </section>
+
+        <section id="preview">
+          <h2>送信前の確認</h2>
+          <p>曲全体を一度通して試聴するだけでなく、次の点を分けて確認すると修正しやすくなります。</p>
+          <ul class="checklist">
+            <li>全体表示で、極端に高い／低い位置へ外れたノートがない。</li>
+            <li>各パートの楽器が役割に合っている。</li>
+            <li>主旋律が伴奏に埋もれず、音量が大きすぎるパートもない。</li>
+            <li>定位を付けた音が片側へ寄りすぎていない。</li>
+            <li>テンポ点の前後が急すぎず、意図した速さになっている。</li>
+            <li>疑似リリースを設定した音だけが繰り返され、連打間隔と減衰が自然に聞こえる。</li>
+            <li>曲の最後に不要な長い無音やノートが残っていない。</li>
+          </ul>
+          <p><strong>追従</strong>をONにすると再生位置を画面が追い、OFFにすると見たい場所へ表示を固定できます。細部を直すときはOFF、全体確認ではONが便利です。</p>
+        </section>
+
+        <section id="upload">
+          <h2>おやさいサーバーへ下書きを送信する</h2>
+          <div class="warning"><strong>送信先を確認</strong>「下書き送信」はおやさいサーバー向けです。対応していないサーバーでは送信できません。</div>
+          <ol class="step-list">
+            <li><strong>おやさいサーバーへ接続する。</strong><br>曲を送信できる場所へ入り、OMMTを開きます。</li>
+            <li><strong>最終版を読み込む。</strong><br>現在の編集内容が完成版か、曲名とパートを確認します。</li>
+            <li><strong>「下書き送信」を押す。</strong><br>OMMT画面に確認・送信・登録などの進捗が表示されます。</li>
+            <li><strong>完了表示まで待つ。</strong><br>途中で画面を閉じたり、サーバーから退出したりせず、完了またはエラーが表示されるまで待ちます。</li>
+          </ol>
+          <p>送信内容はサーバー側で確認されます。権限がない、曲が大きすぎる、使用できないサウンドが含まれるなど、受け入れられない内容は下書きになりません。エラーが表示された場合は内容を確認して修正します。</p>
+          <div class="tip"><strong>送信回数を減らす</strong>編集途中は<code>.ommt</code>へ保存し、ローカル試聴で確認してください。「下書き送信」は完成確認が済んだときに行うと、不要な下書きが増えません。</div>
+        </section>
+
+        <section id="after">
+          <h2>送信後にできること</h2>
+          <p>送信成功で作られるのは<strong>非公開下書き</strong>です。送信しただけで一般公開されたり、すぐ全員へ再生されたりすることはありません。その後の曲管理はおやさいサーバーのOyasaiMusic側で行います。</p>
+          <p>サーバーで対応曲が再生されるとき、OMMTを導入しているプレイヤーは事前に曲を受け取り、クライアント側で安定した再生を行える場合があります。OMMTを導入していないプレイヤーは、通常のサーバー再生を聞きます。プレイヤー側で再生方式を手動選択する必要はありません。</p>
+          <div class="actions"><a class="button" href="editing.html">編集方法へ戻る</a><a class="button primary" href="settings-help.html">設定と困ったとき</a></div>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer class="site-footer"><div class="footer-inner"><p>OMMT 2.1.0 · Oyasai Server専用</p><p>不具合報告: <a href="https://discord.gg/rgKayZPW6X">Discordのshowcase内OMMTスレッド</a></p></div></footer>
+</body>
+</html>

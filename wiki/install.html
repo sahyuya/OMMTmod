@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="OMMTの導入方法、必要なFabric MOD、対応Minecraft版、MIDIフォルダーの使い方。">
+  <title>導入と最初の起動 · OMMTユーザーWiki</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">本文へ移動</a>
+  <header class="site-header"><div class="header-inner">
+    <a class="brand" href="index.html"><span class="brand-mark">OM</span><span>OMMT User Wiki</span></a>
+    <nav aria-label="メインナビゲーション"><ul class="nav-list">
+      <li><a href="index.html">はじめに</a></li><li><a aria-current="page" href="install.html">導入</a></li><li><a href="editing.html">編集</a></li><li><a href="save-upload.html">保存・送信</a></li><li><a href="settings-help.html">設定・ヘルプ</a></li>
+    </ul></nav>
+  </div></header>
+
+  <main id="main" class="page-shell">
+    <header class="page-heading">
+      <p class="eyebrow">Guide 01</p>
+      <h1>導入と最初の起動</h1>
+      <p>Minecraft版に合ったOMMTと前提MODを入れ、最初のMIDIがライブラリへ表示されるところまで進めます。</p>
+    </header>
+
+    <div class="content-layout">
+      <aside class="toc" aria-label="このページの目次"><strong>このページ</strong><ul>
+        <li><a href="#requirements">必要なもの</a></li>
+        <li><a href="#versions">対応ファイル</a></li>
+        <li><a href="#install">導入手順</a></li>
+        <li><a href="#folders">MIDIフォルダー</a></li>
+        <li><a href="#first-open">最初に開く</a></li>
+      </ul></aside>
+
+      <article class="article">
+        <section id="requirements">
+          <h2>必要なもの</h2>
+          <p>OMMTはクライアント専用のFabric MODです。OMMT本体に加えて、同じMinecraft版向けの次のMODをクライアントへ導入します。</p>
+          <ul>
+            <li>Fabric Loader</li>
+            <li>Fabric API</li>
+            <li>Fabric Language Kotlin</li>
+            <li>Fabric GUI ImGui</li>
+          </ul>
+          <div class="warning"><strong>サーバーのmodsフォルダーには入れません</strong>OMMTは自分のMinecraftクライアントで動く編集画面です。Modrinth Appなどで使用中のプロフィールの<code>mods</code>フォルダーへ入れてください。</div>
+        </section>
+
+        <section id="versions">
+          <h2>Minecraft版に合うファイルを選ぶ</h2>
+          <p>OMMTはMinecraft版ごとに別のJARです。ファイル名の末尾と、起動するMinecraftのバージョンを一致させてください。</p>
+          <table class="comparison">
+            <thead><tr><th>Minecraft</th><th>OMMT 2.1.0</th><th>Java</th></tr></thead>
+            <tbody>
+              <tr><td>1.21.11</td><td><code>OyasaiMusicMidiTranslator-2.1.0-fabric1.21.11.jar</code></td><td>21</td></tr>
+              <tr><td>26.1.2</td><td><code>OyasaiMusicMidiTranslator-2.1.0-fabric26.1.2.jar</code></td><td>25</td></tr>
+              <tr><td>26.2</td><td><code>OyasaiMusicMidiTranslator-2.1.0-fabric26.2.jar</code></td><td>25</td></tr>
+            </tbody>
+          </table>
+          <div class="tip"><strong>前提MODの正確な版</strong>各OMMT JARには、そのMinecraft版で必要なFabric Loader、Fabric Language Kotlin、Fabric GUI ImGuiの条件が記録されています。ランチャーに互換性エラーが出た場合は、エラーに表示された版を確認してください。</div>
+        </section>
+
+        <section id="install">
+          <h2>導入手順</h2>
+          <ol class="step-list">
+            <li><strong>Fabricプロフィールを用意する。</strong><br>遊ぶMinecraft版と一致するFabric Loaderのプロフィールを作成します。</li>
+            <li><strong>前提MODを入れる。</strong><br>Fabric API、Fabric Language Kotlin、Fabric GUI ImGuiをプロフィールの<code>mods</code>へ入れます。</li>
+            <li><strong>OMMT本体を入れる。</strong><br>Minecraft版と一致するOMMT JARを同じ<code>mods</code>へ入れます。</li>
+            <li><strong>Minecraftを一度起動する。</strong><br>タイトル画面まで起動すると、OMMT用のフォルダーと設定ファイルが用意されます。</li>
+          </ol>
+        </section>
+
+        <section id="folders">
+          <h2>MIDIを置くフォルダー</h2>
+          <p>OMMTはゲームディレクトリの中に次の2つを使用します。</p>
+          <table class="comparison">
+            <thead><tr><th>場所</th><th>入るもの</th><th>用途</th></tr></thead>
+            <tbody>
+              <tr><td><code>OMMT/midi</code></td><td><code>.mid</code>／<code>.midi</code></td><td>元になるMIDIを読み込む</td></tr>
+              <tr><td><code>OMMT/saves</code></td><td><code>.ommt</code></td><td>編集途中の状態を保存・再開する</td></tr>
+            </tbody>
+          </table>
+          <p>パスを手で入力する必要はありません。エディター左側のMIDIライブラリにある<strong>「フォルダーを開く」</strong>を押すと、MIDIを置く場所を直接開けます。ファイルを追加した後は<strong>「更新」</strong>を押してください。</p>
+          <div class="example">
+            <div class="example-title">例: 「spring-concert.mid」を追加する</div>
+            <div class="example-body"><p>「フォルダーを開く」→開いた場所へ<code>spring-concert.mid</code>をコピー→OMMTへ戻って「更新」の順に操作します。左のMIDI一覧にファイル名が表示されたら準備完了です。</p></div>
+          </div>
+        </section>
+
+        <section id="first-open">
+          <h2>OMMTを最初に開く</h2>
+          <ol>
+            <li>ワールドまたはサーバーへ入ります。</li>
+            <li><kbd>O</kbd>を押してOMMTを開きます。これは初期設定で、Minecraftのキー設定から変更できます。</li>
+            <li>左のMIDIライブラリで曲を選択します。</li>
+            <li><strong>「MIDI読込」</strong>を押すか、曲をダブルクリックします。</li>
+          </ol>
+          <p>Minecraftの言語が日本語ならOMMTも日本語で表示されます。それ以外の言語では英語表示です。</p>
+          <div class="notice"><strong>読み込みだけでは送信されません</strong>MIDIの選択、編集、ローカル試聴、<code>.ommt</code>保存はクライアント内の作業です。実際に送信するのは、後で「下書き送信」を押したときだけです。</div>
+          <div class="actions"><a class="button primary" href="editing.html">次へ: MIDIを編集する</a></div>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer class="site-footer"><div class="footer-inner"><p>OMMT 2.1.0 · Oyasai Server専用</p><p>不具合報告: <a href="https://discord.gg/rgKayZPW6X">Discordのshowcase内OMMTスレッド</a></p></div></footer>
+</body>
+</html>
