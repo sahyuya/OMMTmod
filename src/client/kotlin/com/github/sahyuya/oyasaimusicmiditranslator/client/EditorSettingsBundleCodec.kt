@@ -15,7 +15,7 @@ data class EditorSettingsBundle(val settings: EditorSettings, val layout: String
 object EditorSettingsBundleCodec {
   private const val PREFIX = "OMMTCFG1:"
   private const val MAGIC = 0x4f4d4346 // OMCF
-  private const val VERSION = 1
+  private const val VERSION = 2
   private const val MAX_LAYOUT_BYTES = 512 * 1024
   private const val MAX_BINARY_BYTES = 1024 * 1024
 
@@ -44,6 +44,7 @@ object EditorSettingsBundleCodec {
     out.writeInt(MAGIC); out.writeShort(VERSION)
     out.writeBoolean(settings.compactToolbar); out.writeBoolean(settings.showLibrary); out.writeBoolean(settings.showInspector); out.writeBoolean(settings.showAutomation)
     writeString(out, settings.gridDensity, 16); out.writeBoolean(settings.showOtherParts); out.writeInt(settings.followLead); out.writeByte(settings.lastTool.ordinal); out.writeInt(settings.uiScalePercent); out.writeByte(settings.theme.ordinal)
+    writeStyle(out, settings.style)
     out.writeByte(settings.wheelPlain.ordinal); out.writeByte(settings.wheelShift.ordinal); out.writeByte(settings.wheelControl.ordinal); out.writeByte(settings.wheelAlt.ordinal)
     out.writeByte(settings.rangeSelectionModifier.ordinal); out.writeByte(settings.additiveSelectionModifier.ordinal); out.writeByte(settings.panMouseButton.ordinal)
     out.writeInt(EditorAction.entries.size)
@@ -52,24 +53,65 @@ object EditorSettingsBundleCodec {
   }
 
   private fun read(input: DataInputStream): EditorSettingsBundle {
-    require(input.readInt() == MAGIC && input.readUnsignedShort() == VERSION) { "Unsupported OMMT settings version" }
+    require(input.readInt() == MAGIC) { "Invalid OMMT settings magic" }
+    val binaryVersion = input.readUnsignedShort()
+    require(binaryVersion in 1..VERSION) { "Unsupported OMMT settings version" }
     val compact = input.readBoolean(); val library = input.readBoolean(); val inspector = input.readBoolean(); val automation = input.readBoolean()
     val density = readString(input, 16).also { require(it in setOf("AUTO", "SPARSE", "NORMAL", "DENSE")) }
     val otherParts = input.readBoolean(); val followLead = input.readInt(); val tool = enumAt<EditorTool>(input.readUnsignedByte(), "editor tool"); val scale = input.readInt(); val theme = enumAt<EditorTheme>(input.readUnsignedByte(), "theme")
+    val style = if (binaryVersion >= 2) readStyle(input) else EditorStylePresets.forTheme(theme)
     val wheelPlain = enumAt<WheelAction>(input.readUnsignedByte(), "wheel action"); val wheelShift = enumAt<WheelAction>(input.readUnsignedByte(), "wheel action"); val wheelControl = enumAt<WheelAction>(input.readUnsignedByte(), "wheel action"); val wheelAlt = enumAt<WheelAction>(input.readUnsignedByte(), "wheel action")
     val range = enumAt<GestureModifier>(input.readUnsignedByte(), "selection modifier"); val additive = enumAt<GestureModifier>(input.readUnsignedByte(), "selection modifier"); val pan = enumAt<PanMouseButton>(input.readUnsignedByte(), "pan button")
     require(input.readInt() == EditorAction.entries.size) { "Invalid OMMT keymap size" }
     val defaults = EditorKeymap()
     val keymap = EditorKeymap(EditorAction.entries.associateWith { action -> EditorKeyStroke.parse(readString(input, 64), defaults[action]) })
-    val settings = EditorSettings(4, compact, library, inspector, automation, density, otherParts, followLead, tool, scale, theme, keymap, wheelPlain, wheelShift, wheelControl, wheelAlt, range, additive, pan)
+    val settings = EditorSettings(
+        version = 5, compactToolbar = compact, showLibrary = library, showInspector = inspector,
+        showAutomation = automation, gridDensity = density, showOtherParts = otherParts,
+        followLead = followLead, lastTool = tool, uiScalePercent = scale, theme = theme,
+        style = style, keymap = keymap, wheelPlain = wheelPlain, wheelShift = wheelShift,
+        wheelControl = wheelControl, wheelAlt = wheelAlt, rangeSelectionModifier = range,
+        additiveSelectionModifier = additive, panMouseButton = pan,
+    )
     validate(settings)
     return EditorSettingsBundle(settings, readString(input, MAX_LAYOUT_BYTES))
   }
 
   private fun validate(value: EditorSettings) {
-    require(value.version == 4 && value.gridDensity in setOf("AUTO", "SPARSE", "NORMAL", "DENSE"))
+    require(value.version == 5 && value.gridDensity in setOf("AUTO", "SPARSE", "NORMAL", "DENSE"))
     require(value.followLead in 20..70 && value.uiScalePercent in 75..150)
+    require(value.style == value.style.normalized()) { "Invalid OMMT style metrics" }
   }
+
+  private fun writeStyle(out: DataOutputStream, style: EditorStyle) {
+    listOf(
+        style.textColor, style.disabledTextColor, style.windowBackgroundColor,
+        style.panelBackgroundColor, style.popupBackgroundColor, style.titleBackgroundColor,
+        style.borderColor, style.frameColor, style.frameHoveredColor, style.headerColor,
+        style.buttonColor, style.accentColor, style.pianoRollColor, style.gridColor,
+        style.outOfRangeColor,
+    ).forEach(out::writeInt)
+    listOf(
+        style.windowPaddingX, style.windowPaddingY, style.framePaddingX, style.framePaddingY,
+        style.itemSpacingX, style.itemSpacingY, style.rounding, style.scrollbarSize,
+        style.borderSize,
+    ).forEach(out::writeInt)
+  }
+
+  private fun readStyle(input: DataInputStream): EditorStyle = EditorStyle(
+      textColor = input.readInt(), disabledTextColor = input.readInt(),
+      windowBackgroundColor = input.readInt(), panelBackgroundColor = input.readInt(),
+      popupBackgroundColor = input.readInt(), titleBackgroundColor = input.readInt(),
+      borderColor = input.readInt(), frameColor = input.readInt(),
+      frameHoveredColor = input.readInt(), headerColor = input.readInt(),
+      buttonColor = input.readInt(), accentColor = input.readInt(),
+      pianoRollColor = input.readInt(), gridColor = input.readInt(),
+      outOfRangeColor = input.readInt(), windowPaddingX = input.readInt(),
+      windowPaddingY = input.readInt(), framePaddingX = input.readInt(),
+      framePaddingY = input.readInt(), itemSpacingX = input.readInt(),
+      itemSpacingY = input.readInt(), rounding = input.readInt(),
+      scrollbarSize = input.readInt(), borderSize = input.readInt(),
+  )
 
   private fun writeString(out: DataOutputStream, value: String, maximumBytes: Int) {
     val bytes = value.toByteArray(StandardCharsets.UTF_8); require(bytes.size <= maximumBytes)

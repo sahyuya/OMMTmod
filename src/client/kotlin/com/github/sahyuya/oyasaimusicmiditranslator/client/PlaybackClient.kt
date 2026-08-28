@@ -12,6 +12,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking
 import com.github.sahyuya.oyasaimusicmiditranslator.interop.OmmtPluginWire
 import net.minecraft.client.MinecraftClient
 import net.minecraft.sound.SoundEvents
+import org.slf4j.LoggerFactory
 
 fun bufferedElapsedMillis(nowNanos: Long, startAtNanos: Long): Int? =
     if (startAtNanos <= 0L || nowNanos < startAtNanos) null
@@ -19,6 +20,7 @@ fun bufferedElapsedMillis(nowNanos: Long, startAtNanos: Long): Int? =
 
 /** Client half of the bounded buffered route. Invalid or incomplete sessions are simply discarded. */
 object PlaybackClient {
+  private val logger = LoggerFactory.getLogger("OMMT/BufferedPlayback")
   private const val MAX_BUFFER = 4 * 1024 * 1024
   private const val MAX_CHUNKS = 256
   private const val MAX_NOTES_PER_TICK = 64
@@ -42,7 +44,13 @@ object PlaybackClient {
     // Capability is intentionally not announced at JOIN. Paper probes only when this
     // connection requests its first eligible playback; no MOD means no reply and vanilla
     // playback begins after the server-side three-second decision window.
-    ClientPlayConnectionEvents.DISCONNECT.register { _, _ -> clear() }
+    ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
+      if (pending != null || sessionId != null) {
+        logger.info("Buffered playback state cleared because the server connection closed")
+      }
+      clear()
+      ServerPlaybackCapabilities.clear()
+    }
   }
 
   private fun receive(raw: ByteArray) {
@@ -51,6 +59,18 @@ object PlaybackClient {
       if (input.readUnsignedByte() != OmmtPluginWire.VERSION) return; val type = input.readUnsignedByte()
       val id = UUID(input.readLong(), input.readLong())
       when (type) {
+        OmmtPluginWire.PLAYBACK_SERVER_CAPABILITIES -> {
+          if (id != UUID(0L, 0L)) return
+          val capabilities = input.readInt()
+          if (input.available() != 0) return
+          val previousReceived = ServerPlaybackCapabilities.received
+          val previousBrass = ServerPlaybackCapabilities.supportsBrassNoteBlockSounds
+          ServerPlaybackCapabilities.update(capabilities)
+          val brass = ServerPlaybackCapabilities.supportsBrassNoteBlockSounds
+          if (!previousReceived || previousBrass != brass) {
+            logger.info("Main-server OMMT capabilities received: buffered playback available; brass note-block sounds={}", brass)
+          }
+        }
         OmmtPluginWire.PLAYBACK_PROBE -> {
           val nonce = input.readUTF()
           if (input.available() != 0 || !nonce.matches(Regex("[A-Za-z0-9_-]{22}"))) return
@@ -58,12 +78,14 @@ object PlaybackClient {
           if (ClientPlayNetworking.canSend(PlaybackPayload.ID)) {
             ClientPlayNetworking.send(PlaybackPayload(OmmtPluginWire.playbackProbeResponse(nonce)))
             answeredProbeNonce = nonce
+            logger.info("Buffered-playback probe received; OMMT capability response sent")
           }
         }
         OmmtPluginWire.PLAYBACK_BEGIN -> {
           val total = input.readUnsignedShort(); val compressed = input.readInt(); val hash = input.readNBytes(32); val duration = input.readInt(); val mode = input.readUnsignedByte(); val lead = input.readInt()
           if (input.available() != 0 || total !in 1..MAX_CHUNKS || compressed !in 1..MAX_BUFFER || hash.size != 32 || duration < 0 || mode != 0 || lead !in 500..30_000) return
           pending = Pending(id, total, compressed, hash, arrayOfNulls(total)); notes = emptyList(); sessionId = null
+          logger.info("Buffering playback data: session={}, chunks={}, compressedBytes={}, durationMs={}", id, total, compressed, duration)
         }
         OmmtPluginWire.PLAYBACK_CHUNK -> {
           val active = pending ?: return; if (active.id != id) return
@@ -86,6 +108,7 @@ object PlaybackClient {
             active.joined = joined
             if (ClientPlayNetworking.canSend(PlaybackPayload.ID)) {
               ClientPlayNetworking.send(PlaybackPayload(OmmtPluginWire.playbackReady(id, active.hash)))
+              logger.info("Playback buffer is ready: session={}, notes={}", id, active.decoded?.size ?: 0)
             } else clear()
           }
         }
@@ -95,10 +118,11 @@ object PlaybackClient {
           val joined = active.joined ?: return
           if (joined.size != active.compressedBytes || !MessageDigest.isEqual(MessageDigest.getInstance("SHA-256").digest(joined), active.hash)) return
           notes = active.decoded ?: return; sessionId = id; cursor = notes.indexOfFirst { it.time >= position }.coerceAtLeast(0); pausedAtMs = 0; startAtNanos = System.nanoTime() + delay * 1_000_000L; pending = null
+          logger.info("Buffered playback selected and scheduled locally: session={}, notes={}, startDelayMs={}", id, notes.size, delay)
         }
-        OmmtPluginWire.PLAYBACK_PAUSE -> if (id == sessionId) { val position = input.readInt(); if (input.available() == 0 && position >= 0) { pausedAtMs = position; startAtNanos = 0L } }
-        OmmtPluginWire.PLAYBACK_RESUME -> if (id == sessionId) { val delay = input.readInt(); val position=input.readInt(); if (input.available()==0 && delay in 0..30_000 && position>=0) { pausedAtMs=position; startAtNanos = System.nanoTime() + delay * 1_000_000L - position * 1_000_000L } }
-        OmmtPluginWire.PLAYBACK_STOP -> if (id == sessionId) { input.readUnsignedByte(); if (input.available()==0) clear() }
+        OmmtPluginWire.PLAYBACK_PAUSE -> if (id == sessionId) { val position = input.readInt(); if (input.available() == 0 && position >= 0) { pausedAtMs = position; startAtNanos = 0L; logger.info("Buffered playback paused: session={}, positionMs={}", id, position) } }
+        OmmtPluginWire.PLAYBACK_RESUME -> if (id == sessionId) { val delay = input.readInt(); val position=input.readInt(); if (input.available()==0 && delay in 0..30_000 && position>=0) { pausedAtMs=position; startAtNanos = System.nanoTime() + delay * 1_000_000L - position * 1_000_000L; logger.info("Buffered playback resumed: session={}, positionMs={}, startDelayMs={}", id, position, delay) } }
+        OmmtPluginWire.PLAYBACK_STOP -> if (id == sessionId) { val reason = input.readUnsignedByte(); if (input.available()==0) { logger.info("Buffered playback stopped: session={}, reason={}", id, reason); clear() } }
       }
     } catch (_: Exception) { clear() }
   }
@@ -116,7 +140,10 @@ object PlaybackClient {
       // playback is restricted to this reproducible mode; unsupported routes never ACK READY.
       player.playSound(noteBlockSound(note.instrument), note.volume / 100f, pitch)
     }
-    if (cursor == notes.size) clear()
+    if (cursor == notes.size) {
+      logger.info("Buffered playback finished locally: session={}", sessionId)
+      clear()
+    }
   }
   private fun noteBlockSound(instrument: Int) = when (instrument) {
     0 -> SoundEvents.BLOCK_NOTE_BLOCK_HARP.value(); 1 -> SoundEvents.BLOCK_NOTE_BLOCK_BASEDRUM.value()

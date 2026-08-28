@@ -3,7 +3,7 @@
   "id": "oyasaimusicmiditranslator",
   "version": "${version}",
   "name": "OMMT",
-  "description": "OyasaiMusic専用のMIDI編集・プレビュー・下書き送信クライアント",
+  "description": "OyasaiMusic専用のMIDI/NBS編集・プレビュー・下書き送信クライアント",
   "authors": ["sahyuya"],
   "contact": {},
   "license": "All-Rights-Reserved",

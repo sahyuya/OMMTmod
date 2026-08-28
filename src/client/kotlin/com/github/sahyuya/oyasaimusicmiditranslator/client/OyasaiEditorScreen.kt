@@ -2,7 +2,6 @@ package com.github.sahyuya.oyasaimusicmiditranslator.client
 
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
-import java.awt.Desktop
 import java.util.ArrayDeque
 import java.nio.file.Files
 import java.nio.file.Path
@@ -58,7 +57,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
   private data class ChannelState(var program: Int = 0, var volume: Int = 127, var expression: Int = 127, var pan: Int = 64)
   private data class TimedEvent(val tick: Long, val track: Int, val order: Int, val event: MidiEvent)
   private enum class AutomationLane { VOLUME, PAN, TEMPO, RELEASE }
-  private enum class SettingsPage { GENERAL, KEYMAP, SHARE }
+  private enum class SettingsPage { GENERAL, STYLE, LAYOUT, KEYMAP, SHARE }
 
   private val notes = mutableListOf<EditorNote>()
   private var selected = 0
@@ -113,7 +112,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
   private var playbackEvents = emptyList<RenderedNoteEvent>()
   private var playing = false
   private var followPlayback = true
-  private var state = "Select a MIDI file from the library"
+  private var state = "Select a MIDI or NBS file from the library"
   private var settings = EditorSettingsStore.load()
   private var tool = settings.lastTool
   private var settingsOpen = false
@@ -121,6 +120,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
   private var capturingBinding: EditorAction? = null
   private var automationLane = AutomationLane.VOLUME
   private var automationDockInitialized = false
+  private var focusDefaultAutomation = true
   private var automationDragId: Long? = null
   private var automationDragBase = emptyMap<Long, Int>()
   private var automationDragStartValue = 0
@@ -129,11 +129,14 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
   private val partRetriggers = mutableMapOf<Int, RetriggerProfile>()
   /** A lane change is a gesture, just like a note drag: retain one undo state, not one per sample. */
   private var laneGesture = false
-  private val midiDirectory: Path by lazy { MinecraftClient.getInstance().runDirectory.toPath().resolve("OMMT").resolve("midi") }
-  private val saveDirectory: Path by lazy { MinecraftClient.getInstance().runDirectory.toPath().resolve("OMMT").resolve("saves") }
+  private val midiDirectory: Path by lazy(EditorWorkspace::midiDirectory)
+  private val nbsDirectory: Path by lazy(EditorWorkspace::nbsDirectory)
+  private val saveDirectory: Path by lazy(EditorWorkspace::saveDirectory)
   private var midiFiles: List<Path> = emptyList()
+  private var nbsFiles: List<Path> = emptyList()
   private var saveFiles: List<Path> = emptyList()
   private var selectedMidi: Path? = null
+  private var selectedNbs: Path? = null
   private var selectedSave: Path? = null
   private var currentProjectFile: Path? = null
   private var libraryScroll = 0
@@ -176,7 +179,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
   private val imTempoCurve = ImInt(AutomationCurve.STEP.ordinal)
   private var imReleaseEnabled = false
   private var imguiConfigured = false
-  private var imguiAppliedTheme: EditorTheme? = null
+  private var imguiAppliedStyle: EditorStyle? = null
   private var imguiAppliedScale = 1f
   private var clearImGuiInputOnFirstFrame = true
   private var imguiRightPanning = false
@@ -184,13 +187,13 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
   private var imguiPanStartX = 0f
   private var externalUiActive = true
   private data class CustomSoundDefinition(val id: String, val patterns: Int)
-  private val supportedCustomSounds: List<CustomSoundDefinition> by lazy {
-    val unsupportedOnBackend = setOf(
-        "minecraft:block.note_block.trumpet",
-        "minecraft:block.note_block.trumpet_exposed",
-        "minecraft:block.note_block.trumpet_weathered",
-        "minecraft:block.note_block.trumpet_oxidized",
-    )
+  private val brassNoteBlockSounds = setOf(
+      "minecraft:block.note_block.trumpet",
+      "minecraft:block.note_block.trumpet_exposed",
+      "minecraft:block.note_block.trumpet_weathered",
+      "minecraft:block.note_block.trumpet_oxidized",
+  )
+  private val allCustomSounds: List<CustomSoundDefinition> by lazy {
     val runtimeIds = Registries.SOUND_EVENT.ids.map { it.toString() }.toHashSet()
     val resource = javaClass.getResourceAsStream("/assets/oyasaimusicmiditranslator/sound-catalog.json")
     resource?.reader(Charsets.UTF_8)?.use { reader ->
@@ -198,12 +201,18 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
         val id = if (':' in rawId) rawId.lowercase() else "minecraft:${rawId.lowercase()}"
         val sounds = value.takeIf { it.isJsonObject }?.asJsonObject?.getAsJsonArray("sounds")
         val patternCount = sounds?.size() ?: 0
-        id.takeIf { it in runtimeIds && it !in unsupportedOnBackend && patternCount in 1..65_535 }
+        id.takeIf { it in runtimeIds && patternCount in 1..65_535 }
             ?.let { CustomSoundDefinition(it, patternCount) }
       }.sortedBy { it.id }.toList()
     }.orEmpty()
   }
-  private val supportedCustomSoundById by lazy { supportedCustomSounds.associateBy { it.id } }
+  private val allCustomSoundById by lazy { allCustomSounds.associateBy { it.id } }
+  private val supportedCustomSounds: List<CustomSoundDefinition>
+    get() = allCustomSounds.filter(::isSupportedByBackend)
+  private fun isSupportedByBackend(definition: CustomSoundDefinition): Boolean =
+      definition.id !in brassNoteBlockSounds || ServerPlaybackCapabilities.supportsBrassNoteBlockSounds
+  private fun supportedCustomSound(id: String): CustomSoundDefinition? =
+      allCustomSoundById[id]?.takeIf(::isSupportedByBackend)
   private data class KeyModifiers(val control: Boolean, val shift: Boolean, val alt: Boolean)
 
   private val japanese get() = MinecraftClient.getInstance().languageManager.language.lowercase().startsWith("ja_")
@@ -216,8 +225,8 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     // A Screen can be closed while ImGui is advertising a horizontal-resize cursor. Reset the
     // native GLFW cursor as well as ImGui's logical cursor before the new frame starts.
     resetNativeCursor()
-    ensureDirectories(); refreshLibraries()
-    if (state == "Select a MIDI file from the library") state = t("Select a MIDI file from the library", "ライブラリからMIDIファイルを選択してください")
+    refreshLibraries()
+    if (state == "Select a MIDI or NBS file from the library") state = t("Select a MIDI or NBS file from the library", "ライブラリからMIDIまたはNBSファイルを選択してください")
     val restored = editorSession.restore()
     restored?.let { saved ->
       notes.clear(); notes += saved.notes.map { it.copy() }; selectedIds.clear(); selectedIds += saved.selectedIds
@@ -330,11 +339,11 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     val instrumentChoice = imInstrument.get().coerceIn(0, NoteBlockInstruments.OTHER_INDEX)
     val newCustomSound = if (instrumentChoice == NoteBlockInstruments.OTHER_INDEX) {
       imCustomSound.get().trim().lowercase().also { sound ->
-        require(sound in supportedCustomSoundById) { t("Select a supported Minecraft sound", "対応するMinecraftサウンドを選択してください") }
+        require(supportedCustomSound(sound) != null) { t("Select a supported Minecraft sound", "対応するMinecraftサウンドを選択してください") }
       }
     } else null
     val newCustomSoundPattern = newCustomSound?.let { sound ->
-      val maximum = supportedCustomSoundById.getValue(sound).patterns
+      val maximum = supportedCustomSound(sound)!!.patterns
       imCustomSoundPattern.get().also { pattern ->
         require(pattern in 1..maximum) {
           t("Sound pattern must be between 1 and $maximum", "サウンドのパターンは1～${maximum}で指定してください")
@@ -386,6 +395,8 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
   private fun loadMidi() {
     try {
       val input = selectedMidi ?: throw IllegalStateException("Select a .mid or .midi file in the MIDI library")
+      require(Files.isRegularFile(input) && input.fileName.toString().lowercase().let { it.endsWith(".mid") || it.endsWith(".midi") }) { "Select a .mid or .midi file" }
+      require(Files.size(input) <= NbsFileCodec.MAX_FILE_BYTES) { "MIDI file exceeds 64 MiB" }
       val sequence = Files.newInputStream(input).use(MidiSystem::getSequence)
       require(sequence.divisionType == Sequence.PPQ) { "SMPTE MIDI is unsupported; export as PPQ MIDI" }
       notes.clear(); notes += parseSequence(sequence)
@@ -407,13 +418,102 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     } catch (error: Exception) { state = t("MIDI import failed: ${error.message ?: "invalid file"}", "MIDIの読み込みに失敗しました: ${error.message ?: "不正なファイル"}") }
   }
 
+  private fun loadSelectedSource() {
+    if (selectedNbs != null && selectedMidi == null) loadNbs() else loadMidi()
+  }
+
+  private fun loadNbs() {
+    try {
+      val input = selectedNbs ?: throw IllegalStateException("Select an .nbs file in the NBS library")
+      require(Files.isRegularFile(input) && input.fileName.toString().lowercase().endsWith(".nbs")) { "Select an .nbs file" }
+      require(Files.size(input) <= NbsFileCodec.MAX_FILE_BYTES) { "NBS file exceeds 64 MiB" }
+      val song = NbsFileCodec.decode(Files.readAllBytes(input))
+      require(song.notes.isNotEmpty()) { "NBS file contains no notes" }
+
+      // NBS stores tempo as ticks per second. One NBS tick is a sixteenth note, independent
+      // from the header's time-signature numerator.
+      val importedPpq = 64
+      val microsDouble = 4_000_000.0 / song.header.ticksPerSecond
+      require(microsDouble in 1.0..Int.MAX_VALUE.toDouble()) { "NBS tempo is outside the supported range" }
+      val baseTempo = TempoMark(0, 0, microsDouble.roundToInt())
+      val fallbackCount = song.notes.count { NbsFileCodec.toOmmtInstrument(it.instrument, song.header.defaultInstruments) == null }
+      val converted = song.notes.map { source ->
+        val layer = song.layers[source.layer]
+        val startTick = Math.multiplyExact(source.tick.toLong(), 16L)
+        val endTick = Math.addExact(startTick, 16L)
+        val startMs = EditorAutomation.timeAtTick(startTick, listOf(baseTempo), importedPpq)
+        val endMs = EditorAutomation.timeAtTick(endTick, listOf(baseTempo), importedPpq)
+        val instrument = NbsFileCodec.toOmmtInstrument(source.instrument, song.header.defaultInstruments) ?: 0
+        val pitch = (source.key - 33 + source.detuneCents / 100.0).roundToInt().coerceIn(NoteBlockPitch.DISPLAY_MIN, NoteBlockPitch.DISPLAY_MAX)
+        val volume = (source.velocity * layer.volume / 100.0).roundToInt().coerceIn(0, 100)
+        val pan = (source.panning + layer.panning).coerceIn(-100, 100)
+        EditorNote(startMs, (endMs - startMs).coerceIn(1, 60_000), instrument, pitch, volume, pan, sourceTrack = source.layer, sourceChannel = source.instrument, sourceTick = startTick, sourceDurationTicks = 16L)
+      }
+
+      pausePlayback(); EditorSession.replace(); history.clear()
+      notes.clear(); notes += converted.sortedWith(compareBy<EditorNote> { it.time }.thenBy { it.id })
+      selectedIds.clear(); activePart = 0; allPartsView = true; contextPartOffset = 0
+      ppq = importedPpq; beatsPerBar = song.header.beatsPerBar; beatUnit = 4
+      tempoMarks = listOf(baseTempo); signatureMarks = listOf(SignatureMark(0, beatsPerBar, beatUnit))
+      val endTick = song.notes.maxOf { Math.multiplyExact(it.tick.toLong() + 1L, 16L) }
+      gridMarks = buildNbsGrid(endTick, baseTempo, ppq, beatsPerBar)
+      bpm = (song.header.ticksPerSecond * 15.0).roundToInt().coerceIn(1, 60_000)
+      snapDivisor = 4; playheadMs = 0; visualPlayheadMs = 0f; horizontalOffset = 0
+      tempoControls.clear(); tempoControls += TempoControlPoint(0, bpm)
+      globalRetrigger = RetriggerProfile(); partRetriggers.clear(); selectedTempoPointId = tempoControls.first().id
+      assignPartsByNbsSource(song); fitPitchRange()
+      songTitle = song.header.songName.ifBlank { input.fileName.toString().substringBeforeLast('.') }.take(120)
+      titleField.text = songTitle; bpmField.text = bpm.toString(); choose(0); rewind(); fitTimeline()
+      syncImGuiProject(); syncImGuiInspector(); syncPartControls()
+      currentProjectFile = null; selectedSave = null
+      val fallback = if (fallbackCount > 0) t("; $fallbackCount custom-instrument notes use Harp", "、カスタム音源の$fallbackCount 音はハープへ変換") else ""
+      state = t("Loaded ${notes.size} NBS notes into ${parts.size} layer parts$fallback", "NBSの${notes.size}音を${parts.size}レイヤーパートへ読み込みました$fallback")
+    } catch (error: Exception) {
+      state = t("NBS import failed: ${error.message ?: "invalid file"}", "NBSの読み込みに失敗しました: ${error.message ?: "不正なファイル"}")
+    }
+  }
+
+  private fun assignPartsByNbsSource(song: NbsFileCodec.Song) {
+    data class PartKey(val layer: Int, val sourceInstrument: Int, val instrument: Int)
+    val keys = notes.map { PartKey(it.sourceTrack, it.sourceChannel, it.instrument) }
+        .distinct()
+        .sortedWith(compareBy<PartKey> { it.layer }.thenBy { it.sourceInstrument }.thenBy { it.instrument })
+    parts.clear()
+    parts += keys.mapIndexed { index, key ->
+      val layerName = song.layers.getOrNull(key.layer)?.name.orEmpty().ifBlank { t("Layer ${key.layer + 1}", "レイヤー${key.layer + 1}") }.take(48)
+      normalizePartLabel(index, "$layerName / ${NoteBlockInstruments.displayName(key.instrument, japanese)}")
+    }
+    val indexByKey = keys.withIndex().associate { (index, key) -> key to index }
+    notes.forEach { note -> note.part = indexByKey.getValue(PartKey(note.sourceTrack, note.sourceChannel, note.instrument)) }
+  }
+
+  private fun buildNbsGrid(endTickInput: Long, tempo: TempoMark, resolution: Int, beatsInBar: Int): List<GridMark> {
+    val step = (resolution / 16).coerceAtLeast(1).toLong()
+    val endTick = endTickInput.coerceAtLeast(step)
+    val count = endTick / step + 2L
+    require(count <= 1_000_000L) { "NBS timeline requires more than 1,000,000 grid points" }
+    val barTicks = resolution.toLong() * beatsInBar
+    return buildList(count.toInt()) {
+      var tick = 0L
+      while (tick <= endTick) {
+        val subdivision = ((tick / step) % 16L).toInt()
+        val isBeat = tick % resolution == 0L
+        val isBar = tick % barTicks == 0L
+        val bar = (tick / barTicks).toInt() + 1
+        val beat = ((tick / resolution) % beatsInBar).toInt() + 1
+        add(GridMark(tick, EditorAutomation.timeAtTick(tick, listOf(tempo), resolution), bar, beat, subdivision, isBar, isBeat))
+        tick = Math.addExact(tick, step)
+      }
+    }
+  }
+
   /** Preserve MIDI track/channel boundaries; equal converted instruments are never merged across them. */
   private fun assignPartsByMidiSource(sequence: Sequence) {
     if (notes.isEmpty()) { parts.clear(); parts += t("Part 1", "パート1"); return }
     data class PartKey(val track: Int, val channel: Int, val instrument: Int)
     val keys = notes.map { PartKey(it.sourceTrack, it.sourceChannel, it.instrument) }.distinct().sortedWith(compareBy<PartKey> { it.track }.thenBy { it.channel }.thenBy { it.instrument })
-    val trackNames = sequence.tracks.mapIndexed { index, track ->
-      (0 until track.size()).asSequence().mapNotNull { track.get(it).message as? MetaMessage }.firstOrNull { it.type == 0x03 }?.data?.toString(Charsets.UTF_8)?.trim().orEmpty().ifBlank { t("Track ${index + 1}", "トラック${index + 1}") }.take(48)
+    val trackNames = midiTrackHints(sequence).mapIndexed { index, hint ->
+      hint.substringBefore(" / ").ifBlank { t("Track ${index + 1}", "トラック${index + 1}") }.take(48)
     }
     parts.clear()
     parts += keys.mapIndexed { index, key -> normalizePartLabel(index, "${trackNames.getOrElse(key.track) { t("Track ${key.track + 1}", "トラック${key.track + 1}") }} / ${NoteBlockInstruments.displayName(key.instrument, japanese)} / Ch ${key.channel + 1}") }
@@ -431,7 +531,19 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
 
   private fun midiTitle(sequence: Sequence): String = sequence.tracks.asSequence().flatMap { track ->
     (0 until track.size()).asSequence().map { track.get(it).message }
-  }.filterIsInstance<MetaMessage>().firstOrNull { it.type == 0x03 }?.data?.toString(Charsets.UTF_8)?.trim().orEmpty()
+  }.filterIsInstance<MetaMessage>().firstOrNull { it.type == 0x03 }?.data?.let(MidiInstrumentMapper::decodeText).orEmpty()
+
+  private fun midiTrackHints(sequence: Sequence): List<String> = sequence.tracks.map { track ->
+    val values = (0 until track.size()).asSequence()
+        .mapNotNull { track.get(it).message as? MetaMessage }
+        .filter { it.type == 0x03 || it.type == 0x04 }
+        .map { MidiInstrumentMapper.decodeText(it.data) }
+        .filter(String::isNotBlank)
+        .distinct()
+        .take(4)
+        .toList()
+    values.joinToString(" / ")
+  }
 
   /**
    * MIDI meta events are collected with the same deterministic tick/track/event order as note
@@ -558,6 +670,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
       return (point.timeMs + (target - point.tick) * point.microsPerQuarter.toDouble() / sequence.resolution / 1000.0).roundToInt().coerceAtLeast(0)
     }
     val states = Array(sequence.tracks.size) { Array(16) { ChannelState() } }
+    val trackHints = midiTrackHints(sequence)
     val converted = mutableListOf<EditorNote>()
     val active = mutableMapOf<String, ArrayDeque<EditorNote>>()
     events.forEach { timed ->
@@ -567,7 +680,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
         ShortMessage.PROGRAM_CHANGE -> state.program = message.data1
         ShortMessage.CONTROL_CHANGE -> when (message.data1) { 7 -> state.volume = message.data2; 10 -> state.pan = message.data2; 11 -> state.expression = message.data2; 121 -> { state.volume = 127; state.expression = 127; state.pan = 64 } }
         ShortMessage.NOTE_ON -> if (message.data2 > 0) {
-          val note = convertedNote(millisecondsAt(timed.tick), timed.tick, timed.track, message, state)
+          val note = convertedNote(millisecondsAt(timed.tick), timed.tick, timed.track, message, state, trackHints.getOrElse(timed.track) { "" })
           converted += note
           active.getOrPut("${timed.track}:${message.channel}:${message.data1}") { ArrayDeque() }.addLast(note)
         } else finishNote(active, timed, message, millisecondsAt(timed.tick))
@@ -586,18 +699,14 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     if (queue.isEmpty()) active.remove(key)
   }
 
-  private fun convertedNote(time: Int, tick: Long, track: Int, message: ShortMessage, state: ChannelState): EditorNote {
+  private fun convertedNote(time: Int, tick: Long, track: Int, message: ShortMessage, state: ChannelState, trackHint: String): EditorNote {
     val drum = message.channel == 9
-    val instrument = if (drum) drumInstrument(message.data1) else gmInstrument(state.program)
-    val pitch = if (drum) drumPitch(message.data1) else NoteBlockPitch.fromMidiKey(message.data1)
+    val instrument = if (drum) MidiInstrumentMapper.drumInstrument(message.data1) else MidiInstrumentMapper.mapProgram(state.program, trackHint)
+    val pitch = if (drum) MidiInstrumentMapper.drumPitch(message.data1) else NoteBlockPitch.fromMidiKey(message.data1)
     val volume = ((message.data2 / 127.0) * (state.volume / 127.0) * (state.expression / 127.0) * 100).roundToInt().coerceIn(0, 100)
     val pan = (((state.pan - 64) / 63.0) * 100).roundToInt().coerceIn(-100, 100)
     return EditorNote(time, 120, instrument, pitch, volume, pan, sourceTrack = track, sourceChannel = message.channel, sourceTick = tick)
   }
-
-  private fun gmInstrument(program: Int): Int = when (program.coerceIn(0, 127)) { in 0..7 -> 0; in 8..15 -> if (program in 9..10) 6 else if (program == 14) 8 else 9; in 16..23 -> if (program >= 19) 14 else 0; in 24..31 -> if (program >= 28) 14 else 7; in 32..39 -> 1; in 40..55 -> if (program >= 48) 15 else 7; in 56..63 -> if (program >= 60) 11 else 12; in 64..79 -> 5; in 80..87 -> 13; in 88..95 -> if (program >= 92) 8 else 15; in 96..103 -> if (program % 2 == 0) 13 else 8; in 104..111 -> if (program <= 107) 14 else 12; in 112..119 -> if (program <= 115) 6 else 11; else -> if (program >= 126) 4 else 13 }
-  private fun drumInstrument(midi: Int): Int = when (midi) { 35, 36 -> 2; in 37..40, in 60..66 -> 3; 56 -> 11; 67, 68, 80, 81 -> 6; else -> 4 }
-  private fun drumPitch(midi: Int): Int = when (midi) { 35 -> 8; 36 -> 11; in 37..40 -> 10 + (midi - 37) * 2; 42, 44 -> 8; 46 -> 14; 49, 51, 52, 54, 55, 57, 59 -> 20; 56 -> 12; 67, 80 -> 9; 68, 81 -> 16; in 60..66 -> midi - 53; 75, 76 -> 15; 77 -> 7; else -> 12 }.coerceIn(0, 24)
 
   private fun preview() { notes.getOrNull(selected)?.let(::previewNote) }
 
@@ -725,7 +834,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
       EditorAction.ALL_PARTS -> allPartsView = true
       EditorAction.PREVIEW -> preview()
       EditorAction.NEW_PART -> createPartFromSelection()
-      EditorAction.LOAD_SELECTED -> loadMidi()
+      EditorAction.LOAD_SELECTED -> loadSelectedSource()
       EditorAction.UPLOAD_DRAFT -> exportAndUpload()
       EditorAction.REFRESH_LIBRARY -> refreshMidiLibrary()
       EditorAction.OPEN_MIDI_FOLDER -> openMidiFolder()
@@ -785,19 +894,33 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
       tempoControls.map { it.copy() }, RetriggerProfile(), emptyMap(),
   )
 
-  private fun ensureDirectories() { Files.createDirectories(midiDirectory); Files.createDirectories(saveDirectory) }
+  private fun ensureDirectories() = EditorWorkspace.requireDirectories()
   private fun openMidiFolder() {
-    try { ensureDirectories(); Desktop.getDesktop().open(midiDirectory.toFile()); state = t("Opened MIDI folder", "MIDIフォルダーを開きました") }
-    catch (error: Exception) { state = t("Could not open MIDI folder: ${error.message ?: "unsupported system"}", "MIDIフォルダーを開けませんでした: ${error.message ?: "未対応の環境"}") }
+    EditorWorkspace.openDirectory(midiDirectory)
+        .onSuccess { state = t("Opened MIDI folder", "MIDIフォルダーを開きました") }
+        .onFailure { error -> state = t("Could not open MIDI folder: ${error.message ?: "no folder opener"}", "MIDIフォルダーを開けませんでした: ${error.message ?: "フォルダー起動機能がありません"}") }
+  }
+  private fun openNbsFolder() {
+    EditorWorkspace.openDirectory(nbsDirectory)
+        .onSuccess { state = t("Opened NBS folder", "NBSフォルダーを開きました") }
+        .onFailure { error -> state = t("Could not open NBS folder: ${error.message ?: "no folder opener"}", "NBSフォルダーを開けませんでした: ${error.message ?: "フォルダー起動機能がありません"}") }
   }
   private fun openSaveFolder() {
-    try { ensureDirectories(); Desktop.getDesktop().open(saveDirectory.toFile()); state = t("Opened project folder", "保存フォルダーを開きました") }
-    catch (error: Exception) { state = t("Could not open project folder: ${error.message ?: "unsupported system"}", "保存フォルダーを開けませんでした: ${error.message ?: "未対応の環境"}") }
+    EditorWorkspace.openDirectory(saveDirectory)
+        .onSuccess { state = t("Opened project folder", "保存フォルダーを開きました") }
+        .onFailure { error -> state = t("Could not open project folder: ${error.message ?: "no folder opener"}", "保存フォルダーを開けませんでした: ${error.message ?: "フォルダー起動機能がありません"}") }
   }
   private fun refreshLibraries() {
-    midiFiles = Files.list(midiDirectory).use { stream -> stream.filter { Files.isRegularFile(it) && it.fileName.toString().lowercase().let { name -> name.endsWith(".mid") || name.endsWith(".midi") } }.sorted().toList() }
-    saveFiles = Files.list(saveDirectory).use { stream -> stream.filter { Files.isRegularFile(it) && it.fileName.toString().lowercase().endsWith(".ommt") }.sorted().toList() }
-    libraryScroll = libraryScroll.coerceIn(0, (midiFiles.size - 1).coerceAtLeast(0))
+    try {
+      ensureDirectories()
+      midiFiles = Files.list(midiDirectory).use { stream -> stream.filter { Files.isRegularFile(it) && it.fileName.toString().lowercase().let { name -> name.endsWith(".mid") || name.endsWith(".midi") } }.sorted().toList() }
+      nbsFiles = Files.list(nbsDirectory).use { stream -> stream.filter { Files.isRegularFile(it) && it.fileName.toString().lowercase().endsWith(".nbs") }.sorted().toList() }
+      saveFiles = Files.list(saveDirectory).use { stream -> stream.filter { Files.isRegularFile(it) && it.fileName.toString().lowercase().endsWith(".ommt") }.sorted().toList() }
+      libraryScroll = libraryScroll.coerceIn(0, (midiFiles.size - 1).coerceAtLeast(0))
+    } catch (error: Exception) {
+      midiFiles = emptyList(); nbsFiles = emptyList(); saveFiles = emptyList()
+      state = t("Could not initialize OMMT folders: ${error.message ?: "file system error"}", "OMMTフォルダーを準備できませんでした: ${error.message ?: "ファイルシステムエラー"}")
+    }
   }
   private fun refreshMidiLibrary() = refreshLibraries()
 
@@ -820,7 +943,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
       require(Files.size(path) <= 64L * 1024 * 1024 + 20L) { "OMMT project exceeds 64 MiB" }
       val saved = EditorProjectCodec.decode(Files.readAllBytes(path))
       saved.notes.forEach { note -> note.customSound?.let { sound ->
-        val definition = supportedCustomSoundById[sound] ?: throw IllegalArgumentException("Unsupported Minecraft sound: $sound")
+        val definition = supportedCustomSound(sound) ?: throw IllegalArgumentException("Unsupported Minecraft sound: $sound")
         require(note.customSoundPattern in 1..definition.patterns) { "Unsupported sound pattern for $sound" }
       } }
       pausePlayback(); EditorSession.replace(); history.clear()
@@ -833,7 +956,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
       migrateLegacyReleaseScopes(saved.globalRetrigger, saved.partRetriggers)
       sortNotesAndResolvePrimary(notes.getOrNull(selected)?.id); clampPitchViewport()
       titleField.text=songTitle; bpmField.text=bpm.toString(); syncImGuiProject(); choose(selected, replaceSelection=false, ensureVisible=false); syncPartControls()
-      selectedMidi=null; selectedSave=path; currentProjectFile=path
+      selectedMidi=null; selectedNbs=null; selectedSave=path; currentProjectFile=path
       state=t("Loaded ${path.fileName} (${notes.size} notes)", "${path.fileName}から${notes.size}音を読み込みました")
     } catch (error: Exception) {
       state=t("Project load failed: ${error.message ?: "invalid project"}", "編集データの読み込みに失敗しました: ${error.message ?: "不正なファイル"}")
@@ -1095,7 +1218,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     if (click.button() == 0) {
       if (settings.showLibrary && inRect(x, y, 12, height - 62, (libraryWidth() - 30) / 2, 26)) { refreshMidiLibrary(); state = t("MIDI library refreshed", "MIDIライブラリを更新しました"); return true }
       if (settings.showLibrary && inRect(x, y, 18 + (libraryWidth() - 30) / 2, height - 62, (libraryWidth() - 30) / 2, 26)) { openMidiFolder(); return true }
-      if (inRect(x, y, editorLeft() + 296, 58, 108, 22)) { loadMidi(); return true }
+      if (inRect(x, y, editorLeft() + 296, 58, 108, 22)) { loadSelectedSource(); return true }
       if (inRect(x, y, width - 48, 6, 36, 22)) { settingsOpen = !settingsOpen; saveSettings(); return true }
       if (settings.showInspector && inRect(x, y, editorLeft() + 396, 128, 58, 22)) { applySelected(); return true }
       if (settings.showInspector && inRect(x, y, editorLeft() + 460, 128, 42, 22)) { rememberHistory(); val added = EditorNote(playheadMs, 200, 0, 12, 100, 0); notes += added; sortNotesAndResolvePrimary(added.id); choose(selected); state = t("Added note at ${formatTime(playheadMs)}", "${formatTime(playheadMs)}にノートを追加しました"); return true }
@@ -1112,7 +1235,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
       if (inRect(x, y, editorLeft() + 388, 168, 78, 24)) { createPartFromSelection(); return true }
       if (inRect(x, y, editorLeft() + 472, 168, 70, 24)) { if (parts.size > 1) moveSelectionToPart((activePart + 1) % parts.size); return true }
       val row = (y - 72) / 23 + libraryScroll
-      if (settings.showLibrary && x in 12 until libraryWidth() - 12 && y >= 72 && y < height - 76 && row in midiFiles.indices) { selectedMidi = midiFiles[row]; state = t("Selected ${selectedMidi!!.fileName}", "${selectedMidi!!.fileName}を選択しました"); if (doubled) loadMidi(); return true }
+      if (settings.showLibrary && x in 12 until libraryWidth() - 12 && y >= 72 && y < height - 76 && row in midiFiles.indices) { selectedMidi = midiFiles[row]; selectedNbs = null; state = t("Selected ${selectedMidi!!.fileName}", "${selectedMidi!!.fileName}を選択しました"); if (doubled) loadMidi(); return true }
       if (x >= plotLeft() && y in laneTop(0)..(laneTop(1) + laneHeight() - 2)) {
         if (!settings.showAutomation) return true
         if (!laneGesture) { rememberHistory(); laneGesture = true }
@@ -1245,7 +1368,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
 
   override fun render(io: ImGuiIO) {
     configureImGui(io)
-    if (imguiAppliedTheme != settings.theme) applyImGuiTheme()
+    if (imguiAppliedStyle != settings.style) applyImGuiTheme()
     if (clearImGuiInputOnFirstFrame) {
       io.clearEventsQueue(); io.clearInputKeys(); io.clearInputMouse(); clearImGuiInputOnFirstFrame = false
     }
@@ -1264,31 +1387,76 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     io.addConfigFlags(ImGuiConfigFlags.DockingEnable)
     io.setIniFilename(FabricLoader.getInstance().configDir.resolve("ommt-imgui-layout.ini").toString())
     ImGui.styleColorsDark()
-    val style = ImGui.getStyle()
-    style.setWindowRounding(4f); style.setChildRounding(4f); style.setFrameRounding(4f); style.setTabRounding(4f); style.setGrabRounding(3f); style.setPopupRounding(4f)
-    style.setWindowPadding(10f, 10f); style.setFramePadding(8f, 5f); style.setItemSpacing(7f, 6f)
     imguiConfigured = true
     applyImGuiTheme()
   }
 
   private fun applyImGuiTheme() {
     val style = ImGui.getStyle()
-    val palette = when (settings.theme) {
-      // window, child, active title, frame, hover, header, button, accent tab
-      EditorTheme.STUDIO_SLATE -> arrayOf(floatArrayOf(.11f,.12f,.14f),floatArrayOf(.10f,.11f,.13f),floatArrayOf(.15f,.19f,.25f),floatArrayOf(.16f,.17f,.20f),floatArrayOf(.21f,.23f,.28f),floatArrayOf(.20f,.30f,.42f),floatArrayOf(.18f,.20f,.24f),floatArrayOf(.20f,.40f,.50f))
-      EditorTheme.OBSIDIAN -> arrayOf(floatArrayOf(.055f,.060f,.070f),floatArrayOf(.045f,.050f,.060f),floatArrayOf(.12f,.13f,.16f),floatArrayOf(.105f,.11f,.13f),floatArrayOf(.18f,.19f,.22f),floatArrayOf(.25f,.27f,.31f),floatArrayOf(.12f,.13f,.15f),floatArrayOf(.31f,.35f,.40f))
-      EditorTheme.MIDNIGHT_BLUE -> arrayOf(floatArrayOf(.055f,.080f,.115f),floatArrayOf(.045f,.065f,.095f),floatArrayOf(.08f,.21f,.34f),floatArrayOf(.08f,.13f,.20f),floatArrayOf(.12f,.22f,.33f),floatArrayOf(.08f,.34f,.53f),floatArrayOf(.08f,.16f,.25f),floatArrayOf(.06f,.45f,.64f))
-      EditorTheme.WARM_GRAPHITE -> arrayOf(floatArrayOf(.13f,.12f,.11f),floatArrayOf(.11f,.105f,.095f),floatArrayOf(.25f,.19f,.14f),floatArrayOf(.19f,.17f,.145f),floatArrayOf(.28f,.24f,.19f),floatArrayOf(.42f,.29f,.17f),floatArrayOf(.22f,.19f,.16f),floatArrayOf(.52f,.34f,.17f))
+    val tokens = settings.style.normalized()
+    fun setColor(slot: Int, color: Int, alphaMultiplier: Float = 1f) {
+      val rgba = colorFloats(color)
+      style.setColor(slot, rgba[0], rgba[1], rgba[2], (rgba[3] * alphaMultiplier).coerceIn(0f, 1f))
     }
-    val window=palette[0]; val child=palette[1]; val active=palette[2]; val frame=palette[3]; val hover=palette[4]; val header=palette[5]; val button=palette[6]; val tab=palette[7]
-    style.setColor(ImGuiCol.WindowBg,window[0],window[1],window[2],1f); style.setColor(ImGuiCol.ChildBg,child[0],child[1],child[2],1f); style.setColor(ImGuiCol.PopupBg,child[0],child[1],child[2],.98f)
-    style.setColor(ImGuiCol.TitleBg,child[0],child[1],child[2],1f); style.setColor(ImGuiCol.TitleBgActive,active[0],active[1],active[2],1f)
-    style.setColor(ImGuiCol.FrameBg,frame[0],frame[1],frame[2],1f); style.setColor(ImGuiCol.FrameBgHovered,hover[0],hover[1],hover[2],1f); style.setColor(ImGuiCol.FrameBgActive,header[0],header[1],header[2],1f)
-    style.setColor(ImGuiCol.Header,header[0],header[1],header[2],.72f); style.setColor(ImGuiCol.HeaderHovered,header[0],header[1],header[2],.9f); style.setColor(ImGuiCol.HeaderActive,tab[0],tab[1],tab[2],1f)
-    style.setColor(ImGuiCol.Button,button[0],button[1],button[2],1f); style.setColor(ImGuiCol.ButtonHovered,hover[0],hover[1],hover[2],1f); style.setColor(ImGuiCol.ButtonActive,tab[0],tab[1],tab[2],1f)
-    style.setColor(ImGuiCol.Tab,frame[0],frame[1],frame[2],1f); style.setColor(ImGuiCol.TabHovered,header[0],header[1],header[2],1f); style.setColor(ImGuiCol.TabActive,tab[0],tab[1],tab[2],1f)
-    imguiAppliedTheme = settings.theme
+    setColor(ImGuiCol.Text, tokens.textColor)
+    setColor(ImGuiCol.TextDisabled, tokens.disabledTextColor)
+    setColor(ImGuiCol.WindowBg, tokens.windowBackgroundColor)
+    setColor(ImGuiCol.ChildBg, tokens.panelBackgroundColor)
+    setColor(ImGuiCol.PopupBg, tokens.popupBackgroundColor)
+    setColor(ImGuiCol.TitleBg, tokens.panelBackgroundColor)
+    setColor(ImGuiCol.TitleBgActive, tokens.titleBackgroundColor)
+    setColor(ImGuiCol.Border, tokens.borderColor)
+    setColor(ImGuiCol.Separator, tokens.borderColor)
+    setColor(ImGuiCol.FrameBg, tokens.frameColor)
+    setColor(ImGuiCol.FrameBgHovered, tokens.frameHoveredColor)
+    setColor(ImGuiCol.FrameBgActive, tokens.headerColor)
+    setColor(ImGuiCol.Header, tokens.headerColor, .72f)
+    setColor(ImGuiCol.HeaderHovered, tokens.headerColor, .9f)
+    setColor(ImGuiCol.HeaderActive, tokens.accentColor)
+    setColor(ImGuiCol.Button, tokens.buttonColor)
+    setColor(ImGuiCol.ButtonHovered, tokens.frameHoveredColor)
+    setColor(ImGuiCol.ButtonActive, tokens.accentColor)
+    setColor(ImGuiCol.Tab, tokens.frameColor)
+    setColor(ImGuiCol.TabHovered, tokens.headerColor)
+    setColor(ImGuiCol.TabActive, tokens.accentColor)
+    setColor(ImGuiCol.ResizeGrip, tokens.accentColor, .30f)
+    setColor(ImGuiCol.ResizeGripHovered, tokens.accentColor, .65f)
+    setColor(ImGuiCol.ResizeGripActive, tokens.accentColor)
+    style.setWindowPadding(tokens.windowPaddingX.toFloat(), tokens.windowPaddingY.toFloat())
+    style.setFramePadding(tokens.framePaddingX.toFloat(), tokens.framePaddingY.toFloat())
+    style.setItemSpacing(tokens.itemSpacingX.toFloat(), tokens.itemSpacingY.toFloat())
+    val rounding = tokens.rounding.toFloat()
+    style.setWindowRounding(rounding); style.setChildRounding(rounding); style.setPopupRounding(rounding)
+    style.setFrameRounding(rounding); style.setTabRounding(rounding); style.setGrabRounding((rounding - 1f).coerceAtLeast(0f))
+    style.setScrollbarRounding(rounding); style.setScrollbarSize(tokens.scrollbarSize.toFloat())
+    val border = tokens.borderSize.toFloat()
+    style.setWindowBorderSize(border); style.setChildBorderSize(border); style.setPopupBorderSize(border); style.setFrameBorderSize(border)
+    style.setSeparatorSize(max(1f, border))
+    imguiAppliedStyle = settings.style
   }
+
+  private fun colorFloats(color: Int) = floatArrayOf(
+    ((color ushr 16) and 255) / 255f,
+    ((color ushr 8) and 255) / 255f,
+    (color and 255) / 255f,
+    ((color ushr 24) and 255) / 255f,
+  )
+
+  private fun colorFromFloats(rgba: FloatArray): Int {
+    fun channel(index: Int) = (rgba[index].coerceIn(0f, 1f) * 255f).roundToInt()
+    return (channel(3) shl 24) or (channel(0) shl 16) or (channel(1) shl 8) or channel(2)
+  }
+
+  private fun drawColor(color: Int): Int = ImColor.rgba(
+    (color ushr 16) and 255, (color ushr 8) and 255, color and 255, (color ushr 24) and 255,
+  )
+
+  private fun shadedDrawColor(color: Int, factor: Float): Int = ImColor.rgba(
+    (((color ushr 16) and 255) * factor).roundToInt().coerceIn(0, 255),
+    (((color ushr 8) and 255) * factor).roundToInt().coerceIn(0, 255),
+    ((color and 255) * factor).roundToInt().coerceIn(0, 255),
+    (color ushr 24) and 255,
+  )
 
   private fun updateImGuiScale(io: ImGuiIO) {
     val target = (settings.uiScalePercent / 100f).coerceIn(.75f, 1.5f)
@@ -1305,7 +1473,8 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     if (ImGui.begin(windowTitle("OMMT - MIDI WORKSPACE", "OMMT - MIDIワークスペース", "OMMT  •  MIDI WORKSPACE"))) {
       ImGui.setNextItemWidth(280f); if (ImGui.inputText("${t("Song", "曲名")}###Song", imTitle)) { songTitle = imTitle.get().trim().take(120).ifBlank { "Untitled song" }; titleField.text = songTitle }
       ImGui.sameLine(); ImGui.setNextItemWidth(140f); if (ImGui.inputInt("BPM###BPM", imBpm, 1, 10)) { setBaseBpm(imBpm.get()) }
-      ImGui.sameLine(); if (ImGui.button("${t("LOAD MIDI", "MIDI読込")}###LOAD_SELECTED")) loadMidi()
+      val nbsSelected = selectedNbs != null && selectedMidi == null
+      ImGui.sameLine(); if (ImGui.button("${if (nbsSelected) t("LOAD NBS", "NBS読込") else t("LOAD MIDI", "MIDI読込")}###LOAD_SELECTED")) loadSelectedSource()
       ImGui.sameLine(); if (ImGui.button("${t("SETTINGS", "設定")}###SETTINGS")) settingsOpen = !settingsOpen
       if (ImGui.button("|<  ${t("Home", "先頭")}###HOME")) rewind(); ImGui.sameLine()
       if (ImGui.button("${if (playing) t("PAUSE", "一時停止") else t("PLAY", "再生")}###PLAY")) togglePlayback(); ImGui.sameLine()
@@ -1339,10 +1508,24 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
           ImGui.spacing()
           midiFiles.forEach { path ->
             val chosen = path == selectedMidi
-            if (ImGui.selectable(path.fileName.toString(), chosen)) { selectedMidi = path; state = t("Selected ${path.fileName}", "${path.fileName}を選択しました") }
-            if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(ImGuiMouseButton.Left)) { selectedMidi = path; loadMidi() }
+            if (ImGui.selectable(path.fileName.toString(), chosen)) { selectedMidi = path; selectedNbs = null; state = t("Selected ${path.fileName}", "${path.fileName}を選択しました") }
+            if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(ImGuiMouseButton.Left)) { selectedMidi = path; selectedNbs = null; loadMidi() }
           }
           if (midiFiles.isEmpty()) ImGui.textDisabled(t("Place .mid or .midi files in OMMT/midi", "OMMT/midiに.midまたは.midiを入れてください"))
+          ImGui.endTabItem()
+        }
+        if (ImGui.beginTabItem(t("NBS FILES", "NBSファイル"))) {
+          ImGui.textDisabled("OMMT/nbs | ${nbsFiles.size} ${t("files", "ファイル")}")
+          if (ImGui.button("${t("REFRESH", "更新")}###REFRESH_NBS")) refreshLibraries(); ImGui.sameLine()
+          if (ImGui.button("${t("OPEN FOLDER", "フォルダーを開く")}###OPEN_NBS_FOLDER")) openNbsFolder()
+          ImGui.spacing()
+          nbsFiles.forEach { path ->
+            val chosen = path == selectedNbs
+            if (ImGui.selectable(path.fileName.toString(), chosen)) { selectedNbs = path; selectedMidi = null; state = t("Selected ${path.fileName}", "${path.fileName}を選択しました") }
+            if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(ImGuiMouseButton.Left)) { selectedNbs = path; selectedMidi = null; loadNbs() }
+          }
+          if (nbsFiles.isEmpty()) ImGui.textDisabled(t("Place .nbs files in OMMT/nbs", "OMMT/nbsに.nbsを入れてください"))
+          selectedNbs?.let { if (ImGui.button("${t("LOAD SELECTED NBS", "選択したNBSを開く")}###LOAD_NBS")) loadNbs() }
           ImGui.endTabItem()
         }
         if (ImGui.beginTabItem(t("PROJECT SAVES", "編集データ"))) {
@@ -1388,7 +1571,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
         val search = imCustomSound.get().trim().lowercase()
         val matches = supportedCustomSounds.asSequence().filter { search.isBlank() || it.id.contains(search) }.take(200).toList()
         ImGui.text(t("Minecraft sound", "Minecraftサウンド")); ImGui.sameLine(); ImGui.setNextItemWidth(-1f)
-        val selectedDefinition = supportedCustomSoundById[search]
+        val selectedDefinition = supportedCustomSound(search)
         val preview = selectedDefinition?.id ?: t("Choose from ${supportedCustomSounds.size} server-compatible sounds", "サーバー互換の${supportedCustomSounds.size}音から選択")
         if (ImGui.beginCombo("##CustomSoundPicker", preview)) {
           matches.forEach { definition ->
@@ -1411,9 +1594,16 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
               )) imCustomSoundPattern.set(patternIndex.get() + 1)
           ImGui.textDisabled(t("The server converts this pattern to a deterministic playback seed", "サーバー側でこのパターンを固定再生seedへ変換します"))
         }
-        ImGui.textDisabled(t("26.1 trumpet sounds are hidden while the backend is 1.21.11", "サーバーが1.21.11の間、26.1のトランペット音源は候補から除外されます"))
+        when {
+          ServerPlaybackCapabilities.supportsBrassNoteBlockSounds ->
+              ImGui.textDisabled(t("The main server supports 26.1 brass note-block sounds", "mainサーバーは26.1のブラス系音ブロックに対応しています"))
+          ServerPlaybackCapabilities.received ->
+              ImGui.textDisabled(t("26.1 brass sounds are hidden for this main-server version", "このmainサーバーのバージョンでは26.1のブラス音源を候補から除外します"))
+          else ->
+              ImGui.textDisabled(t("Server version is unknown; 26.1 brass sounds stay hidden", "サーバーバージョン未確認のため、26.1のブラス音源は候補から除外します"))
+        }
       }
-      ImGui.text(t("Source pitch", "元の音高")); ImGui.sameLine(); ImGui.setNextItemWidth(90f); ImGui.inputInt("##Pitch", imPitch)
+      ImGui.text(t("Source pitch", "元の音高")); ImGui.sameLine(); ImGui.setNextItemWidth(72f); ImGui.inputInt("##Pitch", imPitch, 0, 0)
       ImGui.sameLine(); if (ImGui.smallButton("-12##PITCH_MINUS_12")) adjustSelectedPitch(-12)
       ImGui.sameLine(); if (ImGui.smallButton("-1##PITCH_MINUS_1")) adjustSelectedPitch(-1)
       ImGui.sameLine(); if (ImGui.smallButton("+1##PITCH_PLUS_1")) adjustSelectedPitch(1)
@@ -1424,9 +1614,9 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
       if (ImGui.button("${t("APPLY", "適用")}###APPLY")) applySelected(); ImGui.sameLine()
       if (ImGui.button("${t("DELETE", "削除")}###DELETE")) deleteSelected()
       if (ImGui.button("${t("NEW PART FROM SELECTION", "選択音からパート作成")}###NEW_PART")) createPartFromSelection()
+      if (ImGui.button("${t("MOVE TO EXISTING PART", "既存パートへ移動")}###MOVE_EXISTING")) moveSelectionToPart(imMovePart.get())
       ImGui.text(t("Move selected to", "選択音の移動先")); ImGui.sameLine(); ImGui.setNextItemWidth(-1f)
       ImGui.combo("##MOVE_EXISTING_PART", imMovePart, parts.toTypedArray())
-      if (ImGui.button("${t("MOVE TO EXISTING PART", "既存パートへ移動")}###MOVE_EXISTING")) moveSelectionToPart(imMovePart.get())
       ImGui.separator()
       ImGui.text(t("Active part name", "現在のパート名")); ImGui.sameLine(); ImGui.setNextItemWidth(-1f); ImGui.inputText("##PART_NAME", imPartName)
       if (ImGui.button("${t("RENAME ACTIVE PART", "パート名を変更")}###RENAME_PART")) renameActivePart()
@@ -1492,8 +1682,10 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     // horizontal scrolling of the whole editor and moves the canvas itself off-screen.
     // One button row plus a dedicated 6px+padding scrollbar; neither dimension is allowed to
     // contribute to the piano-roll canvas window's own horizontal content extent.
-    val partStripHeight = ImGui.getFrameHeightWithSpacing() + 18f
-    if (ImGui.beginChild("##ommt-part-strip", 0f, partStripHeight, true, ImGuiWindowFlags.HorizontalScrollbar)) {
+    val partStyle = ImGui.getStyle()
+    val partStripHeight = ImGui.getFrameHeight() + partStyle.windowPaddingY * 2f + partStyle.scrollbarSize + 4f
+    ImGui.setNextWindowContentSize(0f, ImGui.getFrameHeight())
+    if (ImGui.beginChild("##ommt-part-strip", 0f, partStripHeight, true, ImGuiWindowFlags.HorizontalScrollbar or ImGuiWindowFlags.AlwaysHorizontalScrollbar)) {
       if(ImGui.button("${t("ALL", "全体")} (${notes.size})###ALL_PARTS")) allPartsView=true
       parts.forEachIndexed { index, name ->
         ImGui.sameLine()
@@ -1666,27 +1858,29 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     }
 
     draw.pushClipRect(canvasX, canvasY, canvasX + canvasWidth, canvasY + canvasHeight, true)
-    draw.addRectFilled(canvasX, canvasY, canvasX + canvasWidth, canvasY + canvasHeight, ImColor.rgb(16, 19, 26))
-    draw.addRectFilled(canvasX, canvasY, plotLeft, notesTop, ImColor.rgb(30, 37, 48))
-    draw.addText(canvasX + 10f, canvasY + 7f, ImColor.rgb(141, 152, 169), "KEY")
+    draw.addRectFilled(canvasX, canvasY, canvasX + canvasWidth, canvasY + canvasHeight, drawColor(settings.style.pianoRollColor))
+    draw.addRectFilled(canvasX, canvasY, plotLeft, notesTop, drawColor(settings.style.panelBackgroundColor))
+    draw.addText(canvasX + 10f, canvasY + 7f, drawColor(settings.style.disabledTextColor), "KEY")
     val blackKeys = setOf(1, 3, 6, 8, 10)
     for (pitch in pitchMin until pitchMin + visiblePitchCount) {
       val y = yAt(pitch); val midi = NoteBlockPitch.toMidiKey(pitch); val midiClass = Math.floorMod(midi, 12); val black = midiClass in blackKeys
       val outsideVanilla = pitch !in NoteBlockPitch.VANILLA_MIN..NoteBlockPitch.VANILLA_MAX
-      draw.addRectFilled(plotLeft, y, plotRight, y + rowHeight, if (black) ImColor.rgb(18, 23, 32) else ImColor.rgb(23, 28, 37))
+      draw.addRectFilled(plotLeft, y, plotRight, y + rowHeight, shadedDrawColor(settings.style.pianoRollColor, if (black) .88f else 1.12f))
       draw.addRectFilled(canvasX, y, plotLeft, y + rowHeight, if (black) ImColor.rgb(37, 43, 53) else ImColor.rgb(225, 229, 232))
       if (outsideVanilla) {
-        draw.addRectFilled(plotLeft, y, plotRight, y + rowHeight, ImColor.rgba(78, 105, 140, 60))
-        draw.addRectFilled(canvasX, y, plotLeft, y + rowHeight, ImColor.rgba(64, 92, 125, 48))
-        draw.addRectFilled(canvasX, y, canvasX + 5f, y + rowHeight, ImColor.rgb(105, 132, 164))
+        draw.addRectFilled(plotLeft, y, plotRight, y + rowHeight, drawColor(settings.style.outOfRangeColor))
+        draw.addRectFilled(canvasX, y, plotLeft, y + rowHeight, drawColor(settings.style.outOfRangeColor))
+        draw.addRectFilled(canvasX, y, canvasX + 5f, y + rowHeight, drawColor(settings.style.accentColor))
       }
-      if (pitch == NoteBlockPitch.VANILLA_MIN || pitch == NoteBlockPitch.VANILLA_MAX + 1) draw.addLine(canvasX, y, plotRight, y, ImColor.rgb(132, 158, 190), 1.5f)
-      val octaveLine = midiClass == 0
-      draw.addLine(plotLeft, y, plotRight, y, if (octaveLine) ImColor.rgb(76, 94, 61) else ImColor.rgb(45, 52, 64))
-      if (octaveLine && rowHeight >= 7f) draw.addText(canvasX + 5f, y + 1f, if (black) ImColor.rgb(234, 240, 248) else ImColor.rgb(40, 46, 55), "C${midi / 12 - 1}")
+      if (pitch == NoteBlockPitch.VANILLA_MIN || pitch == NoteBlockPitch.VANILLA_MAX + 1) draw.addLine(canvasX, y + rowHeight, plotRight, y + rowHeight, drawColor(settings.style.accentColor), 1.5f)
+      draw.addLine(plotLeft, y, plotRight, y, drawColor(settings.style.gridColor))
+      // y is the top of a key row. C and F# boundaries belong below those rows, at B/C and F/F#.
+      val keyBoundary = midiClass == 0 || midiClass == 6
+      if (keyBoundary) draw.addLine(plotLeft, y + rowHeight, plotRight, y + rowHeight, drawColor(settings.style.accentColor), 1f)
+      if (midiClass == 0 && rowHeight >= 7f) draw.addText(canvasX + 5f, y + 1f, if (black) ImColor.rgb(234, 240, 248) else ImColor.rgb(40, 46, 55), "C${midi / 12 - 1}")
     }
 
-    draw.addRectFilled(plotLeft, canvasY, plotRight, notesTop, ImColor.rgb(29, 35, 45))
+    draw.addRectFilled(plotLeft, canvasY, plotRight, notesTop, drawColor(settings.style.frameColor))
     val visibleMarks = gridMarks.filter { it.timeMs in horizontalOffset..horizontalOffset + visibleSpan() }
     val barMarks = visibleMarks.filter { it.isBar }
     val barSpacing = barMarks.zipWithNext().map { xAt(it.second.timeMs) - xAt(it.first.timeMs) }.filter { it > 0f }.minOrNull() ?: plotWidth
@@ -1706,7 +1900,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
       val strideBar = (mark.bar - 1) % barStride == 0
       val drawLine = mark.isBar || (renderDivisor > 0 && mark.subdivision % renderStride == 0)
       if (drawLine) {
-        val color = when { mark.isBar -> ImColor.rgb(81, 92, 109); mark.isBeat -> ImColor.rgb(61, 72, 88); else -> ImColor.rgb(48, 55, 68) }
+        val color = when { mark.isBar -> shadedDrawColor(settings.style.gridColor, 1.65f); mark.isBeat -> shadedDrawColor(settings.style.gridColor, 1.30f); else -> drawColor(settings.style.gridColor) }
         // The ruler is a dedicated opaque band: grid lines begin below it and cannot cross labels.
         draw.addLine(x, notesTop, x, notesBottom, color)
         if (mark.isBar) draw.addLine(x, notesTop - 5f, x, notesTop, color)
@@ -1715,8 +1909,8 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
         val label = mark.bar.toString(); val labelWidth = ImGui.calcTextSizeX(label)
         val labelX = (x + 4f).coerceIn(plotLeft + 3f, plotRight - labelWidth - 3f)
         if (labelX >= previousLabelRight && labelX + labelWidth <= plotRight - 2f) {
-          draw.addRectFilled(labelX - 2f, canvasY + 3f, labelX + labelWidth + 2f, notesTop - 3f, ImColor.rgb(29, 35, 45))
-          draw.addText(labelX, canvasY + 6f, ImColor.rgb(180, 190, 204), label)
+          draw.addRectFilled(labelX - 2f, canvasY + 3f, labelX + labelWidth + 2f, notesTop - 3f, drawColor(settings.style.frameColor))
+          draw.addText(labelX, canvasY + 6f, drawColor(settings.style.disabledTextColor), label)
           previousLabelRight = labelX + labelWidth + 12f
         }
       }
@@ -1947,7 +2141,8 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
         val dockHeight = (io.displaySizeY * .30f).coerceIn(240f, 420f)
         ImGuiInternal.dockBuilderSetNodePos(dockId, left, io.displaySizeY - dockHeight)
         ImGuiInternal.dockBuilderSetNodeSize(dockId, (io.displaySizeX - left - right).coerceAtLeast(420f), dockHeight)
-        AutomationLane.entries.forEach { lane ->
+        // Dock Volume last because ImGui activates the last added tab on a fresh node.
+        AutomationLane.entries.reversed().forEach { lane ->
           ImGuiInternal.dockBuilderDockWindow(automationWindowTitle(lane), dockId)
         }
         ImGuiInternal.dockBuilderFinish(dockId)
@@ -1955,6 +2150,11 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
       automationDockInitialized = true
     }
     AutomationLane.entries.forEach { lane -> renderImGuiAutomationWindow(io, lane, dockId) }
+    if (focusDefaultAutomation) {
+      ImGui.setWindowFocus(automationWindowTitle(AutomationLane.VOLUME))
+      automationLane = AutomationLane.VOLUME
+      focusDefaultAutomation = false
+    }
   }
 
   private fun automationWindowTitle(lane: AutomationLane) = when (lane) {
@@ -2082,29 +2282,30 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
   }
 
   private fun renderImGuiSettings(io: ImGuiIO) {
-    ImGui.setNextWindowPos(max(10f, io.displaySizeX - 360f), 118f, ImGuiCond.FirstUseEver)
-    ImGui.setNextWindowSize(420f, 640f, ImGuiCond.FirstUseEver)
+    ImGui.setNextWindowPos(max(10f, io.displaySizeX - 720f), 72f, ImGuiCond.FirstUseEver)
+    ImGui.setNextWindowSize(700f, min(760f, io.displaySizeY - 90f).coerceAtLeast(520f), ImGuiCond.FirstUseEver)
     var changed = false
     if (ImGui.begin(windowTitle("EDITOR SETTINGS", "エディター設定"))) {
-      if(ImGui.button("${t("GENERAL", "一般")}###GENERAL"))settingsPage=SettingsPage.GENERAL
-      ImGui.sameLine();if(ImGui.button("${t("KEYMAP", "キーマップ")}###KEYMAP"))settingsPage=SettingsPage.KEYMAP
-      ImGui.sameLine();if(ImGui.button("${t("IMPORT / EXPORT", "インポート / エクスポート")}###SHARE"))settingsPage=SettingsPage.SHARE
+      if(ImGui.button("${t("GENERAL", "一般")}###GENERAL")) settingsPage=SettingsPage.GENERAL
+      ImGui.sameLine(); if(ImGui.button("${t("STYLE", "配色")}###STYLE")) settingsPage=SettingsPage.STYLE
+      ImGui.sameLine(); if(ImGui.button("${t("LAYOUT", "レイアウト")}###LAYOUT")) settingsPage=SettingsPage.LAYOUT
+      ImGui.sameLine(); if(ImGui.button("${t("KEYMAP", "キーマップ")}###KEYMAP")) settingsPage=SettingsPage.KEYMAP
+      ImGui.sameLine(); if(ImGui.button("${t("SHARE", "共有")}###SHARE")) settingsPage=SettingsPage.SHARE
       ImGui.spacing()
       when(settingsPage) {
         SettingsPage.GENERAL -> {
-          if (ImGui.checkbox("${t("MIDI Library", "MIDIライブラリ")}###showLibrary", settings.showLibrary)) { settings = settings.copy(showLibrary = !settings.showLibrary); changed = true }
-          if (ImGui.checkbox("${t("Note Inspector", "ノートインスペクター")}###showInspector", settings.showInspector)) { settings = settings.copy(showInspector = !settings.showInspector); changed = true }
-          if (ImGui.checkbox("${t("Bottom editor panels", "下部編集パネル")}###showAutomation", settings.showAutomation)) { settings = settings.copy(showAutomation = !settings.showAutomation); changed = true }
-          if (ImGui.checkbox("${t("Ghost other parts", "他パートを半透明表示")}###showOtherParts", settings.showOtherParts)) { settings = settings.copy(showOtherParts = !settings.showOtherParts); changed = true }
           val scale = intArrayOf(settings.uiScalePercent)
           if (ImGui.sliderInt("${t("OMMT UI scale", "OMMT UIスケール")}###uiScale", scale, 75, 150, "%d%%")) { settings = settings.copy(uiScalePercent = (scale[0] / 5 * 5).coerceIn(75, 150)); changed = true }
           ImGui.textDisabled(t("Font-safe scale; independent from Minecraft GUI Scale", "MinecraftのGUIサイズとは独立した安全な表示倍率です"))
-          val themeIndex = ImInt(settings.theme.ordinal)
-          ImGui.setNextItemWidth(-1f)
-          if (ImGui.combo(t("Color theme", "配色テーマ") + "###THEME", themeIndex, EditorTheme.entries.map { t(it.english,it.japanese) }.toTypedArray())) { settings=settings.copy(theme=EditorTheme.entries[themeIndex.get().coerceIn(0,EditorTheme.entries.lastIndex)]); imguiAppliedTheme=null; changed=true }
           if (ImGui.button("${t("Grid", "グリッド")}: ${settings.gridDensity}###GRID")) { cycleGridDensity(); changed = true }
-          ImGui.textWrapped(t("Windows can be moved, resized, tabbed and docked. Their positions are stored independently from Minecraft GUI Scale.", "各ウィンドウは移動・リサイズ・タブ化・ドッキングでき、配置はMinecraftのGUIサイズとは別に保存されます。"))
+          if (ImGui.checkbox("${t("Compact toolbar", "コンパクトツールバー")}###compactToolbar", settings.compactToolbar)) { settings = settings.copy(compactToolbar = !settings.compactToolbar); changed = true }
+          val lead = intArrayOf(settings.followLead)
+          if (ImGui.sliderInt("${t("Follow lead", "追従開始位置")}###FOLLOW_LEAD", lead, 20, 70, "%d%%")) { settings = settings.copy(followLead = lead[0].coerceIn(20,70)); changed = true }
+          ImGui.spacing()
+          ImGui.textWrapped(t("Use Style for live color and spacing editing, Layout for panel placement, and Keymap for all editor gestures.", "配色と余白は「配色」、パネル配置は「レイアウト」、編集操作は「キーマップ」から変更できます。"))
         }
+        SettingsPage.STYLE -> if (renderStyleSettings()) changed = true
+        SettingsPage.LAYOUT -> if (renderLayoutSettings(io)) changed = true
         SettingsPage.KEYMAP -> {
           capturingBinding?.let{ImGui.textColored(.73f,.91f,.41f,1f,t("Press a key combination; Backspace clears; Esc cancels", "割り当てるキーを押す / Backspaceで解除 / Escで中止"))}
           EditorAction.entries.forEach{action->ImGui.text(actionName(action));ImGui.sameLine(220f);if(ImGui.button("${settings.keymap[action].encode()}##key_${action.name}"))capturingBinding=action}
@@ -2120,7 +2321,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
           ImGui.text(t("Timeline pan", "タイムラインパン"));ImGui.sameLine(220f);if(ImGui.button("${t(settings.panMouseButton.english,settings.panMouseButton.japanese)}###PAN_BUTTON")){settings=settings.copy(panMouseButton=if(settings.panMouseButton==PanMouseButton.RIGHT)PanMouseButton.MIDDLE else PanMouseButton.RIGHT);changed=true}
         }
         SettingsPage.SHARE -> {
-          ImGui.textWrapped(t("Export creates one encoded text containing the theme, layout, keymap and editor preferences. Import replaces those settings only; songs are never included.", "配色・レイアウト・キーマップ・編集設定を1つの文字列にエンコードします。インポートで置き換わるのは設定だけで、楽曲データは含まれません。"))
+          ImGui.textWrapped(t("This page only shares settings. Edit colors on Style and arrange windows on Layout before exporting. Songs are never included.", "ここは設定の共有専用です。配色は「配色」、配置は「レイアウト」で編集してからエクスポートします。楽曲データは含まれません。"))
           ImGui.inputTextMultiline("##OMMT_SETTINGS_TEXT", imSettingsText, -1f, 300f)
           if (ImGui.button("${t("EXPORT", "エクスポート")}###EXPORT_SETTINGS")) {
             runCatching { EditorSettingsStore.exportText(settings.copy(lastTool=tool)) }.onSuccess { imSettingsText.set(it); state=t("Settings exported to text", "設定を文字列へエクスポートしました") }.onFailure { state=t("Settings export failed: ${it.message}", "設定のエクスポートに失敗しました: ${it.message}") }
@@ -2128,7 +2329,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
           ImGui.sameLine(); if (ImGui.button("${t("COPY", "コピー")}###COPY_SETTINGS")) { GLFW.glfwSetClipboardString(MinecraftClient.getInstance().window.handle, imSettingsText.get()); state=t("Settings text copied", "設定文字列をコピーしました") }
           ImGui.sameLine(); if (ImGui.button("${t("PASTE", "貼り付け")}###PASTE_SETTINGS")) { imSettingsText.set(GLFW.glfwGetClipboardString(MinecraftClient.getInstance().window.handle).orEmpty().take(1024*1024)) }
           ImGui.sameLine(); if (ImGui.button("${t("IMPORT", "インポート")}###IMPORT_SETTINGS")) {
-            runCatching { EditorSettingsStore.importText(imSettingsText.get()) }.onSuccess { imported -> settings=imported; tool=imported.lastTool; applyPanelVisibility(); imguiAppliedTheme=null; automationDockInitialized=false; ImGui.loadIniSettingsFromDisk(EditorSettingsStore.layoutPath.toString()); state=t("Settings and layout imported", "設定とレイアウトをインポートしました") }.onFailure { state=t("Settings import failed: ${it.message}", "設定のインポートに失敗しました: ${it.message}") }
+            runCatching { EditorSettingsStore.importText(imSettingsText.get()) }.onSuccess { imported -> settings=imported; tool=imported.lastTool; applyPanelVisibility(); imguiAppliedStyle=null; automationDockInitialized=false; focusDefaultAutomation=true; ImGui.loadIniSettingsFromDisk(EditorSettingsStore.layoutPath.toString()); state=t("Settings and layout imported", "設定とレイアウトをインポートしました") }.onFailure { state=t("Settings import failed: ${it.message}", "設定のインポートに失敗しました: ${it.message}") }
           }
         }
       }
@@ -2136,6 +2337,136 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     }
     ImGui.end()
     if (changed) { applyPanelVisibility(); saveSettings(); state = t("Editor settings saved", "エディター設定を保存しました") }
+  }
+
+  private fun renderStyleSettings(): Boolean {
+    var changed = false
+    val themeIndex = ImInt(settings.theme.ordinal)
+    ImGui.setNextItemWidth(280f)
+    if (ImGui.combo(t("Base style", "基本スタイル") + "###THEME", themeIndex, EditorTheme.entries.map { t(it.english,it.japanese) }.toTypedArray())) {
+      val theme = EditorTheme.entries[themeIndex.get().coerceIn(0, EditorTheme.entries.lastIndex)]
+      settings = settings.copy(theme = theme, style = EditorStylePresets.forTheme(theme))
+      imguiAppliedStyle = null
+      changed = true
+    }
+    ImGui.sameLine()
+    val customized = settings.style != EditorStylePresets.forTheme(settings.theme)
+    ImGui.textDisabled(if (customized) t("Customized", "カスタム済み") else t("Preset values", "プリセット値"))
+    if (ImGui.button("${t("RESET TO BASE STYLE", "基本スタイルへ戻す")}###RESET_STYLE")) {
+      settings = settings.copy(style = EditorStylePresets.forTheme(settings.theme))
+      imguiAppliedStyle = null
+      changed = true
+    }
+    ImGui.separator()
+
+    val controlsWidth = min(430f, ImGui.getContentRegionAvailX() * .64f).coerceAtLeast(300f)
+    ImGui.beginChild("##style-controls", controlsWidth, -1f, true)
+    if (ImGui.beginTabBar("##STYLE_EDITOR_TABS")) {
+      if (ImGui.beginTabItem(t("COLORS", "色"))) {
+        fun colorRow(english: String, japanese: String, value: Int, update: (EditorStyle, Int) -> EditorStyle) {
+          val rgba = colorFloats(value)
+          ImGui.setNextItemWidth(-1f)
+          if (ImGui.colorEdit4("${t(english, japanese)}##style_$english", rgba)) {
+            settings = settings.copy(style = update(settings.style, colorFromFloats(rgba)))
+            imguiAppliedStyle = null
+            changed = true
+          }
+        }
+        val style = settings.style
+        colorRow("Text", "文字", style.textColor) { current, value -> current.copy(textColor = value) }
+        colorRow("Disabled text", "補助文字", style.disabledTextColor) { current, value -> current.copy(disabledTextColor = value) }
+        colorRow("Window background", "ウィンドウ背景", style.windowBackgroundColor) { current, value -> current.copy(windowBackgroundColor = value) }
+        colorRow("Panel background", "パネル背景", style.panelBackgroundColor) { current, value -> current.copy(panelBackgroundColor = value) }
+        colorRow("Popup background", "ポップアップ背景", style.popupBackgroundColor) { current, value -> current.copy(popupBackgroundColor = value) }
+        colorRow("Active title", "選択中のタイトル", style.titleBackgroundColor) { current, value -> current.copy(titleBackgroundColor = value) }
+        colorRow("Borders", "境界線", style.borderColor) { current, value -> current.copy(borderColor = value) }
+        colorRow("Input frame", "入力欄", style.frameColor) { current, value -> current.copy(frameColor = value) }
+        colorRow("Hovered frame", "ホバー中の入力欄", style.frameHoveredColor) { current, value -> current.copy(frameHoveredColor = value) }
+        colorRow("Headers", "見出し", style.headerColor) { current, value -> current.copy(headerColor = value) }
+        colorRow("Buttons", "ボタン", style.buttonColor) { current, value -> current.copy(buttonColor = value) }
+        colorRow("Accent", "アクセント", style.accentColor) { current, value -> current.copy(accentColor = value) }
+        colorRow("Piano-roll background", "ピアノロール背景", style.pianoRollColor) { current, value -> current.copy(pianoRollColor = value) }
+        colorRow("Grid lines", "グリッド線", style.gridColor) { current, value -> current.copy(gridColor = value) }
+        colorRow("Outside vanilla range", "バニラ音域外", style.outOfRangeColor) { current, value -> current.copy(outOfRangeColor = value) }
+        ImGui.endTabItem()
+      }
+      if (ImGui.beginTabItem(t("SIZES", "サイズ"))) {
+        fun metric(english: String, japanese: String, value: Int, minimum: Int, maximum: Int, update: (EditorStyle, Int) -> EditorStyle) {
+          val holder = intArrayOf(value)
+          if (ImGui.sliderInt("${t(english, japanese)}##metric_$english", holder, minimum, maximum)) {
+            settings = settings.copy(style = update(settings.style, holder[0]).normalized())
+            imguiAppliedStyle = null
+            changed = true
+          }
+        }
+        val style = settings.style
+        metric("Window horizontal padding", "ウィンドウ左右余白", style.windowPaddingX, 2, 24) { current, value -> current.copy(windowPaddingX = value) }
+        metric("Window vertical padding", "ウィンドウ上下余白", style.windowPaddingY, 2, 24) { current, value -> current.copy(windowPaddingY = value) }
+        metric("Input horizontal padding", "入力欄左右余白", style.framePaddingX, 2, 20) { current, value -> current.copy(framePaddingX = value) }
+        metric("Input vertical padding", "入力欄上下余白", style.framePaddingY, 2, 16) { current, value -> current.copy(framePaddingY = value) }
+        metric("Horizontal item spacing", "項目の左右間隔", style.itemSpacingX, 1, 20) { current, value -> current.copy(itemSpacingX = value) }
+        metric("Vertical item spacing", "項目の上下間隔", style.itemSpacingY, 1, 20) { current, value -> current.copy(itemSpacingY = value) }
+        metric("Corner rounding", "角の丸み", style.rounding, 0, 12) { current, value -> current.copy(rounding = value) }
+        metric("Scrollbar width", "スクロールバー幅", style.scrollbarSize, 8, 24) { current, value -> current.copy(scrollbarSize = value) }
+        metric("Border width", "境界線の幅", style.borderSize, 0, 2) { current, value -> current.copy(borderSize = value) }
+        ImGui.endTabItem()
+      }
+      ImGui.endTabBar()
+    }
+    ImGui.endChild()
+    ImGui.sameLine()
+    ImGui.beginChild("##style-preview", 0f, -1f, true)
+    ImGui.text(t("LIVE PREVIEW", "ライブプレビュー"))
+    val accent = colorFloats(settings.style.accentColor)
+    ImGui.textColored(accent[0], accent[1], accent[2], accent[3], t("Selected / active", "選択・アクティブ"))
+    ImGui.textDisabled(t("Secondary information", "補助情報"))
+    val previewInput = ImInt(64)
+    ImGui.setNextItemWidth(-1f); ImGui.inputInt("${t("Value", "値")}###STYLE_PREVIEW_INPUT", previewInput, 0, 0)
+    ImGui.button("${t("BUTTON", "ボタン")}###STYLE_PREVIEW_BUTTON")
+    ImGui.checkbox("${t("Checkbox", "チェックボックス")}###STYLE_PREVIEW_CHECK", true)
+    val previewSlider = intArrayOf(45)
+    ImGui.sliderInt("${t("Slider", "スライダー")}###STYLE_PREVIEW_SLIDER", previewSlider, 0, 100)
+    ImGui.spacing()
+    ImGui.textWrapped(t("Changes are applied immediately and are stored with OMMT settings. Use Share only when copying the finished style to another profile.", "変更は即時反映され、OMMT設定として保存されます。完成した配色を別プロフィールへ移す場合だけ「共有」を使います。"))
+    ImGui.endChild()
+    return changed
+  }
+
+  private fun renderLayoutSettings(io: ImGuiIO): Boolean {
+    var changed = false
+    if (ImGui.checkbox("${t("MIDI Library", "MIDIライブラリ")}###showLibrary", settings.showLibrary)) { settings = settings.copy(showLibrary = !settings.showLibrary); changed = true }
+    if (ImGui.checkbox("${t("Note Inspector", "ノートインスペクター")}###showInspector", settings.showInspector)) { settings = settings.copy(showInspector = !settings.showInspector); changed = true }
+    if (ImGui.checkbox("${t("Bottom editor panels", "下部編集パネル")}###showAutomation", settings.showAutomation)) { settings = settings.copy(showAutomation = !settings.showAutomation); changed = true; focusDefaultAutomation = true }
+    if (ImGui.checkbox("${t("Ghost other parts", "他パートを半透明表示")}###showOtherParts", settings.showOtherParts)) { settings = settings.copy(showOtherParts = !settings.showOtherParts); changed = true }
+    ImGui.separator()
+    ImGui.textWrapped(t("Move a window by dragging its title. Drag a window onto another title to create tabs, or onto a docking guide to split the workspace. Resize from window edges. The layout is saved independently from Minecraft GUI Scale.", "タイトルをドラッグしてウィンドウを移動できます。別タイトルへ重ねるとタブ化し、ドッキングガイドへ重ねると画面を分割できます。端をドラッグするとサイズを変更できます。配置はMinecraftのGUIサイズとは別に保存されます。"))
+    if (ImGui.button("${t("SAVE CURRENT LAYOUT", "現在の配置を保存")}###SAVE_LAYOUT")) {
+      ImGui.saveIniSettingsToDisk(EditorSettingsStore.layoutPath.toString())
+      state = t("Current window layout saved", "現在のウィンドウ配置を保存しました")
+    }
+    ImGui.sameLine()
+    if (ImGui.button("${t("RESTORE DEFAULT LAYOUT", "標準配置に戻す")}###RESET_LAYOUT")) resetImGuiLayout(io)
+    return changed
+  }
+
+  private fun resetImGuiLayout(io: ImGuiIO) {
+    val left = if (settings.showLibrary) max(220f, io.displaySizeX * .16f) else 0f
+    val right = if (settings.showInspector) 350f else 0f
+    val bottom = if (settings.showAutomation) (io.displaySizeY * .30f).coerceIn(240f, 420f) else 0f
+    ImGui.setWindowPos(windowTitle("OMMT - MIDI WORKSPACE", "OMMT - MIDIワークスペース", "OMMT  •  MIDI WORKSPACE"), 0f, 0f)
+    ImGui.setWindowSize(windowTitle("OMMT - MIDI WORKSPACE", "OMMT - MIDIワークスペース", "OMMT  •  MIDI WORKSPACE"), io.displaySizeX, 112f)
+    ImGui.setWindowPos(windowTitle("OMMT LIBRARY", "OMMTライブラリ", "MIDI LIBRARY"), 0f, 118f)
+    ImGui.setWindowSize(windowTitle("OMMT LIBRARY", "OMMTライブラリ", "MIDI LIBRARY"), max(220f, io.displaySizeX * .16f), max(260f, io.displaySizeY - 118f))
+    ImGui.setWindowPos(windowTitle("NOTE INSPECTOR", "ノートインスペクター"), io.displaySizeX - 350f, 118f)
+    ImGui.setWindowSize(windowTitle("NOTE INSPECTOR", "ノートインスペクター"), 350f, max(260f, io.displaySizeY - 118f))
+    ImGui.setWindowPos(windowTitle("PIANO ROLL", "ピアノロール"), left, 118f)
+    ImGui.setWindowSize(windowTitle("PIANO ROLL", "ピアノロール"), max(420f, io.displaySizeX - left - right), max(260f, io.displaySizeY - 118f - bottom))
+    val dockId = ImGui.getID("##OMMT_BOTTOM_AUTOMATION_DOCK")
+    if (ImGuiInternal.dockBuilderGetNode(dockId) != null) ImGuiInternal.dockBuilderRemoveNode(dockId)
+    automationDockInitialized = false
+    focusDefaultAutomation = true
+    ImGui.saveIniSettingsToDisk(EditorSettingsStore.layoutPath.toString())
+    state = t("Default window layout restored", "標準のウィンドウ配置へ戻しました")
   }
 
   private fun drawSettings(context: DrawContext) {
@@ -2242,10 +2573,10 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
       val y = pitchToY(pitch); val nextY = pitchToY(pitch - 1).coerceAtMost(bottom); val midiClass = (pitch + 54) % 12; val black = midiClass in blackKeys
       context.fill(plotLeft, y, right, nextY, if (black) 0xFF121720.toInt() else 0xFF171C25.toInt())
       context.fill(left, y, plotLeft, nextY, if (black) 0xFF252B35.toInt() else 0xFFE1E5E8.toInt())
-      if (black) context.fill(left, y, left + 26, nextY, if (pitch % 12 == 0) 0xFF637D36.toInt() else 0xFF242A34.toInt())
-      val lineColor = if (pitch % 12 == 0) 0xFF607842.toInt() else 0xFF2D3440.toInt()
-      context.fill(plotLeft, y, right, y + 1, lineColor)
-      if (pitch % 12 == 0 || pitch == 24) context.drawTextWithShadow(textRenderer, "F♯${3 + pitch / 12}", left + 3, y + 2, if (black) 0xFFDAF2AB.toInt() else 0xFF30343A.toInt())
+      if (black) context.fill(left, y, left + 26, nextY, 0xFF242A34.toInt())
+      context.fill(plotLeft, y, right, y + 1, 0xFF2D3440.toInt())
+      if (midiClass == 0 || midiClass == 6) context.fill(plotLeft, nextY - 1, right, nextY, 0xFF607842.toInt())
+      if (midiClass == 0) context.drawTextWithShadow(textRenderer, "C${(pitch + 54) / 12 - 1}", left + 3, y + 2, if (black) 0xFFDAF2AB.toInt() else 0xFF30343A.toInt())
     }
     val span = visibleSpan()
     context.fill(plotLeft, top, right, notesTop, 0xFF1D232D.toInt())

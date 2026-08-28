@@ -11,6 +11,9 @@ import org.lwjgl.glfw.GLFW
 class OyasaimusicmiditranslatorClient : ClientModInitializer {
 
     override fun onInitializeClient() {
+        EditorWorkspace.initialize().onFailure { error ->
+            System.err.println("[OMMT] Could not initialize OMMT folders: ${error.message ?: error.javaClass.simpleName}")
+        }
         val openEditor = KeyBindingHelper.registerKeyBinding(
             KeyBinding(
                 "key.oyasaimusicmiditranslator.open_editor",

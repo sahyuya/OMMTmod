@@ -43,6 +43,8 @@ object OmmtPluginWire {
   const val PLAYBACK_STOP = 7
   const val PLAYBACK_PROBE_RESPONSE = 8
   const val PLAYBACK_READY = 9
+  const val PLAYBACK_SERVER_CAPABILITIES = 10
+  const val CAP_BRASS_NOTE_BLOCK = 1
 
   data class UploadReady(
       val id: UUID,

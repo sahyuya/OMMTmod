@@ -38,13 +38,15 @@
       <article class="article">
         <section id="open">
           <h2>設定を開く</h2>
-          <p>OMMT上部の<strong>「設定」</strong>、または初期キーの<kbd>Ctrl</kbd>+<kbd>,</kbd>で開きます。設定画面は次の3ページに分かれています。</p>
+          <p>OMMT上部の<strong>「設定」</strong>、または初期キーの<kbd>Ctrl</kbd>+<kbd>,</kbd>で開きます。設定画面は次の5ページに分かれています。</p>
           <table class="comparison">
             <thead><tr><th>ページ</th><th>主な内容</th></tr></thead>
             <tbody>
-              <tr><td>一般</td><td>OMMT UIスケール、配色、グリッド密度、表示パネルなど</td></tr>
+              <tr><td>一般</td><td>OMMT UIスケール、グリッド密度、追従位置など</td></tr>
+              <tr><td>配色</td><td>基本スタイル、各UI色、余白、丸み、境界線、スクロールバー幅</td></tr>
+              <tr><td>レイアウト</td><td>パネルの表示切替、配置の保存、標準配置への復元</td></tr>
               <tr><td>キーマップ</td><td>ショートカット、ホイール、範囲選択、選択追加、パン操作</td></tr>
-              <tr><td>インポート／エクスポート</td><td>配色・レイアウト・キーマップ・編集設定のバックアップと共有</td></tr>
+              <tr><td>共有</td><td>完成した配色・レイアウト・キーマップ・編集設定のバックアップと共有</td></tr>
             </tbody>
           </table>
         </section>
@@ -55,8 +57,17 @@
           <p>OMMTはMinecraft本体のGUIサイズとは別に、75%～150%の表示倍率を持っています。文字が小さい場合は少し上げ、ノートインスペクターやボタンが収まりにくい場合は少し下げます。</p>
           <div class="tip"><strong>調整の目安</strong>一度に大きく変えず、5%ずつ変更して文字、ピアノロール、右インスペクターが同時に見える倍率を探すと整えやすくなります。</div>
 
-          <h3>配色テーマ</h3>
-          <p>「配色テーマ」から好みの色を選べます。長時間編集する場合は、ノート、選択色、再生ヘッド、バニラ音域外の背景を見分けやすいテーマを選んでください。テーマを変えても楽曲内容は変わりません。</p>
+          <h3>配色を編集する</h3>
+          <p><strong>「配色」</strong>ページでは、まずStudio Slate、Obsidian、Midnight Blue、Warm Graphiteから基本スタイルを選びます。その後、色とサイズを個別に調整できます。変更は右側のライブプレビューとエディター本体へすぐ反映されます。</p>
+          <table class="comparison">
+            <thead><tr><th>分類</th><th>変更できるもの</th></tr></thead>
+            <tbody>
+              <tr><td>色</td><td>文字、補助文字、ウィンドウ、パネル、ポップアップ、タイトル、境界線、入力欄、見出し、ボタン、アクセント、ピアノロール、グリッド、バニラ音域外</td></tr>
+              <tr><td>サイズ</td><td>ウィンドウと入力欄の余白、項目間隔、角の丸み、スクロールバー幅、境界線幅</td></tr>
+            </tbody>
+          </table>
+          <p><strong>「基本スタイルへ戻す」</strong>を押すと、現在選んでいる基本スタイルの初期値へ戻ります。配色を変えても楽曲内容は変わりません。</p>
+          <div class="tip"><strong>見分けやすさを確認</strong>アクセント色は選択やアクティブ状態、音域外の色はバニラ音域外の背景に使われます。ノート、グリッド、再生位置と十分に区別できる組み合わせを選んでください。</div>
 
           <h3>グリッド密度</h3>
           <p>グリッドが細かすぎて小節やノートが見づらい場合は密度を下げます。AUTOでは表示倍率に合わせて、小節、1/4、1/8、1/16、1/32、1/64の線を段階的に間引きます。</p>
@@ -64,13 +75,15 @@
 
         <section id="layout">
           <h2>ウィンドウの配置を変える</h2>
-          <p>MIDIライブラリ、ピアノロール、ノートインスペクター、音量、定位、テンポ、リリースは、移動、サイズ変更、タブ化、ドッキングができます。</p>
+          <p><strong>「レイアウト」</strong>ページでは、OMMTライブラリ、ノートインスペクター、下部編集パネル、他パートの補助表示を切り替えられます。</p>
+          <p>OMMTライブラリ、ピアノロール、ノートインスペクター、音量、定位、テンポ、リリースは、移動、サイズ変更、タブ化、ドッキングができます。</p>
           <ol>
             <li>各パネル上部のタイトル部分をドラッグします。</li>
             <li>配置候補が表示された場所で離すとドッキングします。</li>
             <li>同じ場所へ重ねるとタブとしてまとめられます。</li>
             <li>境界をドラッグすると、パネル同士の広さを調整できます。</li>
           </ol>
+          <p>調整後に<strong>「現在の配置を保存」</strong>を押すと、その配置を明示的に保存できます。配置をやり直したい場合は<strong>「標準配置に戻す」</strong>を押します。</p>
           <div class="example">
             <div class="example-title">例: ピアノロールを広く使う</div>
             <div class="example-body"><p>音量、定位、テンポ、リリースを画面下の同じ場所へ重ね、4つのタブとしてまとめます。ノートインスペクターを右端、ライブラリを左端に置くと、中央のピアノロールを広く保てます。</p></div>
@@ -94,7 +107,7 @@
 
         <section id="share">
           <h2>設定を文字列でバックアップ・共有する</h2>
-          <p>「インポート／エクスポート」では、現在の配色、ウィンドウ配置、キーマップ、表示・操作設定を1つの文字列にできます。</p>
+          <p>「共有」では、現在の配色、ウィンドウ配置、キーマップ、表示・操作設定を1つの文字列にできます。ここはバックアップと共有専用で、配色そのものは「配色」、配置そのものは「レイアウト」で編集します。</p>
 
           <h3>エクスポートする</h3>
           <ol>
@@ -109,7 +122,7 @@
             <li>OMMTの設定画面で<strong>「貼り付け」</strong>を押します。</li>
             <li><strong>「インポート」</strong>を押し、配置と操作を確認します。</li>
           </ol>
-          <div class="notice"><strong>曲は含まれません</strong>設定文字列にMIDI、<code>.ommt</code>プロジェクト、ノート、曲名は含まれません。曲を移す場合は<code>OMMT/midi</code>または<code>OMMT/saves</code>のファイルを別途コピーしてください。</div>
+          <div class="notice"><strong>曲は含まれません</strong>設定文字列にMIDI、NBS、<code>.ommt</code>プロジェクト、ノート、曲名は含まれません。曲を移す場合は<code>OMMT/midi</code>、<code>OMMT/nbs</code>、<code>OMMT/saves</code>のファイルを別途コピーしてください。</div>
         </section>
 
         <section id="troubleshooting">
@@ -121,6 +134,16 @@
             <li>「フォルダーを開く」で表示された場所へ入れたか確認します。</li>
             <li>ファイル追加後に「更新」を押します。</li>
           </ul>
+
+          <h3>NBSが一覧へ出ない</h3>
+          <ul>
+            <li>ファイルの拡張子が<code>.nbs</code>か確認します。</li>
+            <li>左ライブラリの「NBSファイル」タブから<code>OMMT/nbs</code>を開きます。</li>
+            <li>ファイル追加後に「更新」を押します。</li>
+          </ul>
+
+          <h3>フォルダーを開けない</h3>
+          <p>2.2.0以降はWindowsのExplorer、macOSのopen、Linuxのxdg-openを先に使用します。失敗する場合は、使用中プロフィールのゲームディレクトリを開き、<code>OMMT/midi</code>または<code>OMMT/nbs</code>へ直接移動してください。これらはMOD読込時に作成されます。</p>
 
           <h3><code>.ommt</code>が見つからない</h3>
           <p>左ライブラリを「MIDI」ではなく<strong>「プロジェクト」</strong>へ切り替えます。保存ファイルは<code>OMMT/saves</code>にあります。</p>
@@ -139,6 +162,9 @@
             <li>エラーに使用できないサウンドや曲サイズが示された場合は、該当部分を直してから再送します。</li>
           </ul>
 
+          <h3>バッファ再生か確認したい</h3>
+          <p>プロフィールの<code>logs/latest.log</code>で<code>OMMT/BufferedPlayback</code>を検索します。PROBEへの応答、受信開始、READY、ローカル再生開始、停止・完了だけが記録され、ゲーム内チャットには出ません。</p>
+
           <h3>配置が大きく崩れて操作できない</h3>
           <p>正常なときにエクスポートした設定文字列があれば、それをインポートします。バックアップがない場合はMinecraftを終了し、プロフィールの<code>config/ommt-imgui-layout.ini</code>を別の場所へ退避してから再起動すると、初期配置を作り直せます。退避したファイルは、確認が終わるまで削除しないでください。</p>
         </section>
@@ -155,12 +181,12 @@
             <li>実際に起きた内容</li>
             <li>可能ならスクリーンショットまたはログ</li>
           </ul>
-          <p>MIDIファイルは、共有してよい権利があり、自分が共有して問題ない場合だけ添付してください。</p>
+          <p>MIDI／NBSファイルは、共有してよい権利があり、自分が共有して問題ない場合だけ添付してください。</p>
         </section>
       </article>
     </div>
   </main>
 
-  <footer class="site-footer"><div class="footer-inner"><p>OMMT 2.1.0 · Oyasai Server専用</p><p>不具合報告: <a href="https://discord.gg/rgKayZPW6X">Discordのshowcase内OMMTスレッド</a></p></div></footer>
+  <footer class="site-footer"><div class="footer-inner"><p>OMMT 2.2.0 · Oyasai Server専用</p><p>不具合報告: <a href="https://discord.gg/rgKayZPW6X">Discordのshowcase内OMMTスレッド</a></p></div></footer>
 </body>
 </html>

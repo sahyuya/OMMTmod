@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="おやさいサーバー向けMIDI編集MOD、OMMTのユーザーWiki。MIDIの読み込みから編集、保存、下書き送信までを説明します。">
+  <meta name="description" content="おやさいサーバー向けMIDI／NBS編集MOD、OMMTのユーザーWiki。曲の読み込みから編集、保存、下書き送信までを説明します。">
   <title>OMMTユーザーWiki</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="assets/styles.css">
@@ -28,9 +28,9 @@
   <main id="main" class="page-shell">
     <section class="hero">
       <div>
-        <p class="eyebrow">Oyasai Server MIDI workspace</p>
-        <h1>MIDIを、Minecraftの中で曲にする。</h1>
-        <p class="hero-copy">OMMTは、おやさいサーバーで使うMIDIを読み込み、ピアノロールで編集し、OyasaiMusicの非公開下書きへ送るためのクライアントMODです。このWikiでは、初めての読み込みから送信までを操作例つきで説明します。</p>
+        <p class="eyebrow">Oyasai Server MIDI / NBS workspace</p>
+        <h1>MIDIやNBSを、Minecraftの中で整える。</h1>
+        <p class="hero-copy">OMMTは、おやさいサーバーで使うMIDI／Note Block Studio（NBS）の曲を読み込み、ピアノロールで編集し、OyasaiMusicの非公開下書きへ送るためのクライアントMODです。このWikiでは、初めての読み込みから送信までを操作例つきで説明します。</p>
         <div class="actions">
           <a class="button primary" href="install.html">導入から始める</a>
           <a class="button" href="editing.html">編集操作を見る</a>
@@ -61,15 +61,15 @@
 
     <div class="notice">
       <strong>おやさいサーバー専用です</strong>
-      OMMTは一般サーバー向けのアップロードMODではありません。MIDIの編集とローカル試聴は単体でも行えますが、「下書き送信」はおやさいサーバーでのみ使用します。
+      OMMTは一般サーバー向けのアップロードMODではありません。MIDI／NBSの編集とローカル試聴は単体でも行えますが、「下書き送信」はおやさいサーバーでのみ使用します。
     </div>
 
     <section aria-labelledby="flow-title">
       <p class="eyebrow">Basic flow</p>
       <h2 id="flow-title">曲を送るまでの5段階</h2>
       <ol class="flow">
-        <li><strong>MIDIを置く</strong><span><code>OMMT/midi</code>へ曲を入れます。</span></li>
-        <li><strong>読み込む</strong><span>ライブラリから選び、ピアノロールへ展開します。</span></li>
+        <li><strong>元ファイルを置く</strong><span>MIDIは<code>OMMT/midi</code>、NBSは<code>OMMT/nbs</code>へ入れます。</span></li>
+        <li><strong>読み込む</strong><span>MIDI／NBSライブラリから選び、ピアノロールへ展開します。</span></li>
         <li><strong>編集する</strong><span>ノート、パート、音量、テンポなどを整えます。</span></li>
         <li><strong>試聴・保存</strong><span>音を確認し、必要なら<code>.ommt</code>で続きから再開します。</span></li>
         <li><strong>下書き送信</strong><span>おやさいサーバーへ非公開下書きとして送ります。</span></li>
@@ -80,8 +80,8 @@
       <p class="eyebrow">Choose a guide</p>
       <h2 id="guide-title">目的から読む</h2>
       <div class="card-grid">
-        <a class="card" href="install.html"><span class="number">GUIDE 01</span><h3>OMMTを導入する</h3><p>対応JARと前提MODを確認し、最初のMIDIをライブラリへ追加します。</p></a>
-        <a class="card" href="editing.html#load"><span class="number">GUIDE 02</span><h3>MIDIを読み込む</h3><p>全体表示とパート表示の違いを知り、編集を始めます。</p></a>
+        <a class="card" href="install.html"><span class="number">GUIDE 01</span><h3>OMMTを導入する</h3><p>対応JARと前提MODを確認し、最初のMIDIまたはNBSをライブラリへ追加します。</p></a>
+        <a class="card" href="editing.html#load"><span class="number">GUIDE 02</span><h3>曲を読み込む</h3><p>MIDI／NBSの違いと全体・パート表示を確認し、編集を始めます。</p></a>
         <a class="card" href="editing.html#notes"><span class="number">GUIDE 03</span><h3>ノートを整える</h3><p>選択、範囲選択、移動、長さ変更、音高や楽器の調整を行います。</p></a>
         <a class="card" href="editing.html#parts"><span class="number">GUIDE 04</span><h3>パートを整理する</h3><p>選択音からパートを作り、既存パートへ移動し、名前を付けます。</p></a>
         <a class="card" href="save-upload.html#save"><span class="number">GUIDE 05</span><h3>編集途中を保存する</h3><p><code>.ommt</code>プロジェクトとして保存し、後日そのまま続きを編集します。</p></a>
@@ -93,17 +93,17 @@
       <h2 id="before-title">始める前に知っておくこと</h2>
       <ul class="checklist">
         <li>編集画面はMinecraftの言語が日本語なら日本語、それ以外なら英語で表示されます。</li>
-        <li>元のMIDIと、編集途中を保存する<code>.ommt</code>は別のファイルです。</li>
+        <li>元のMIDI／NBSと、編集途中を保存する<code>.ommt</code>は別のファイルです。</li>
         <li>「編集を保存」だけではサーバーへ送信されません。</li>
         <li>「下書き送信」に成功しても自動公開はされず、非公開下書きとして作成されます。</li>
-        <li>他者が作ったMIDIは、利用・共有してよいものだけを使用してください。</li>
+        <li>他者が作ったMIDI／NBSは、利用・共有してよいものだけを使用してください。</li>
       </ul>
     </section>
   </main>
 
   <footer class="site-footer">
     <div class="footer-inner">
-      <p>OMMT 2.1.0 · Oyasai Server専用</p>
+      <p>OMMT 2.2.0 · Oyasai Server専用</p>
       <p>不具合報告: <a href="https://discord.gg/rgKayZPW6X">Discordのshowcase内OMMTスレッド</a></p>
     </div>
   </footer>

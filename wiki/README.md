@@ -7,8 +7,8 @@
 ## ページ構成
 
 - `index.html`: Wikiトップと利用の流れ
-- `install.html`: 導入、対応Minecraft版、MIDIフォルダー
-- `editing.html`: MIDI読込、ノート・パート・各編集パネル
+- `install.html`: 導入、対応Minecraft版、MIDI／NBSフォルダー
+- `editing.html`: MIDI／NBS読込、ノート・パート・各編集パネル
 - `save-upload.html`: `.ommt`保存、試聴、下書き送信
 - `settings-help.html`: 表示・操作設定、設定共有、トラブルシューティング
 - `assets/styles.css`: 全ページ共通の表示

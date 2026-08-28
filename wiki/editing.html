@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="OMMTのピアノロールでMIDIのノート、パート、楽器、音量、定位、テンポ、疑似リリースを編集する方法。">
-  <title>MIDIを編集する · OMMTユーザーWiki</title>
+  <meta name="description" content="OMMTのピアノロールでMIDI／NBSのノート、パート、楽器、音量、定位、テンポ、疑似リリースを編集する方法。">
+  <title>MIDI／NBSを編集する · OMMTユーザーWiki</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="assets/styles.css">
 </head>
@@ -20,7 +20,7 @@
   <main id="main" class="page-shell">
     <header class="page-heading">
       <p class="eyebrow">Guides 02–04</p>
-      <h1>MIDIを編集する</h1>
+      <h1>MIDI／NBSを編集する</h1>
       <p>曲全体を見渡し、必要な音を選び、パート・音高・長さ・楽器・音量・定位・テンポ・疑似リリースを整えます。</p>
     </header>
 
@@ -39,13 +39,14 @@
       <article class="article">
         <section id="load">
           <h2>読み込み後に最初に確認する</h2>
-          <p>MIDIを読み込むと、OMMTは元のトラックとチャンネルをもとにパートを分け、各パートを色分けして表示します。同じ楽器でも元のMIDIで別パートなら、別のまま扱われます。</p>
+          <p>MIDIを読み込むと、OMMTは元のトラックとチャンネルをもとにパートを分けます。NBSでは元のレイヤーと音源をもとに分けます。同じ楽器でも元ファイルで別パートなら統合せず、各パートを色分けして表示します。</p>
           <ol class="step-list">
             <li><strong>曲名とBPMを見る。</strong><br>上部に曲名と現在のBPMが表示されます。まず想定した曲を読み込めたか確認します。</li>
             <li><strong>「全体表示」を押す。</strong><br>曲の時間方向と音高方向を収め、どこにノートがあるかを見渡します。</li>
             <li><strong>「全体」タブでパート構成を見る。</strong><br>異なる色のノートとパートタブを確認し、主旋律、伴奏、ベース、ドラムなどの役割をつかみます。</li>
             <li><strong>再生して大まかに確認する。</strong><br>スペースまたは「再生」でローカル試聴し、楽器や音量が極端でないか確認します。</li>
           </ol>
+          <p>MIDIの初期楽器はGeneral MIDI番号だけでなく、トラック名と楽器名も参考に推定します。NBSの標準音源は対応する音符ブロック楽器へ変換し、カスタムNBS音源はハープになります。どちらも読み込み後にノートインスペクターから変更できます。</p>
           <div class="tip"><strong>ノートがバニラ音域の外にある場合</strong>ピアノロールでは元の音高のまま表示され、音域外の背景色で区別されます。試聴と送信時には、対応する音をMinecraftで鳴らせる音域へ収めます。</div>
         </section>
 
@@ -58,7 +59,7 @@
               <tr><td><strong>各パート</strong></td><td>主旋律だけを調整、ベースだけを移動、特定楽器の音量を整理</td><td>編集中パートを中心に表示し、ほかのパートは設定に応じて補助表示</td></tr>
             </tbody>
           </table>
-          <p>パート数が多い曲では、ピアノロール上のパートタブ専用スクロールを使って目的のパートを探します。タイムラインの表示位置とは別に動くため、パートを探しても曲の再生位置は変わりません。</p>
+          <p>パート数が多い曲では、ピアノロール上のパートタブ専用の<strong>横スクロールバー</strong>を使って目的のパートを探します。この帯には縦スクロールがなく、タイムラインの表示位置とも別に動くため、パートを探しても曲の再生位置は変わりません。</p>
         </section>
 
         <section id="notes">
@@ -77,7 +78,7 @@
           <p>選択したノートは右側のノートインスペクターから編集できます。複数音を選択した場合は、代表音を基準に相対編集できます。</p>
           <ul>
             <li><strong>開始・長さ:</strong> 長さはミリ秒、または1/1～1/64の音価で指定できます。音価を使うと各ノート位置のテンポに合わせて長さが決まります。</li>
-            <li><strong>音高:</strong> ±1で半音、±12で1オクターブ移動します。</li>
+            <li><strong>音高:</strong> 1つの数値欄で確認し、-1／+1で半音、-12／+12で1オクターブ移動します。</li>
             <li><strong>楽器:</strong> 音符ブロック楽器または対応するMinecraftサウンドを選びます。</li>
             <li><strong>音量・定位:</strong> 選択した音をまとめて大きく／小さく、左／右へ調整します。</li>
           </ul>
@@ -107,8 +108,8 @@
           <h3>既存パートへ移動する</h3>
           <ol>
             <li>移動したいノートを選びます。</li>
-            <li>ノートインスペクターの<strong>「選択音の移動先」</strong>から目的のパートを選びます。</li>
-            <li><strong>「既存パートへ移動」</strong>を押します。</li>
+            <li>ノートインスペクターの<strong>「既存パートへ移動」</strong>の下にある<strong>「選択音の移動先」</strong>から目的のパートを選びます。</li>
+            <li>選択内容を確認し、その上の<strong>「既存パートへ移動」</strong>を押します。</li>
           </ol>
 
           <h3>パート名を変更する</h3>
@@ -133,11 +134,12 @@
             <li>「適用」を押し、ローカル再生で確認します。</li>
           </ol>
           <div class="warning"><strong>候補にない音</strong>おやさいサーバー側でまだ使用できない新しいMinecraftサウンドは、対応版クライアントでも候補に表示されない場合があります。</div>
+          <p>26.1のブラス系音ブロックは、接続中のmainサーバーが対応バージョンだと通知した場合だけ候補へ表示されます。サーバーバージョンを確認できない場合や1.21.11のmainでは表示されません。</p>
         </section>
 
         <section id="automation">
           <h2>音量・定位・テンポを整える</h2>
-          <p>ピアノロール下部には、音量、定位、テンポ、リリースの編集パネルがあります。各パネルは独立して移動・タブ化・配置できます。</p>
+          <p>ピアノロール下部には、音量、定位、テンポ、リリースの編集パネルがあります。エディターを開いた直後は音量が表示され、ほかのパネルへタブで切り替えられます。各パネルは独立して移動・タブ化・配置できます。</p>
           <ul>
             <li><strong>音量:</strong> ノートごとの棒や点を上下に動かし、大きさを調整します。</li>
             <li><strong>定位:</strong> 左右の広がりを調整します。中央は0です。</li>
@@ -151,7 +153,7 @@
 
         <section id="release">
           <h2>選択音だけに疑似リリースを付ける</h2>
-          <p>疑似リリースは、長いノートを一定間隔で繰り返し鳴らし、音量カーブで減衰や上昇を作る機能です。OMMT 2.1.0では<strong>選択したノートだけ</strong>に適用されます。</p>
+          <p>疑似リリースは、長いノートを一定間隔で繰り返し鳴らし、音量カーブで減衰や上昇を作る機能です。適用対象は<strong>選択したノートだけ</strong>です。</p>
           <ol class="step-list">
             <li><strong>対象ノートを選ぶ。</strong><br>弦や持続音など、伸ばしたいノートだけを選択します。</li>
             <li><strong>リリースパネルを開き、有効にする。</strong><br>選択音数が想定どおりか確認します。</li>
@@ -185,6 +187,6 @@
     </div>
   </main>
 
-  <footer class="site-footer"><div class="footer-inner"><p>OMMT 2.1.0 · Oyasai Server専用</p><p>不具合報告: <a href="https://discord.gg/rgKayZPW6X">Discordのshowcase内OMMTスレッド</a></p></div></footer>
+  <footer class="site-footer"><div class="footer-inner"><p>OMMT 2.2.0 · Oyasai Server専用</p><p>不具合報告: <a href="https://discord.gg/rgKayZPW6X">Discordのshowcase内OMMTスレッド</a></p></div></footer>
 </body>
 </html>
