@@ -46,7 +46,7 @@
             <li><strong>「全体」タブでパート構成を見る。</strong><br>異なる色のノートとパートタブを確認し、主旋律、伴奏、ベース、ドラムなどの役割をつかみます。</li>
             <li><strong>再生して大まかに確認する。</strong><br>スペースまたは「再生」でローカル試聴し、楽器や音量が極端でないか確認します。</li>
           </ol>
-          <p>MIDIの初期楽器はGeneral MIDI番号だけでなく、トラック名と楽器名も参考に推定します。NBSの標準音源は対応する音符ブロック楽器へ変換し、カスタムNBS音源はハープになります。どちらも読み込み後にノートインスペクターから変更できます。</p>
+          <p>MIDIの初期楽器はGeneral MIDI番号だけでなく、トラック名と楽器名も参考に推定します。NBSは形式v0～v6を読み込み、標準音源を対応する音符ブロック楽器へ変換します。v6の銅系トランペットはmainサーバーが対応している場合に保持され、現在利用できない音源やカスタムNBS音源はハープになります。どちらも読み込み後にノートインスペクターから変更できます。</p>
           <div class="tip"><strong>ノートがバニラ音域の外にある場合</strong>ピアノロールでは元の音高のまま表示され、音域外の背景色で区別されます。試聴と送信時には、対応する音をMinecraftで鳴らせる音域へ収めます。</div>
         </section>
 
@@ -77,7 +77,7 @@
           <h3>ノートインスペクターで数値を整える</h3>
           <p>選択したノートは右側のノートインスペクターから編集できます。複数音を選択した場合は、代表音を基準に相対編集できます。</p>
           <ul>
-            <li><strong>開始・長さ:</strong> 長さはミリ秒、または1/1～1/64の音価で指定できます。音価を使うと各ノート位置のテンポに合わせて長さが決まります。</li>
+            <li><strong>開始・長さ:</strong> 長さの単位をミリ秒、または1/1～1/64の音価から選べます。ミリ秒では右の数値欄を編集し、音価では選んだ単位が各ノート位置のテンポに合わせて適用されます。</li>
             <li><strong>音高:</strong> 1つの数値欄で確認し、-1／+1で半音、-12／+12で1オクターブ移動します。</li>
             <li><strong>楽器:</strong> 音符ブロック楽器または対応するMinecraftサウンドを選びます。</li>
             <li><strong>音量・定位:</strong> 選択した音をまとめて大きく／小さく、左／右へ調整します。</li>
@@ -187,6 +187,6 @@
     </div>
   </main>
 
-  <footer class="site-footer"><div class="footer-inner"><p>OMMT 2.2.0 · Oyasai Server専用</p><p>不具合報告: <a href="https://discord.gg/rgKayZPW6X">Discordのshowcase内OMMTスレッド</a></p></div></footer>
+  <footer class="site-footer"><div class="footer-inner"><p>OMMT 2.2.1 · Oyasai Server専用</p><p>不具合報告: <a href="https://discord.gg/rgKayZPW6X">Discordのshowcase内OMMTスレッド</a></p></div></footer>
 </body>
 </html>

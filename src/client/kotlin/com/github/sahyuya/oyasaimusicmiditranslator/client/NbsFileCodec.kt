@@ -2,7 +2,7 @@ package com.github.sahyuya.oyasaimusicmiditranslator.client
 
 import java.nio.charset.Charset
 
-/** Strict, bounded reader for the classic and Open Note Block Studio NBS v0..v5 formats. */
+/** Strict, bounded reader for the classic and Open Note Block Studio NBS v0..v6 formats. */
 object NbsFileCodec {
   const val MAX_FILE_BYTES = 64 * 1024 * 1024
   const val MAX_NOTES = 1_000_000
@@ -46,7 +46,7 @@ object NbsFileCodec {
     require(bytes.size in 2..MAX_FILE_BYTES) { "NBS file must be between 2 bytes and 64 MiB" }
     val input = Reader(bytes)
     val classicLength = input.u16()
-    val version = if (classicLength == 0) input.u8().also { require(it in 1..5) { "Unsupported NBS version: $it" } } else 0
+    val version = if (classicLength == 0) input.u8().also { require(it in 1..6) { "Unsupported NBS version: $it" } } else 0
     val defaultInstruments = if (version > 0) input.u8().also { require(it > 0) { "NBS default instrument count is zero" } } else 10
     val songLength = if (version >= 3) input.u16() else classicLength
     val layerCount = input.u16()
@@ -98,6 +98,10 @@ object NbsFileCodec {
     }
 
     val customCount = input.u8()
+    require(defaultInstruments + customCount <= 256) { "NBS instrument table exceeds 256 entries" }
+    require(notes.all { it.instrument < defaultInstruments + customCount }) {
+      "NBS note references an undefined instrument"
+    }
     repeat(customCount) {
       input.string() // custom instrument name
       input.string() // external sound file name
@@ -122,6 +126,18 @@ object NbsFileCodec {
       6 -> 5 // flute
       7 -> 6 // bell
       else -> nbsInstrument
+    }
+  }
+
+  /** NBS v6 adds four copper-family trumpet instruments after the original 16. */
+  fun toMinecraftSound(nbsInstrument: Int, defaultInstruments: Int): String? {
+    if (nbsInstrument !in 0 until defaultInstruments) return null
+    return when (nbsInstrument) {
+      16 -> "minecraft:block.note_block.trumpet"
+      17 -> "minecraft:block.note_block.trumpet_exposed"
+      18 -> "minecraft:block.note_block.trumpet_weathered"
+      19 -> "minecraft:block.note_block.trumpet_oxidized"
+      else -> null
     }
   }
 

@@ -124,6 +124,10 @@ tasks.register<JavaExec>("verifyUploadCodec") {
     dependsOn(tasks.named("compileTestKotlin"))
     classpath = sourceSets["test"].runtimeClasspath + sourceSets["client"].runtimeClasspath
     mainClass.set("com.github.sahyuya.oyasaimusicmiditranslator.interop.UploadV2CodecVerification")
+    providers.gradleProperty("nbs_files").orNull
+        ?.split('|')
+        ?.filter { it.isNotBlank() }
+        ?.let(::args)
 }
 
 tasks.named("compileTestKotlin") {

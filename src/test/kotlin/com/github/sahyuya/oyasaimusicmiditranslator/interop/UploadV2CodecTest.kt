@@ -38,6 +38,12 @@ import com.github.sahyuya.oyasaimusicmiditranslator.client.TempoMark
 object UploadV2CodecVerification {
   @JvmStatic fun main(args: Array<String>) {
     unicode15RoundTripAndThreeByteAlphabet(); compactCanonicalRoundTripAndMalformedRejection(); packetBoundaryUsesRawBytes(); playbackWireGoldenAndState(); editorTempoAndRetriggerModel(); editorHistoryTempoIsolation(); editorProjectAndSettingsRoundTrip(); selectionAndMusicalLength(); nbsAndMidiImport(); bufferedPlaybackDoesNotStartEarly()
+    args.forEach { rawPath ->
+      val path = Path.of(rawPath)
+      val song = NbsFileCodec.decode(Files.readAllBytes(path))
+      check(song.header.version in 0..6)
+      println("NBS file PASS: ${path.fileName} (v${song.header.version}, ${song.notes.size} notes, ${song.layers.size} layers)")
+    }
     println("UploadV2CodecVerification: PASS")
   }
   private inline fun rejects(block: () -> Unit) { try { block(); error("expected rejection") } catch (_: IllegalArgumentException) { } }
@@ -207,9 +213,9 @@ object UploadV2CodecVerification {
   }
 
   private fun nbsAndMidiImport() {
-    val modern = nbsV5()
+    val modern = nbsModern()
     val song = NbsFileCodec.decode(modern)
-    check(song.header.version == 5 && song.header.songName == "NBS Test")
+    check(song.header.version == 6 && song.header.defaultInstruments == 20 && song.header.songName == "NBS Test")
     check(song.header.ticksPerSecond == 10.0 && song.header.beatsPerBar == 4)
     check((song.header.ticksPerSecond * 15.0).roundToInt() == 150)
     check(song.notes.size == 3 && song.layers.size == 2 && song.customInstrumentCount == 1)
@@ -217,10 +223,16 @@ object UploadV2CodecVerification {
     check(NbsFileCodec.toOmmtInstrument(6, song.header.defaultInstruments) == 5)
     check(NbsFileCodec.toOmmtInstrument(7, song.header.defaultInstruments) == 6)
     check(NbsFileCodec.toOmmtInstrument(16, song.header.defaultInstruments) == null)
+    check(NbsFileCodec.toMinecraftSound(16, song.header.defaultInstruments) == "minecraft:block.note_block.trumpet")
+    check(NbsFileCodec.toMinecraftSound(19, song.header.defaultInstruments) == "minecraft:block.note_block.trumpet_oxidized")
+    check(NbsFileCodec.toMinecraftSound(20, song.header.defaultInstruments) == null)
     check(song.notes[1].panning == 20 && song.notes[1].detuneCents == 100)
     rejects { NbsFileCodec.decode(modern.copyOf(modern.size - 1)) }
     rejects { NbsFileCodec.decode(modern + 0) }
-    rejects { NbsFileCodec.decode(nbsV5(firstKey = 88)) }
+    rejects { NbsFileCodec.decode(nbsModern(firstKey = 88)) }
+    rejects { NbsFileCodec.decode(nbsModern(secondInstrument = 21)) }
+    rejects { NbsFileCodec.decode(nbsModern(version = 7)) }
+    check(NbsFileCodec.decode(nbsModern(version = 5, defaultInstruments = 16)).header.version == 5)
 
     val classic = NbsFileCodec.decode(nbsV0())
     check(classic.header.version == 0 && classic.header.defaultInstruments == 10)
@@ -238,17 +250,17 @@ object UploadV2CodecVerification {
     check(EditorWorkspace.folderOpenCommand("Linux", Path.of("/tmp/OMMT/midi"))?.first() == "xdg-open")
   }
 
-  private fun nbsV5(firstKey: Int = 33): ByteArray = ByteArrayOutputStream().use { bytes ->
+  private fun nbsModern(version: Int = 6, defaultInstruments: Int = 20, firstKey: Int = 33, secondInstrument: Int = 16): ByteArray = ByteArrayOutputStream().use { bytes ->
     fun u8(value: Int) = bytes.write(value)
     fun u16(value: Int) { u8(value); u8(value ushr 8) }
     fun i16(value: Int) = u16(value and 0xFFFF)
     fun u32(value: Int) { u16(value); u16(value ushr 16) }
     fun string(value: String) { val encoded=value.toByteArray(Charset.forName("windows-1252"));u32(encoded.size);bytes.write(encoded) }
-    u16(0);u8(5);u8(16);u16(8);u16(2)
+    u16(0);u8(version);u8(defaultInstruments);u16(8);u16(2)
     string("NBS Test");string("Author");string("");string("Description")
     u16(1_000);u8(0);u8(10);u8(4);repeat(5){u32(0)};string("source.mid");u8(0);u8(0);u16(0)
-    // tick 0, layer 0: NBS guitar; layer 1: first custom instrument.
-    u16(1);u16(1);u8(5);u8(firstKey);u8(80);u8(100);i16(0);u16(1);u8(16);u8(45);u8(100);u8(120);i16(100);u16(0)
+    // tick 0, layer 0: NBS guitar; layer 1: v6 copper trumpet (v5: first custom instrument).
+    u16(1);u16(1);u8(5);u8(firstKey);u8(80);u8(100);i16(0);u16(1);u8(secondInstrument);u8(45);u8(100);u8(120);i16(100);u16(0)
     // tick 4, layer 0: NBS bell.
     u16(4);u16(1);u8(7);u8(57);u8(90);u8(100);i16(0);u16(0);u16(0)
     string("Lead");u8(0);u8(50);u8(100);string("Custom");u8(0);u8(100);u8(80)

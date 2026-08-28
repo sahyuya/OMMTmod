@@ -436,18 +436,37 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
       val microsDouble = 4_000_000.0 / song.header.ticksPerSecond
       require(microsDouble in 1.0..Int.MAX_VALUE.toDouble()) { "NBS tempo is outside the supported range" }
       val baseTempo = TempoMark(0, 0, microsDouble.roundToInt())
-      val fallbackCount = song.notes.count { NbsFileCodec.toOmmtInstrument(it.instrument, song.header.defaultInstruments) == null }
+      val fallbackCount = song.notes.count { source ->
+        NbsFileCodec.toOmmtInstrument(source.instrument, song.header.defaultInstruments) == null &&
+            NbsFileCodec.toMinecraftSound(source.instrument, song.header.defaultInstruments)
+                ?.let(::supportedCustomSound) == null
+      }
       val converted = song.notes.map { source ->
         val layer = song.layers[source.layer]
         val startTick = Math.multiplyExact(source.tick.toLong(), 16L)
         val endTick = Math.addExact(startTick, 16L)
         val startMs = EditorAutomation.timeAtTick(startTick, listOf(baseTempo), importedPpq)
         val endMs = EditorAutomation.timeAtTick(endTick, listOf(baseTempo), importedPpq)
-        val instrument = NbsFileCodec.toOmmtInstrument(source.instrument, song.header.defaultInstruments) ?: 0
+        val customSound = NbsFileCodec.toMinecraftSound(source.instrument, song.header.defaultInstruments)
+            ?.takeIf { supportedCustomSound(it) != null }
+        val instrument = if (customSound != null) 0 else NbsFileCodec.toOmmtInstrument(source.instrument, song.header.defaultInstruments) ?: 0
         val pitch = (source.key - 33 + source.detuneCents / 100.0).roundToInt().coerceIn(NoteBlockPitch.DISPLAY_MIN, NoteBlockPitch.DISPLAY_MAX)
         val volume = (source.velocity * layer.volume / 100.0).roundToInt().coerceIn(0, 100)
         val pan = (source.panning + layer.panning).coerceIn(-100, 100)
-        EditorNote(startMs, (endMs - startMs).coerceIn(1, 60_000), instrument, pitch, volume, pan, sourceTrack = source.layer, sourceChannel = source.instrument, sourceTick = startTick, sourceDurationTicks = 16L)
+        EditorNote(
+            startMs,
+            (endMs - startMs).coerceIn(1, 60_000),
+            instrument,
+            pitch,
+            volume,
+            pan,
+            sourceTrack = source.layer,
+            sourceChannel = source.instrument,
+            sourceTick = startTick,
+            sourceDurationTicks = 16L,
+            customSound = customSound,
+            customSoundPattern = customSound?.let { 1 },
+        )
       }
 
       pausePlayback(); EditorSession.replace(); history.clear()
@@ -466,7 +485,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
       titleField.text = songTitle; bpmField.text = bpm.toString(); choose(0); rewind(); fitTimeline()
       syncImGuiProject(); syncImGuiInspector(); syncPartControls()
       currentProjectFile = null; selectedSave = null
-      val fallback = if (fallbackCount > 0) t("; $fallbackCount custom-instrument notes use Harp", "、カスタム音源の$fallbackCount 音はハープへ変換") else ""
+      val fallback = if (fallbackCount > 0) t("; $fallbackCount unsupported-instrument notes use Harp", "、未対応音源の${fallbackCount}音はハープへ変換") else ""
       state = t("Loaded ${notes.size} NBS notes into ${parts.size} layer parts$fallback", "NBSの${notes.size}音を${parts.size}レイヤーパートへ読み込みました$fallback")
     } catch (error: Exception) {
       state = t("NBS import failed: ${error.message ?: "invalid file"}", "NBSの読み込みに失敗しました: ${error.message ?: "不正なファイル"}")
@@ -474,17 +493,24 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
   }
 
   private fun assignPartsByNbsSource(song: NbsFileCodec.Song) {
-    data class PartKey(val layer: Int, val sourceInstrument: Int, val instrument: Int)
-    val keys = notes.map { PartKey(it.sourceTrack, it.sourceChannel, it.instrument) }
+    data class PartKey(val layer: Int, val sourceInstrument: Int, val instrument: Int, val customSound: String?)
+    val keys = notes.map { PartKey(it.sourceTrack, it.sourceChannel, it.instrument, it.customSound) }
         .distinct()
         .sortedWith(compareBy<PartKey> { it.layer }.thenBy { it.sourceInstrument }.thenBy { it.instrument })
     parts.clear()
     parts += keys.mapIndexed { index, key ->
       val layerName = song.layers.getOrNull(key.layer)?.name.orEmpty().ifBlank { t("Layer ${key.layer + 1}", "レイヤー${key.layer + 1}") }.take(48)
-      normalizePartLabel(index, "$layerName / ${NoteBlockInstruments.displayName(key.instrument, japanese)}")
+      val instrumentName = when (key.customSound) {
+        "minecraft:block.note_block.trumpet" -> t("Trumpet / Copper", "トランペット / 銅")
+        "minecraft:block.note_block.trumpet_exposed" -> t("Trumpet / Exposed copper", "トランペット / 風化した銅")
+        "minecraft:block.note_block.trumpet_weathered" -> t("Trumpet / Weathered copper", "トランペット / 錆びた銅")
+        "minecraft:block.note_block.trumpet_oxidized" -> t("Trumpet / Oxidized copper", "トランペット / 酸化した銅")
+        else -> NoteBlockInstruments.displayName(key.instrument, japanese)
+      }
+      normalizePartLabel(index, "$layerName / $instrumentName")
     }
     val indexByKey = keys.withIndex().associate { (index, key) -> key to index }
-    notes.forEach { note -> note.part = indexByKey.getValue(PartKey(note.sourceTrack, note.sourceChannel, note.instrument)) }
+    notes.forEach { note -> note.part = indexByKey.getValue(PartKey(note.sourceTrack, note.sourceChannel, note.instrument, note.customSound)) }
   }
 
   private fun buildNbsGrid(endTickInput: Long, tempo: TempoMark, resolution: Int, beatsInBar: Int): List<GridMark> {
@@ -1557,9 +1583,9 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
       ImGui.text(t("Time (ms)", "開始 (ms)")); ImGui.sameLine(); ImGui.setNextItemWidth(-1f); ImGui.inputInt("##Time", imTime)
       ImGui.text(t("Length", "長さ")); ImGui.sameLine(); ImGui.setNextItemWidth(118f)
       ImGui.combo("##LengthUnit", imDurationUnit, releaseUnitLabels(durationDivisors))
-      ImGui.sameLine(); ImGui.setNextItemWidth(-1f)
-      if (imDurationUnit.get() == 0) ImGui.inputInt("ms##Length", imDuration)
-      else ImGui.textDisabled(t("Applied using tempo at each selected note", "各選択音の位置のテンポで適用"))
+      if (imDurationUnit.get() == 0) {
+        ImGui.sameLine(); ImGui.setNextItemWidth(-1f); ImGui.inputInt("##Length", imDuration)
+      }
       ImGui.text(t("Instrument", "楽器")); ImGui.sameLine(); ImGui.setNextItemWidth(-1f)
       if (ImGui.combo("##Instrument", imInstrument, NoteBlockInstruments.labels(japanese)) && imInstrument.get() != NoteBlockInstruments.OTHER_INDEX) {
         imCustomSound.set("")
@@ -1603,11 +1629,15 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
               ImGui.textDisabled(t("Server version is unknown; 26.1 brass sounds stay hidden", "サーバーバージョン未確認のため、26.1のブラス音源は候補から除外します"))
         }
       }
-      ImGui.text(t("Source pitch", "元の音高")); ImGui.sameLine(); ImGui.setNextItemWidth(72f); ImGui.inputInt("##Pitch", imPitch, 0, 0)
-      ImGui.sameLine(); if (ImGui.smallButton("-12##PITCH_MINUS_12")) adjustSelectedPitch(-12)
-      ImGui.sameLine(); if (ImGui.smallButton("-1##PITCH_MINUS_1")) adjustSelectedPitch(-1)
-      ImGui.sameLine(); if (ImGui.smallButton("+1##PITCH_PLUS_1")) adjustSelectedPitch(1)
-      ImGui.sameLine(); if (ImGui.smallButton("+12##PITCH_PLUS_12")) adjustSelectedPitch(12)
+      ImGui.text(t("Source pitch", "元の音高")); ImGui.sameLine()
+      val pitchButtonWidth = 32f
+      val pitchGap = settings.style.itemSpacingX.toFloat()
+      val pitchValueWidth = (ImGui.getContentRegionAvailX() - pitchButtonWidth * 4f - pitchGap * 4f).coerceAtLeast(48f)
+      ImGui.setNextItemWidth(pitchValueWidth); ImGui.inputInt("##Pitch", imPitch, 0, 0)
+      ImGui.sameLine(); if (ImGui.button("-12##PITCH_MINUS_12", pitchButtonWidth, 0f)) adjustSelectedPitch(-12)
+      ImGui.sameLine(); if (ImGui.button("-1##PITCH_MINUS_1", pitchButtonWidth, 0f)) adjustSelectedPitch(-1)
+      ImGui.sameLine(); if (ImGui.button("+1##PITCH_PLUS_1", pitchButtonWidth, 0f)) adjustSelectedPitch(1)
+      ImGui.sameLine(); if (ImGui.button("+12##PITCH_PLUS_12", pitchButtonWidth, 0f)) adjustSelectedPitch(12)
       ImGui.text(t("Volume", "音量")); ImGui.sameLine(); ImGui.setNextItemWidth(-1f); ImGui.inputInt("##Volume", imVolume)
       ImGui.text(t("Pan", "定位")); ImGui.sameLine(); ImGui.setNextItemWidth(-1f); ImGui.inputInt("##Pan", imPan)
       ImGui.textDisabled(t("Outside 0..24 is shown; sound/export octave-folds into vanilla range", "0..24の範囲外も表示し、再生・送信時だけバニラ音域へ折り返します"))
@@ -2359,8 +2389,10 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     }
     ImGui.separator()
 
-    val controlsWidth = min(430f, ImGui.getContentRegionAvailX() * .64f).coerceAtLeast(300f)
-    ImGui.beginChild("##style-controls", controlsWidth, -1f, true)
+    val availableHeight = ImGui.getContentRegionAvailY()
+    val previewHeight = min(180f, (availableHeight * .30f).coerceAtLeast(130f))
+    val controlsHeight = (availableHeight - previewHeight - 42f).coerceAtLeast(220f)
+    ImGui.beginChild("##style-controls", -1f, controlsHeight, true)
     if (ImGui.beginTabBar("##STYLE_EDITOR_TABS")) {
       if (ImGui.beginTabItem(t("COLORS", "色"))) {
         fun colorRow(english: String, japanese: String, value: Int, update: (EditorStyle, Int) -> EditorStyle) {
@@ -2414,8 +2446,8 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
       ImGui.endTabBar()
     }
     ImGui.endChild()
-    ImGui.sameLine()
-    ImGui.beginChild("##style-preview", 0f, -1f, true)
+    ImGui.spacing()
+    ImGui.beginChild("##style-preview", -1f, previewHeight, true)
     ImGui.text(t("LIVE PREVIEW", "ライブプレビュー"))
     val accent = colorFloats(settings.style.accentColor)
     ImGui.textColored(accent[0], accent[1], accent[2], accent[3], t("Selected / active", "選択・アクティブ"))

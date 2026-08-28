@@ -9,7 +9,7 @@ OMMT は、Minecraft クライアント内で MIDI または Note Block Studio�
 ## 主な機能
 
 - `OMMT/midi` フォルダー内の `.mid` / `.midi` を一覧から読み込み
-- `OMMT/nbs` フォルダー内の Note Block Studio `.nbs`（形式v0～v5）を一覧から読み込み
+- `OMMT/nbs` フォルダー内の Note Block Studio `.nbs`（形式v0～v6）を一覧から読み込み
 - 編集途中の曲を `OMMT/saves` の `.ommt` プロジェクトとして保存・再読込
 - MIDI のトラック・チャンネル、NBSのレイヤーと音源を保ったパート分けと全体表示／パート別編集
 - General MIDI番号に加え、トラック名・楽器名も利用した初期楽器の推定（読込後に手動変更可能）
@@ -78,9 +78,9 @@ Minecraft 26.1以降はゲーム本体が難読化されなくなり、従来の
 
 | クライアント版 | 状態 | 成果物 |
 |---|---|---|
-| 1.21.11 | 正式版 | `OyasaiMusicMidiTranslator-2.2.0-fabric1.21.11.jar` |
-| 26.1.2 | 公式名API対応ビルド（実ゲーム受入は別途必要） | `OyasaiMusicMidiTranslator-2.2.0-fabric26.1.2.jar` |
-| 26.2 | 公式名API対応ビルド（実ゲーム受入は別途必要） | `OyasaiMusicMidiTranslator-2.2.0-fabric26.2.jar` |
+| 1.21.11 | 正式版 | `OyasaiMusicMidiTranslator-2.2.1-fabric1.21.11.jar` |
+| 26.1.2 | 公式名API対応ビルド（実ゲーム受入は別途必要） | `OyasaiMusicMidiTranslator-2.2.1-fabric26.1.2.jar` |
+| 26.2 | 公式名API対応ビルド（実ゲーム受入は別途必要） | `OyasaiMusicMidiTranslator-2.2.1-fabric26.2.jar` |
 
 `versions/adapter-26/` は26.1.2／26.2用の最小アダプターです。編集モデルとImGui画面は1.21.11版と共有し、画面基底・入力・キー登録・通信ペイロードだけを26系の公式名APIへ接続します。1.21.11用JARの `fabric.mod.json` 対応範囲は広げず、Minecraft版ごとに別JARを使用してください。
 
@@ -93,7 +93,7 @@ Minecraft 26.1以降はゲーム本体が難読化されなくなり、従来の
 - `gradle.properties`（Minecraft 1.21.11）
 - `versions/adapter-26/gradle.properties`（Minecraft 26.1.2／26.2）
 
-成果物名はビルド設定が `OyasaiMusicMidiTranslator-<mod_version>-fabric<minecraft_version>.jar` の形で自動生成します。ソース内やJAR名を個別に書き換える必要はありません。今回のリリース値は両方とも `2.2.0` です。
+成果物名はビルド設定が `OyasaiMusicMidiTranslator-<mod_version>-fabric<minecraft_version>.jar` の形で自動生成します。ソース内やJAR名を個別に書き換える必要はありません。今回のリリース値は両方とも `2.2.1` です。
 
 ## IntelliJ IDEA で開く場合
 
