@@ -12,6 +12,7 @@ import java.util.zip.GZIPOutputStream
 import kotlin.math.roundToInt
 import com.github.sahyuya.oyasaimusicmiditranslator.client.AutomationCurve
 import com.github.sahyuya.oyasaimusicmiditranslator.client.bufferedElapsedMillis
+import com.github.sahyuya.oyasaimusicmiditranslator.client.editorPlaybackPositionMs
 import com.github.sahyuya.oyasaimusicmiditranslator.client.EditorAutomation
 import com.github.sahyuya.oyasaimusicmiditranslator.client.EditorAction
 import com.github.sahyuya.oyasaimusicmiditranslator.client.EditorHistory
@@ -28,23 +29,50 @@ import com.github.sahyuya.oyasaimusicmiditranslator.client.EditorSnapshot
 import com.github.sahyuya.oyasaimusicmiditranslator.client.EditorTheme
 import com.github.sahyuya.oyasaimusicmiditranslator.client.GridMark
 import com.github.sahyuya.oyasaimusicmiditranslator.client.MidiInstrumentMapper
+import com.github.sahyuya.oyasaimusicmiditranslator.client.MidiFileCodec
 import com.github.sahyuya.oyasaimusicmiditranslator.client.NbsFileCodec
 import com.github.sahyuya.oyasaimusicmiditranslator.client.ReleaseControlPoint
 import com.github.sahyuya.oyasaimusicmiditranslator.client.RetriggerProfile
 import com.github.sahyuya.oyasaimusicmiditranslator.client.SignatureMark
 import com.github.sahyuya.oyasaimusicmiditranslator.client.TempoControlPoint
 import com.github.sahyuya.oyasaimusicmiditranslator.client.TempoMark
+import javax.sound.midi.MetaMessage
+import javax.sound.midi.Sequence
+import javax.sound.midi.ShortMessage
 
 object UploadV2CodecVerification {
   @JvmStatic fun main(args: Array<String>) {
-    unicode15RoundTripAndThreeByteAlphabet(); compactCanonicalRoundTripAndMalformedRejection(); packetBoundaryUsesRawBytes(); playbackWireGoldenAndState(); editorTempoAndRetriggerModel(); editorHistoryTempoIsolation(); editorProjectAndSettingsRoundTrip(); selectionAndMusicalLength(); nbsAndMidiImport(); bufferedPlaybackDoesNotStartEarly()
+    unicode15RoundTripAndThreeByteAlphabet(); compactCanonicalRoundTripAndMalformedRejection(); packetBoundaryUsesRawBytes(); playbackWireGoldenAndState(); editorTempoAndRetriggerModel(); editorHistoryTempoIsolation(); editorProjectAndSettingsRoundTrip(); selectionAndMusicalLength(); nbsAndMidiImport(); midiTempoAndSustainImport(); japaneseTitleRoundTrip(); bufferedPlaybackDoesNotStartEarly(); editorPlaybackClockAdvancesAndClamps()
     args.forEach { rawPath ->
       val path = Path.of(rawPath)
-      val song = NbsFileCodec.decode(Files.readAllBytes(path))
-      check(song.header.version in 0..6)
-      println("NBS file PASS: ${path.fileName} (v${song.header.version}, ${song.notes.size} notes, ${song.layers.size} layers)")
+      val files = if (Files.isDirectory(path)) Files.list(path).use { stream -> stream.filter(Files::isRegularFile).sorted().toList() } else listOf(path)
+      files.forEach(::verifyImportFile)
     }
     println("UploadV2CodecVerification: PASS")
+  }
+  private fun verifyImportFile(path: Path) {
+    when (path.fileName.toString().substringAfterLast('.', "").lowercase()) {
+      "nbs" -> {
+        val song = NbsFileCodec.decode(Files.readAllBytes(path))
+        check(song.header.version in 0..6)
+        println("NBS file PASS: ${path.fileName} (v${song.header.version}, ${song.notes.size} notes, ${song.layers.size} layers, ${song.customInstrumentCount} custom, ${song.normalizedValueCount} normalized)")
+        if (song.customInstruments.isNotEmpty()) {
+          println("  custom samples: " + song.customInstruments.take(12).joinToString { "${it.id}:${it.name}=${it.soundFile}@${it.key}${if (it.pressKey) "+key" else ""}" })
+          val controls = song.customInstruments.filter { NbsFileCodec.isControlInstrument(song, it.id) }
+          if (controls.isNotEmpty()) {
+            println("  non-audio controls: " + controls.joinToString { control ->
+              "${control.name}=${song.notes.count { it.instrument == control.id }} notes"
+            })
+          }
+        }
+      }
+      "mid", "midi" -> {
+        val song = MidiFileCodec.decode(Files.readAllBytes(path))
+        val commonGaps = song.tempoMarks.zipWithNext().map { it.second.tick - it.first.tick }.groupingBy { it }.eachCount().entries
+            .sortedByDescending { it.value }.take(3).joinToString { "${it.key}x${it.value}" }
+        println("MIDI file PASS: ${path.fileName} (${song.notes.size} notes, PPQ ${song.ppq}, ${song.rawTempoPointCount}->${song.tempoControls.size} tempo UI, gaps [$commonGaps], ${song.sustainExtendedNotes} sustained)")
+      }
+    }
   }
   private inline fun rejects(block: () -> Unit) { try { block(); error("expected rejection") } catch (_: IllegalArgumentException) { } }
   private fun oymi(): ByteArray = ByteArrayOutputStream().use { bytes -> DataOutputStream(bytes).use { out ->
@@ -72,6 +100,8 @@ object UploadV2CodecVerification {
     check(customFixture.contentEquals(UploadV2Codec.reconstructOymi(UploadV2Codec.compactFromOymi(customFixture))))
     val fixedPatternFixture = Base64.getDecoder().decode(Files.readString(Path.of("..", "docs", "interop", "fixtures", "minimal-oymi-v3-custom-pattern.oyasai.base64")).trim())
     check(fixedPatternFixture.contentEquals(UploadV2Codec.reconstructOymi(UploadV2Codec.compactFromOymi(fixedPatternFixture))))
+    val pitchCentsFixture = Base64.getDecoder().decode(Files.readString(Path.of("..", "docs", "interop", "fixtures", "minimal-oymi-v4-pitch-cents.oyasai.base64")).trim())
+    check(pitchCentsFixture.contentEquals(UploadV2Codec.reconstructOymi(UploadV2Codec.compactFromOymi(pitchCentsFixture))))
     rejects { UploadV2Codec.reconstructOymi(compact + byteArrayOf(0)) }
     val overlong = compact.copyOfRange(0, 5) + byteArrayOf(0x80.toByte(), 0x80.toByte(), 0x80.toByte(), 0x80.toByte(), 0x80.toByte(), 0) 
     rejects { UploadV2Codec.reconstructOymi(overlong) }
@@ -91,7 +121,7 @@ object UploadV2CodecVerification {
     val id=UUID(1,2)
     // All v1 types have a deterministic envelope and exact body/EOF boundary.
     (1..7).forEach { type -> val packet=PlaybackWireCodec.encode(type,id){ when(type){1->writeUTF("abcdefghijklmnopqrstuv");2-> {writeShort(1);writeInt(1);write(ByteArray(32));writeInt(0);writeByte(0);writeInt(500)};3->{writeShort(0);writeShort(1);writeShort(1);writeByte(1)};4,6->{writeInt(500);writeInt(0)};5->writeInt(0);7->writeByte(0)} }; val (actual,session,input)=PlaybackWireCodec.decode(packet);check(actual==type&&session==id); while(input.available()>0)input.readByte();check(input.available()==0); rejects{PlaybackWireCodec.decode(packet+byteArrayOf(0)).also{(_,_,i)->require(i.available()==0)}} }
-    rejects { PlaybackWireCodec.decode(byteArrayOf(2)+ByteArray(17)) }; rejects { PlaybackWireCodec.decode(byteArrayOf(1,8)+ByteArray(16)) }
+    rejects { PlaybackWireCodec.decode(byteArrayOf(2)+ByteArray(17)) }; rejects { PlaybackWireCodec.decode(byteArrayOf(1,15)+ByteArray(16)) }
     // Type 10 is a connection capability notification, not a presence probe.
     val capabilities = OmmtPluginWire.envelope(
         OmmtPluginWire.PLAYBACK_SERVER_CAPABILITIES,
@@ -101,6 +131,33 @@ object UploadV2CodecVerification {
       check(input.readUnsignedByte() == OmmtPluginWire.PLAYBACK_SERVER_CAPABILITIES)
       check(input.readLong() == 0L && input.readLong() == 0L)
       check(input.readInt() == OmmtPluginWire.CAP_BRASS_NOTE_BLOCK)
+      check(input.available() == 0)
+    }
+    val nonce = "abcdefghijklmnopqrstuv"
+    val clientCapabilities = OmmtPluginWire.playbackClientCapabilities(
+        nonce,
+        OmmtPluginWire.CAP_OYPB_V2 or OmmtPluginWire.CAP_BANK_MANIFEST_V1,
+    )
+    OmmtPluginWire.input(clientCapabilities).use { input ->
+      check(input.readUnsignedByte() == OmmtPluginWire.PLAYBACK_CLIENT_CAPABILITIES)
+      check(input.readLong() == 0L && input.readLong() == 0L)
+      check(input.readUTF() == nonce)
+      check(input.readInt() == OmmtPluginWire.CAP_OYPB_V2 or OmmtPluginWire.CAP_BANK_MANIFEST_V1)
+      check(input.available() == 0)
+    }
+    val playbackHash = ByteArray(32) { (it * 7).toByte() }
+    OmmtPluginWire.input(OmmtPluginWire.playbackStartedAck(id, playbackHash, 125)).use { input ->
+      check(input.readUnsignedByte() == OmmtPluginWire.PLAYBACK_STARTED_ACK)
+      check(input.readLong() == id.mostSignificantBits && input.readLong() == id.leastSignificantBits)
+      check(input.readNBytes(32).contentEquals(playbackHash))
+      check(input.readInt() == 125)
+      check(input.available() == 0)
+    }
+    OmmtPluginWire.input(OmmtPluginWire.playbackFailed(id, 3, 456)).use { input ->
+      check(input.readUnsignedByte() == OmmtPluginWire.PLAYBACK_CLIENT_PLAYBACK_FAILED)
+      check(input.readLong() == id.mostSignificantBits && input.readLong() == id.leastSignificantBits)
+      check(input.readUnsignedByte() == 3)
+      check(input.readInt() == 456)
       check(input.available() == 0)
     }
     // Pure ready route state: no ACK stays vanilla; exact generation/session/hash activates local;
@@ -180,10 +237,16 @@ object UploadV2CodecVerification {
     check(bundle.settings.style==customStyle)
     check(bundle.layout.contains("PIANO ROLL"))
     val legacy = EditorSettingsBundleCodec.decode(legacyEditorSettingsV1(settings, "[Window][LEGACY]\n"))
-    check(legacy.settings.version==5 && legacy.settings.theme==EditorTheme.MIDNIGHT_BLUE)
+    check(legacy.settings.version==6 && legacy.settings.theme==EditorTheme.MIDNIGHT_BLUE)
     check(legacy.settings.style==EditorStylePresets.forTheme(EditorTheme.MIDNIGHT_BLUE))
     check(legacy.layout.contains("LEGACY"))
     rejects { EditorSettingsBundleCodec.decode("not-an-ommt-setting") }
+    // CONFIRM keymap action: non-default stroke round-trips through the share bundle.
+    check(EditorKeyStroke.parse("ENTER", EditorKeyStroke.UNBOUND) == EditorAction.CONFIRM.default)
+    check(EditorKeyStroke.parse("CTRL+ENTER", EditorKeyStroke.UNBOUND).control)
+    val confirmKeymap = EditorKeymap(EditorAction.entries.associateWith { if (it == EditorAction.CONFIRM) EditorKeyStroke.parse("CTRL+ENTER", EditorKeyStroke.UNBOUND) else EditorKeyStroke.UNBOUND })
+    val confirmBundle = EditorSettingsBundleCodec.decode(EditorSettingsBundleCodec.encode(settings.copy(keymap = confirmKeymap), "[Window][CONFIRM]\n"))
+    check(confirmBundle.settings.keymap[EditorAction.CONFIRM] == EditorKeyStroke.parse("CTRL+ENTER", EditorKeyStroke.UNBOUND))
   }
 
   /** Recreates the 2.1.0 settings-bundle wire shape so the v2 decoder cannot drop compatibility. */
@@ -219,6 +282,12 @@ object UploadV2CodecVerification {
     check(song.header.ticksPerSecond == 10.0 && song.header.beatsPerBar == 4)
     check((song.header.ticksPerSecond * 15.0).roundToInt() == 150)
     check(song.notes.size == 3 && song.layers.size == 2 && song.customInstrumentCount == 1)
+    check(song.customInstruments.single().name == "External" && song.customInstruments.single().soundFile == "external.ogg")
+    check(NbsFileCodec.toOmmtPitchCents(58, 0) == 2_500) // IRIS OUT portal trigger: G5
+    check(NbsFileCodec.toOmmtPitchCents(58, 0, 45) == 2_500)
+    check(NbsFileCodec.toOmmtPitchCents(58, -25, 47) == 2_675)
+    check(NbsFileCodec.effectivePanning(20, -40) == -10)
+    check(NbsFileCodec.effectivePanning(100, 100) == 100)
     check(NbsFileCodec.toOmmtInstrument(5, song.header.defaultInstruments) == 7)
     check(NbsFileCodec.toOmmtInstrument(6, song.header.defaultInstruments) == 5)
     check(NbsFileCodec.toOmmtInstrument(7, song.header.defaultInstruments) == 6)
@@ -227,12 +296,14 @@ object UploadV2CodecVerification {
     check(NbsFileCodec.toMinecraftSound(19, song.header.defaultInstruments) == "minecraft:block.note_block.trumpet_oxidized")
     check(NbsFileCodec.toMinecraftSound(20, song.header.defaultInstruments) == null)
     check(song.notes[1].panning == 20 && song.notes[1].detuneCents == 100)
+    check(NbsFileCodec.normalizedSoundPath("assets/minecraft/sounds/ambient/cave/cave1.ogg") == "ambient/cave/cave1")
     rejects { NbsFileCodec.decode(modern.copyOf(modern.size - 1)) }
     rejects { NbsFileCodec.decode(modern + 0) }
     rejects { NbsFileCodec.decode(nbsModern(firstKey = 88)) }
     rejects { NbsFileCodec.decode(nbsModern(secondInstrument = 21)) }
     rejects { NbsFileCodec.decode(nbsModern(version = 7)) }
     check(NbsFileCodec.decode(nbsModern(version = 5, defaultInstruments = 16)).header.version == 5)
+    check(NbsFileCodec.decode(nbsModern(secondVelocity = 255)).normalizedValueCount == 1)
 
     val classic = NbsFileCodec.decode(nbsV0())
     check(classic.header.version == 0 && classic.header.defaultInstruments == 10)
@@ -250,7 +321,33 @@ object UploadV2CodecVerification {
     check(EditorWorkspace.folderOpenCommand("Linux", Path.of("/tmp/OMMT/midi"))?.first() == "xdg-open")
   }
 
-  private fun nbsModern(version: Int = 6, defaultInstruments: Int = 20, firstKey: Int = 33, secondInstrument: Int = 16): ByteArray = ByteArrayOutputStream().use { bytes ->
+  private fun midiTempoAndSustainImport() {
+    val sequence = Sequence(Sequence.PPQ, 480)
+    val track = sequence.createTrack()
+    fun short(command: Int, channel: Int, data1: Int, data2: Int, tick: Long) {
+      track.add(javax.sound.midi.MidiEvent(ShortMessage(command, channel, data1, data2), tick))
+    }
+    val tempo = MetaMessage().also { it.setMessage(0x51, byteArrayOf(0x07, 0xA1.toByte(), 0x20), 3) }
+    track.add(javax.sound.midi.MidiEvent(tempo, 0))
+    short(ShortMessage.NOTE_ON, 0, 60, 100, 0)
+    short(ShortMessage.CONTROL_CHANGE, 0, 64, 127, 120)
+    short(ShortMessage.NOTE_OFF, 0, 60, 0, 240)
+    short(ShortMessage.CONTROL_CHANGE, 0, 64, 0, 480)
+    val imported = MidiFileCodec.decode(sequence)
+    check(imported.notes.single().sourceDurationTicks == 480L)
+    check(imported.notes.single().duration in 499..501)
+    check(imported.sustainExtendedNotes == 1)
+
+    val dense = (0..200).map { index ->
+      val bpm = 100 + index
+      TempoMark(index * 30L, index * 10, (60_000_000.0 / bpm).roundToInt())
+    }
+    val simplified = MidiFileCodec.simplifyTempoControls(dense, 480)
+    check(simplified.size < 32) { "Dense linear tempo ramp was not simplified: ${simplified.size}" }
+    check(simplified.drop(1).all { it.curve == AutomationCurve.LINEAR })
+  }
+
+  private fun nbsModern(version: Int = 6, defaultInstruments: Int = 20, firstKey: Int = 33, secondInstrument: Int = 16, secondVelocity: Int = 100): ByteArray = ByteArrayOutputStream().use { bytes ->
     fun u8(value: Int) = bytes.write(value)
     fun u16(value: Int) { u8(value); u8(value ushr 8) }
     fun i16(value: Int) = u16(value and 0xFFFF)
@@ -260,7 +357,7 @@ object UploadV2CodecVerification {
     string("NBS Test");string("Author");string("");string("Description")
     u16(1_000);u8(0);u8(10);u8(4);repeat(5){u32(0)};string("source.mid");u8(0);u8(0);u16(0)
     // tick 0, layer 0: NBS guitar; layer 1: v6 copper trumpet (v5: first custom instrument).
-    u16(1);u16(1);u8(5);u8(firstKey);u8(80);u8(100);i16(0);u16(1);u8(secondInstrument);u8(45);u8(100);u8(120);i16(100);u16(0)
+    u16(1);u16(1);u8(5);u8(firstKey);u8(80);u8(100);i16(0);u16(1);u8(secondInstrument);u8(45);u8(secondVelocity);u8(120);i16(100);u16(0)
     // tick 4, layer 0: NBS bell.
     u16(4);u16(1);u8(7);u8(57);u8(90);u8(100);i16(0);u16(0);u16(0)
     string("Lead");u8(0);u8(50);u8(100);string("Custom");u8(0);u8(100);u8(80)
@@ -279,10 +376,32 @@ object UploadV2CodecVerification {
     bytes.toByteArray()
   }
 
+  private fun japaneseTitleRoundTrip() {
+    // 120 chars max; ImString(513) holds 120 CJK (360B) and 120 emoji (480B).
+    val hiragana = "あ".repeat(120)
+    check(hiragana.length == 120 && hiragana.toByteArray(StandardCharsets.UTF_8).size == 360)
+    val emoji = "\uD83D\uDE00".repeat(120)
+    check(emoji.length == 240 && emoji.toByteArray(StandardCharsets.UTF_8).size == 480)
+    // Gson escaping round-trip for .oyasai metadata (control chars, quotes, backslash).
+    val tricky = "R&B \"test\" \\ あ\n\t\u0001"
+    val encoded = com.google.gson.Gson().toJson(tricky)
+    check(com.google.gson.JsonParser.parseString(encoded).asString == tricky)
+    // NBS strings decode as UTF-8 first (OpenNBS writes UTF-8).
+    check(MidiInstrumentMapper.decodeText(hiragana.toByteArray(StandardCharsets.UTF_8)) == hiragana)
+    check(MidiInstrumentMapper.decodeText("Machine Love テト".toByteArray(StandardCharsets.UTF_8)) == "Machine Love テト")
+  }
+
   private fun bufferedPlaybackDoesNotStartEarly() {
     val start = 5_000_000_000L
     check(bufferedElapsedMillis(start - 1, start) == null)
     check(bufferedElapsedMillis(start, start) == 0)
     check(bufferedElapsedMillis(start + 250_000_000L, start) == 250)
+  }
+
+  private fun editorPlaybackClockAdvancesAndClamps() {
+    val startedAt = 10_000_000_000L
+    check(editorPlaybackPositionMs(1_000, startedAt, startedAt, 4_000) == 1_000)
+    check(editorPlaybackPositionMs(1_000, startedAt, startedAt + 250_000_000L, 4_000) == 1_250)
+    check(editorPlaybackPositionMs(3_900, startedAt, startedAt + 250_000_000L, 4_000) == 4_000)
   }
 }

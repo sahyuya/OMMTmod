@@ -26,6 +26,11 @@ data class EditorNote(
     var customSound: String? = null,
     /** One-based sound-catalog variant. null is valid only when [customSound] is null. */
     var customSoundPattern: Int? = null,
+    /**
+     * Absolute pitch in cents relative to F#3.  [pitch] remains the integer-semitone value used
+     * by the piano-roll UI and older project files; this field retains NBS detune exactly.
+     */
+    var pitchCents: Int = pitch * 100,
 )
 
 data class EditorSnapshot(

@@ -8,7 +8,7 @@ import java.util.UUID
 
 /**
  * Packet-only OMMT v1 wire codec.  It has no Minecraft dependencies so the same exact envelope
- * is compiled for 1.21.11, 26.1.2 and 26.2.
+ * is compiled for the maintained Minecraft 26.2 target.
  */
 object OmmtPluginWire {
   const val VERSION = 1
@@ -33,6 +33,8 @@ object OmmtPluginWire {
   const val CAP_COMPACT_ZLIB = 1
   const val CAP_CUSTOM_SOUND = 1 shl 1
   const val CAP_CUSTOM_SOUND_PATTERN = 1 shl 2
+  /** OYMI/OYMC v4 signed cents. Never implied by the legacy compact capability. */
+  const val CAP_OYMI_V4_PITCH_CENTS = 1 shl 3
 
   const val PLAYBACK_PROBE = 1
   const val PLAYBACK_BEGIN = 2
@@ -44,7 +46,19 @@ object OmmtPluginWire {
   const val PLAYBACK_PROBE_RESPONSE = 8
   const val PLAYBACK_READY = 9
   const val PLAYBACK_SERVER_CAPABILITIES = 10
+  const val PLAYBACK_CLIENT_CAPABILITIES = 11
+  const val PLAYBACK_STARTED_ACK = 12
+  const val PLAYBACK_CLIENT_PLAYBACK_FAILED = 13
+  const val PLAYBACK_BANK_CONSENT = 14
   const val CAP_BRASS_NOTE_BLOCK = 1
+  const val CAP_OYPB_V2 = 1 shl 1
+  const val CAP_BANK_MANIFEST_V1 = 1 shl 2
+  const val CAP_SOUND_CATALOG_26_2 = 1 shl 3
+  const val CLIENT_CAP_OYPB_V2 = 1
+  const val CLIENT_CAP_STARTED_ACK = 1 shl 1
+  const val CLIENT_CAP_FIXED_CUSTOM_PATTERN = 1 shl 2
+  const val CLIENT_CAP_POSITIONAL_PAN = 1 shl 3
+  const val CLIENT_CAP_BANK_MANIFEST_V1 = 1 shl 4
 
   data class UploadReady(
       val id: UUID,
@@ -138,6 +152,28 @@ object OmmtPluginWire {
   fun playbackReady(session: UUID, hash: ByteArray): ByteArray {
     require(hash.size == 32)
     return envelope(PLAYBACK_READY, session) { write(hash) }
+  }
+
+  fun playbackClientCapabilities(nonce: String, bits: Int): ByteArray {
+    require(nonce.matches(Regex("[A-Za-z0-9_-]{22}")))
+    return envelope(PLAYBACK_CLIENT_CAPABILITIES, UUID(0L, 0L)) { writeUTF(nonce); writeInt(bits) }
+  }
+
+  fun playbackStartedAck(session: UUID, hash: ByteArray, firstDispatchedNoteTimeMs: Int): ByteArray {
+    require(hash.size == 32 && firstDispatchedNoteTimeMs >= 0)
+    return envelope(PLAYBACK_STARTED_ACK, session) { write(hash); writeInt(firstDispatchedNoteTimeMs) }
+  }
+
+  fun playbackFailed(session: UUID, reason: Int, clientPositionMs: Int): ByteArray {
+    require(reason in 1..6 && clientPositionMs >= 0)
+    return envelope(PLAYBACK_CLIENT_PLAYBACK_FAILED, session) { writeByte(reason); writeInt(clientPositionMs) }
+  }
+
+  fun playbackBankConsent(allowed: Boolean, manifestHash: ByteArray): ByteArray {
+    require(manifestHash.size == 32)
+    // allowed==false must carry zero hash; allowed==true must carry non-zero configured hash.
+    require((!allowed && manifestHash.all { it == 0.toByte() }) || (allowed && manifestHash.any { it != 0.toByte() }))
+    return envelope(PLAYBACK_BANK_CONSENT, UUID(0L, 0L)) { writeByte(if (allowed) 1 else 0); write(manifestHash) }
   }
 
   fun envelope(type: Int, id: UUID, body: DataOutputStream.() -> Unit): ByteArray =

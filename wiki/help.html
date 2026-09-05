@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="OMMTで困ったときの確認手順。ファイル・表示・送信の問題と報告先。">
+  <title>困ったとき · OMMTユーザーWiki</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/styles.css">
+  <script src="assets/theme.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">本文へ移動</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="index.html"><span class="brand-mark">OM</span><span>OMMT User Wiki</span></a>
+      <nav aria-label="メインナビゲーション">
+        <ul class="nav-list">
+          <li><a href="index.html">はじめに</a></li>
+          <li><a href="install.html">導入</a></li>
+          <li><a href="editing.html">編集</a></li>
+          <li><a href="sound.html">音・自動化</a></li>
+          <li><a href="save-upload.html">保存・送信</a></li>
+          <li><a href="settings.html">設定</a></li>
+          <li><a aria-current="page" href="help.html">ヘルプ</a></li>
+        </ul>
+      </nav>
+      <div class="header-tools">
+        <a class="lang-switch" href="help-en.html" hreflang="en">English</a>
+        <button class="theme-toggle" id="theme-toggle" type="button">表示: 自動</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="page-shell">
+    <header class="page-heading">
+      <p class="eyebrow">Guide 06 · Help</p>
+      <h1>困ったとき</h1>
+      <p>よくある問題を原因別に確認します。解決しない場合は最後の報告先へ連絡してください。</p>
+    </header>
+
+    <div class="content-layout">
+      <aside class="toc" aria-label="このページの目次"><strong>このページ</strong><ul>
+        <li><a href="#files">ファイルが出ない・開けない</a></li>
+        <li><a href="#display">表示・操作が合わない</a></li>
+        <li><a href="#upload">送信・再生の問題</a></li>
+        <li><a href="#layout">配置の復旧</a></li>
+        <li><a href="#report">報告先</a></li>
+      </ul></aside>
+
+      <article class="article">
+        <section id="files">
+          <h2>ファイルが出ない・開けない</h2>
+          <h3>MIDIが一覧に出ない</h3>
+          <ul>
+            <li>拡張子が<code>.mid</code>または<code>.midi</code>か確認します。</li>
+            <li>「フォルダーを開く」で表示された場所へ入れたか確認します。</li>
+            <li>ファイル追加後に「更新」を押します。</li>
+          </ul>
+          <h3>NBSが一覧に出ない</h3>
+          <ul>
+            <li>拡張子が<code>.nbs</code>か確認します。</li>
+            <li>ライブラリのNBSタブから<code>OMMT/nbs</code>を開きます。</li>
+            <li>ファイル追加後に「更新」を押します。</li>
+          </ul>
+          <h3>フォルダーを開けない</h3>
+          <p>WindowsのExplorer、macOSのopen、Linuxのxdg-openを使用します。失敗する場合は使用中プロフィールのゲームディレクトリを開き、<code>OMMT/midi</code>または<code>OMMT/nbs</code>へ直接移動してください。これらはクライアント起動時に作成されます。</p>
+          <h3><code>.ommt</code>が見つからない</h3>
+          <p>ライブラリをMIDI・NBSではなく<strong>保存／SAVE</strong>タブへ切り替えます。保存ファイルは<code>OMMT/saves</code>にあります。</p>
+        </section>
+
+        <section id="display">
+          <h2>表示・操作が合わない</h2>
+          <h3>ボタンや項目が見切れる</h3>
+          <p>OMMT UIスケールを少し下げ、ウィンドウ境界をドラッグして広げます。使わないパネルをタブへまとめるとピアノロールを広くできます。</p>
+          <h3>ホイールの方向や役割が合わない</h3>
+          <p><a href="settings.html#keymap">設定 → キーマップ</a>のマウスホイールで、修飾キーごとの操作を変更します。普段使うDAWと同じ割り当てにすると混乱しにくくなります。</p>
+          <h3>同じキーが意図どおり動かない</h3>
+          <p>複数の操作へ同じ組み合わせを割り当てていないか、キーマップで確認します。</p>
+        </section>
+
+        <section id="upload">
+          <h2>送信・再生の問題</h2>
+          <h3>下書き送信が使えない／失敗する</h3>
+          <ul>
+            <li>おやさいサーバーへ接続しているか確認します。</li>
+            <li>送信権限があるか確認します。</li>
+            <li>進行中の送信を連続で開始せず、完了またはエラー表示まで待ちます。</li>
+            <li>エラーに使用できないサウンドや曲サイズが示された場合は、該当部分を直してから再送します。</li>
+          </ul>
+          <h3>バッファ再生か確認したい</h3>
+          <p>プロフィールの<code>logs/latest.log</code>で<code>OMMT/BufferedPlayback</code>を検索します。ゲーム内チャットには表示されません。</p>
+          <h3>「内蔵リソースパックが古い」と表示される</h3>
+          <p>チャットの案内に従って更新してください（案内にあるコマンドでも可）。更新までは通常音域での再生になります。</p>
+        </section>
+
+        <section id="layout">
+          <h2>配置が大きく崩れて操作できない</h2>
+          <p>正常なときにエクスポートした設定文字列があれば、それをインポートします。バックアップがない場合はMinecraftを終了し、プロフィールの<code>config/ommt-imgui-layout.ini</code>を別の場所へ退避してから再起動すると、初期配置を作り直せます。退避したファイルは確認が終わるまで削除しないでください。</p>
+        </section>
+
+        <section id="report">
+          <h2>解決しない場合の報告先</h2>
+          <p>おやさいサーバーDiscordの<strong>showcaseにあるOMMTのスレッド</strong>へ報告してください。</p>
+          <p><a class="button primary" href="https://discord.gg/rgKayZPW6X">おやさいサーバーDiscordを開く</a></p>
+          <p>次の内容があると状況を確認しやすくなります。</p>
+          <ul class="checklist">
+            <li>Minecraftのバージョン</li>
+            <li>OMMTのバージョン</li>
+            <li>行った操作と、期待した結果</li>
+            <li>実際に起きた内容</li>
+            <li>可能ならスクリーンショットまたはログ</li>
+          </ul>
+          <p>MIDI／NBSファイルは、共有してよい権利があり、自分が共有して問題ない場合だけ添付してください。</p>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <p>OMMT 3.0.0 · Minecraft 26.2 · Oyasai Server専用</p>
+      <p>不具合報告: <a href="https://discord.gg/rgKayZPW6X">Discordのshowcase内OMMTスレッド</a></p>
+    </div>
+  </footer>
+</body>
+</html>

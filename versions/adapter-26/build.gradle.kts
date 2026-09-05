@@ -12,13 +12,13 @@ version = project.property("mod_version") as String
 group = project.property("maven_group") as String
 
 val minecraftVersion = project.property("minecraft_version") as String
-require(minecraftVersion == "26.1.2" || minecraftVersion == "26.2") {
-    "OMMT 26 adapter supports only Minecraft 26.1.2 and 26.2"
+require(minecraftVersion == "26.2") {
+    "OMMT supports only Minecraft 26.2"
 }
 val ommtRoot = rootProject.projectDir.parentFile.parentFile
 val adapterRoot = rootProject.projectDir.parentFile.resolve("adapter-26")
-val fabricApiVersion = if (minecraftVersion == "26.1.2") "0.155.2+26.1.2" else "0.158.0+26.2"
-val guiImGuiVersion = if (minecraftVersion == "26.1.2") "26.1-1.0.11+imgui.1.92.0" else "26.2-1.1.0+imgui.1.92.0"
+val fabricApiVersion = "0.158.0+26.2"
+val guiImGuiVersion = "26.2-1.1.0+imgui.1.92.0"
 val formalSoundCatalog = ommtRoot.parentFile.resolve("platform/plugins/OyasaiMusic/src/main/resources/sound-catalog.json")
 check(formalSoundCatalog.isFile) { "Required OyasaiMusic sound catalog is missing: $formalSoundCatalog" }
 
@@ -69,6 +69,7 @@ sourceSets.named("client") {
     kotlin.exclude("**/PlaybackPayload.kt")
     kotlin.exclude("**/UploadPayload.kt")
     kotlin.exclude("**/OyasaimusicmiditranslatorClient.kt")
+    kotlin.exclude("**/PreviewSoundPlayer.kt")
     resources.srcDir(ommtRoot.resolve("src/client/resources"))
 }
 
@@ -82,6 +83,15 @@ dependencies {
     implementation("cn.enaium:fabric-gui-imgui:$guiImGuiVersion")
     testImplementation(sourceSets["client"].output)
 }
+
+val bundledBankZipCandidates = listOf(
+    ommtRoot.parentFile.resolve("73e0fc6020a2b160eb8d5f5b27b9e5579a773d9d.zip"),
+    ommtRoot.parentFile.resolve("af57205743d4d573bcb2dea2f81b745d30eb6eb3.zip"),
+    ommtRoot.parentFile.resolve("OyasaiMusic-26.2-extended.zip"),
+    rootProject.layout.projectDirectory.file("73e0fc6020a2b160eb8d5f5b27b9e5579a773d9d.zip").asFile,
+    rootProject.layout.projectDirectory.file("af57205743d4d573bcb2dea2f81b745d30eb6eb3.zip").asFile,
+)
+val bundledBankZip = bundledBankZipCandidates.firstOrNull { it.isFile }
 
 tasks.processResources {
     inputs.property("version", project.version)
@@ -100,6 +110,13 @@ tasks.processResources {
     }
     from(formalSoundCatalog) {
         into("assets/oyasaimusicmiditranslator")
+    }
+    if (bundledBankZip != null) {
+        inputs.file(bundledBankZip)
+        from(zipTree(bundledBankZip)) {
+            eachFile { path = path.replace('\\', '/') }
+            include("assets/**")
+        }
     }
 }
 

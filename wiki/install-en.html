@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="How to install OMMT: required mods, supported versions, song folders, and first launch.">
+  <title>Install &amp; First Launch · OMMT User Wiki</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/styles.css">
+  <script src="assets/theme.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="index-en.html"><span class="brand-mark">OM</span><span>OMMT User Wiki</span></a>
+      <nav aria-label="Main navigation">
+        <ul class="nav-list">
+          <li><a href="index-en.html">Start</a></li>
+          <li><a aria-current="page" href="install-en.html">Install</a></li>
+          <li><a href="editing-en.html">Edit</a></li>
+          <li><a href="sound-en.html">Sound</a></li>
+          <li><a href="save-upload-en.html">Save &amp; Submit</a></li>
+          <li><a href="settings-en.html">Settings</a></li>
+          <li><a href="help-en.html">Help</a></li>
+        </ul>
+      </nav>
+      <div class="header-tools">
+        <a class="lang-switch" href="install.html" hreflang="ja">日本語</a>
+        <button class="theme-toggle" id="theme-toggle" type="button">Theme: Auto</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="page-shell">
+    <header class="page-heading">
+      <p class="eyebrow">Guide 01 · Install</p>
+      <h1>Install &amp; First Launch</h1>
+      <p>Install OMMT with the matching Minecraft version and required mods, up to seeing your first song in the library.</p>
+    </header>
+
+    <div class="content-layout">
+      <aside class="toc" aria-label="On this page"><strong>On this page</strong><ul>
+        <li><a href="#requirements">Requirements</a></li>
+        <li><a href="#versions">Supported versions</a></li>
+        <li><a href="#install">Installation steps</a></li>
+        <li><a href="#folders">Song folders</a></li>
+        <li><a href="#first-open">Opening OMMT</a></li>
+      </ul></aside>
+
+      <article class="article">
+        <section id="requirements">
+          <h2>Requirements</h2>
+          <p>OMMT is a client-only Fabric mod. Alongside OMMT itself, install these mods for the same Minecraft version on your client.</p>
+          <ul>
+            <li>Fabric Loader</li>
+            <li>Fabric API</li>
+            <li>Fabric Language Kotlin</li>
+            <li>Fabric GUI ImGui</li>
+          </ul>
+          <div class="warning"><strong>Do not put OMMT in a server mods folder</strong><p>OMMT is an editor that runs on your own Minecraft client. Place it in the <code>mods</code> folder of the profile you play with, e.g. via the Modrinth App.</p></div>
+        </section>
+
+        <section id="versions">
+          <h2>Supported versions</h2>
+          <p>Only Minecraft 26.2 is supported. Pick the OMMT file whose version matches your Minecraft version.</p>
+          <div class="table-wrap"><table class="comparison">
+            <thead><tr><th>Item</th><th>Version</th></tr></thead>
+            <tbody>
+              <tr><td>Minecraft</td><td>26.2</td></tr>
+              <tr><td>OMMT</td><td><code>OyasaiMusicMidiTranslator-3.0.0-fabric26.2.jar</code></td></tr>
+              <tr><td>Java</td><td>25</td></tr>
+              <tr><td>Fabric Loader</td><td>0.19.3</td></tr>
+              <tr><td>Fabric API</td><td>0.158.0+26.2</td></tr>
+            </tbody>
+          </table></div>
+          <div class="tip"><strong>Exact dependency versions</strong><p>The OMMT JAR records the required versions of its dependencies. If your launcher reports a compatibility error, check the versions named in the error message.</p></div>
+        </section>
+
+        <section id="install">
+          <h2>Installation steps</h2>
+          <ol class="step-list">
+            <li><strong>Prepare a Fabric profile.</strong><br>Create a Fabric Loader profile matching the Minecraft version (26.2) you play.</li>
+            <li><strong>Add the required mods.</strong><br>Put Fabric API, Fabric Language Kotlin, and Fabric GUI ImGui into the profile's <code>mods</code> folder.</li>
+            <li><strong>Add OMMT.</strong><br>Put the matching OMMT JAR into the same <code>mods</code> folder.</li>
+            <li><strong>Launch Minecraft once.</strong><br>Starting up to the title screen prepares OMMT's folders and config files.</li>
+          </ol>
+        </section>
+
+        <section id="folders">
+          <h2>Song and project folders</h2>
+          <p>When the client starts, three folders are created inside <code>OMMT</code> in the game directory. You do not need to open the editor first.</p>
+          <div class="table-wrap"><table class="comparison">
+            <thead><tr><th>Location</th><th>Contents</th><th>Used for</th></tr></thead>
+            <tbody>
+              <tr><td><code>OMMT/midi</code></td><td><code>.mid</code> / <code>.midi</code></td><td>Loading source MIDI files</td></tr>
+              <tr><td><code>OMMT/nbs</code></td><td><code>.nbs</code></td><td>Loading Note Block Studio songs (v0–v6)</td></tr>
+              <tr><td><code>OMMT/saves</code></td><td><code>.ommt</code></td><td>Saving and resuming in-progress edits</td></tr>
+            </tbody>
+          </table></div>
+          <p>No need to type paths by hand: each library tab (MIDI, NBS, saves) has an <strong>OPEN FOLDER</strong> button. After adding files, press <strong>REFRESH</strong>. Files inside subfolders are not listed.</p>
+          <div class="example">
+            <div class="example-title">Example: adding “spring-concert.mid”</div>
+            <div class="example-body"><p>On the MIDI tab, choose “Open folder”, copy <code>spring-concert.mid</code> there, return to OMMT, and press “Refresh”. For NBS, open <code>OMMT/nbs</code> from the NBS tab and place the file there.</p></div>
+          </div>
+        </section>
+
+        <section id="first-open">
+          <h2>Opening OMMT</h2>
+          <ol class="step-list">
+            <li><strong>Join a world or server.</strong></li>
+            <li><strong>Press <kbd>O</kbd>.</strong><br>This is the default key. You can change it in Minecraft's key settings.</li>
+            <li><strong>Pick a song in the left library.</strong><br>Switch between the MIDI, NBS, and saves tabs.</li>
+            <li><strong>Load it.</strong><br>Press “LOAD MIDI”, “LOAD NBS”, or “LOAD SAVE” at the top, or double-click the file.</li>
+          </ol>
+          <p>OMMT displays Japanese when Minecraft's language is Japanese, and English otherwise.</p>
+          <div class="notice"><strong>Loading alone submits nothing</strong><p>Selecting, editing, local preview, and <code>.ommt</code> saving all happen on your client. The server receives something only when you press draft submission.</p></div>
+          <div class="actions"><a class="button primary" href="editing-en.html">Next: edit songs</a></div>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <p>OMMT 3.0.0 · Minecraft 26.2 · Oyasai Server only</p>
+      <p>Bug reports: <a href="https://discord.gg/rgKayZPW6X">OMMT thread in the showcase channel on Discord</a></p>
+    </div>
+  </footer>
+</body>
+</html>

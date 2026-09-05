@@ -92,6 +92,8 @@ enum class EditorAction(val english: String, val japanese: String, val default: 
   UPLOAD_DRAFT("Upload draft", "下書きを送信", EditorKeyStroke.UNBOUND),
   REFRESH_LIBRARY("Refresh library", "ライブラリ更新", EditorKeyStroke.UNBOUND),
   OPEN_MIDI_FOLDER("Open MIDI folder", "MIDIフォルダーを開く", EditorKeyStroke.UNBOUND),
+  // Keep last: the share bundle stores bindings positionally, so appending preserves old slots.
+  CONFIRM("Confirm / Apply", "確定・適用", EditorKeyStroke(GLFW.GLFW_KEY_ENTER)),
 }
 
 data class EditorKeymap(val bindings: Map<EditorAction, EditorKeyStroke> = EditorAction.entries.associateWith { it.default }) {

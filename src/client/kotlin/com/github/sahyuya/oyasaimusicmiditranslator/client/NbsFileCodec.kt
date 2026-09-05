@@ -1,14 +1,11 @@
 package com.github.sahyuya.oyasaimusicmiditranslator.client
 
-import java.nio.charset.Charset
-
 /** Strict, bounded reader for the classic and Open Note Block Studio NBS v0..v6 formats. */
 object NbsFileCodec {
   const val MAX_FILE_BYTES = 64 * 1024 * 1024
   const val MAX_NOTES = 1_000_000
   private const val MAX_STRING_BYTES = 1 * 1024 * 1024
   private const val MAX_TICK = 100_000_000
-  private val WINDOWS_1252: Charset = Charset.forName("windows-1252")
 
   data class Header(
       val version: Int,
@@ -35,16 +32,33 @@ object NbsFileCodec {
 
   data class Layer(val id: Int, val name: String, val volume: Int, val panning: Int)
 
+  data class CustomInstrument(
+      val id: Int,
+      val name: String,
+      val soundFile: String,
+      val key: Int,
+      val pressKey: Boolean,
+  )
+
   data class Song(
       val header: Header,
       val notes: List<Note>,
       val layers: List<Layer>,
-      val customInstrumentCount: Int,
-  )
+      val customInstruments: List<CustomInstrument>,
+      /** Number of out-of-spec velocity/pan/detune values safely clamped while importing. */
+      val normalizedValueCount: Int,
+  ) {
+    val customInstrumentCount: Int get() = customInstruments.size
+  }
 
   fun decode(bytes: ByteArray): Song {
     require(bytes.size in 2..MAX_FILE_BYTES) { "NBS file must be between 2 bytes and 64 MiB" }
     val input = Reader(bytes)
+    var normalizedValueCount = 0
+    fun normalized(value: Int, range: IntRange): Int {
+      if (value !in range) normalizedValueCount++
+      return value.coerceIn(range)
+    }
     val classicLength = input.u16()
     val version = if (classicLength == 0) input.u8().also { require(it in 1..6) { "Unsupported NBS version: $it" } } else 0
     val defaultInstruments = if (version > 0) input.u8().also { require(it > 0) { "NBS default instrument count is zero" } } else 10
@@ -81,9 +95,12 @@ object NbsFileCodec {
         require(currentLayer in 0 until layerCount) { "NBS note references missing layer $currentLayer" }
         val instrument = input.u8()
         val key = input.u8().also { require(it in 0..87) { "NBS key is outside 0..87" } }
-        val velocity = if (version >= 4) input.u8().also { require(it in 0..100) { "NBS velocity is outside 0..100" } } else 100
-        val panning = if (version >= 4) input.u8().also { require(it in 0..200) { "NBS panning is outside 0..200" } } - 100 else 0
-        val detune = if (version >= 4) input.i16().also { require(it in -1200..1200) { "NBS detune is outside -1200..1200 cents" } } else 0
+        // A number of widely shared NBS files contain values written by old macros outside the
+        // UI's documented range. These are still single bounded bytes/shorts, so clamping the
+        // musical value is safe and substantially more compatible than rejecting the whole song.
+        val velocity = if (version >= 4) normalized(input.u8(), 0..100) else 100
+        val panning = if (version >= 4) normalized(input.u8(), 0..200) - 100 else 0
+        val detune = if (version >= 4) normalized(input.i16(), -1200..1200) else 0
         require(notes.size < MAX_NOTES) { "NBS file contains more than $MAX_NOTES notes" }
         notes += Note(currentTick, currentLayer, instrument, key, velocity, panning, detune)
       }
@@ -92,8 +109,8 @@ object NbsFileCodec {
     val layers = List(layerCount) { layer ->
       val layerName = input.string()
       if (version >= 4) input.u8() // lock flag
-      val volume = input.u8().also { require(it in 0..100) { "NBS layer volume is outside 0..100" } }
-      val panning = if (version >= 2) input.u8().also { require(it in 0..200) { "NBS layer panning is outside 0..200" } } - 100 else 0
+      val volume = normalized(input.u8(), 0..100)
+      val panning = if (version >= 2) normalized(input.u8(), 0..200) - 100 else 0
       Layer(layer, layerName, volume, panning)
     }
 
@@ -102,11 +119,12 @@ object NbsFileCodec {
     require(notes.all { it.instrument < defaultInstruments + customCount }) {
       "NBS note references an undefined instrument"
     }
-    repeat(customCount) {
-      input.string() // custom instrument name
-      input.string() // external sound file name
-      input.u8().also { key -> require(key in 0..87) { "NBS custom instrument key is outside 0..87" } }
-      input.u8() // press-key flag
+    val customInstruments = List(customCount) { offset ->
+      val customName = input.string()
+      val soundFile = input.string()
+      val key = input.u8().also { value -> require(value in 0..87) { "NBS custom instrument key is outside 0..87" } }
+      val pressKey = input.u8() != 0
+      CustomInstrument(defaultInstruments + offset, customName, soundFile, key, pressKey)
     }
     input.requireExhausted()
 
@@ -114,9 +132,58 @@ object NbsFileCodec {
         Header(version, defaultInstruments, songLength, layerCount, name, author, originalAuthor, description, tempoHundredths / 100.0, beatsPerBar),
         notes,
         layers,
-        customCount,
+        customInstruments,
+        normalizedValueCount,
     )
   }
+
+  fun customInstrument(song: Song, nbsInstrument: Int): CustomInstrument? =
+      song.customInstruments.getOrNull(nbsInstrument - song.header.defaultInstruments)
+
+  /** Converts NBS key 33 (F#3) to OMMT zero; custom root key 45 is unshifted. */
+  fun toOmmtPitchCents(key: Int, detuneCents: Int, customRootKey: Int? = null): Int =
+      (key + (customRootKey ?: 45) - 45 - 33) * 100 + detuneCents
+
+  /** NBS combines the centered note and layer panning values by averaging them. */
+  fun effectivePanning(notePanning: Int, layerPanning: Int): Int =
+      ((notePanning.coerceIn(-100, 100) + layerPanning.coerceIn(-100, 100)) / 2)
+          .coerceIn(-100, 100)
+
+  /**
+   * Community NBS files sometimes store editor/export control events in custom-instrument
+   * lanes. They are not audible samples and must never fall back to Harp.
+   *
+   * Their exact behaviour is exporter-specific and is not part of the NBS v0..v6 wire
+   * format, so the importer preserves song timing and deliberately omits the control notes
+   * instead of guessing an audible result.
+   */
+  fun isControlInstrument(song: Song, nbsInstrument: Int): Boolean {
+    val name = customInstrument(song, nbsInstrument)?.name?.trim()?.lowercase() ?: return false
+    return name == "tempo changer" || name == "sound stopper"
+  }
+
+  /** Converts Tempo Changer detuneCents (NBS v4 detune -1200..1200) directly to BPM. */
+  fun tempoChangerDetuneToBpm(detuneCents: Int): Int = kotlin.math.abs(detuneCents).coerceIn(1, 60000)
+  fun tempoChangerDetuneToTps(detuneCents: Int): Double = tempoChangerDetuneToBpm(detuneCents) / 15.0
+
+  /** Legacy key-based fallback for files without detune (v0..3). */
+  fun tempoChangerKeyToTps(key: Int): Double {
+    // Community convention: key 33 = base tempo (header), higher = faster, lower = slower.
+    // Map key 33 -> header-like 10 tps baseline, with 0.4 tps per semitone.
+    return ((key - 33) * 0.4 + 10.0).coerceIn(0.25, 60.0)
+  }
+
+  /** Normalized resource path used to match NBS custom samples to Minecraft sound patterns. */
+  fun normalizedSoundPath(raw: String): String = raw.trim().lowercase()
+      .replace('\\', '/')
+      .removePrefix("assets/")
+      .substringAfter("/sounds/", missingDelimiterValue = raw.trim().lowercase().replace('\\', '/'))
+      .removePrefix("sounds/")
+      .removeSuffix(".ogg")
+      .removeSuffix(".wav")
+      .removePrefix("minecraft/")
+      .removePrefix("minecraft:")
+      .trimStart('/')
 
   /** OpenNBS indices 5..7 differ from OyasaiMusic's stable instrument order. */
   fun toOmmtInstrument(nbsInstrument: Int, defaultInstruments: Int): Int? {
@@ -166,7 +233,8 @@ object NbsFileCodec {
       val length = u32("NBS string length").toInt()
       require(length <= MAX_STRING_BYTES) { "NBS string exceeds 1 MiB" }
       requireRemaining(length)
-      return String(bytes, index, length, WINDOWS_1252).also { index += length }
+      // OpenNBS writes UTF-8; legacy files may be Shift-JIS or Windows-1252.
+      return MidiInstrumentMapper.decodeText(bytes.copyOfRange(index, index + length)).also { index += length }
     }
 
     fun requireExhausted() {

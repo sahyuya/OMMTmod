@@ -11,6 +11,12 @@ object ServerPlaybackCapabilities {
   val supportsBrassNoteBlockSounds: Boolean
     get() = received && bits and OmmtPluginWire.CAP_BRASS_NOTE_BLOCK != 0
 
+  val supportsOypbV2: Boolean
+    get() = received && bits and OmmtPluginWire.CAP_OYPB_V2 != 0
+
+  val supportsBankManifest: Boolean
+    get() = received && bits and OmmtPluginWire.CAP_BANK_MANIFEST_V1 != 0
+
   internal fun update(value: Int) {
     bits = value
     received = true

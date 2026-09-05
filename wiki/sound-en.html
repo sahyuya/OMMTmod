@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Pick instruments and Minecraft sounds in OMMT, and shape volume, pan, tempo, and pseudo-release.">
+  <title>Sound &amp; Automation · OMMT User Wiki</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/styles.css">
+  <script src="assets/theme.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="index-en.html"><span class="brand-mark">OM</span><span>OMMT User Wiki</span></a>
+      <nav aria-label="Main navigation">
+        <ul class="nav-list">
+          <li><a href="index-en.html">Start</a></li>
+          <li><a href="install-en.html">Install</a></li>
+          <li><a href="editing-en.html">Edit</a></li>
+          <li><a aria-current="page" href="sound-en.html">Sound</a></li>
+          <li><a href="save-upload-en.html">Save &amp; Submit</a></li>
+          <li><a href="settings-en.html">Settings</a></li>
+          <li><a href="help-en.html">Help</a></li>
+        </ul>
+      </nav>
+      <div class="header-tools">
+        <a class="lang-switch" href="sound.html" hreflang="ja">日本語</a>
+        <button class="theme-toggle" id="theme-toggle" type="button">Theme: Auto</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="page-shell">
+    <header class="page-heading">
+      <p class="eyebrow">Guide 03 · Sound &amp; automation</p>
+      <h1>Sound &amp; Automation</h1>
+      <p>Pick instruments and Minecraft sounds, then finish with volume, pan, tempo, and pseudo-release.</p>
+    </header>
+
+    <div class="content-layout">
+      <aside class="toc" aria-label="On this page"><strong>On this page</strong><ul>
+        <li><a href="#instrument">Instruments &amp; sounds</a></li>
+        <li><a href="#panels">Automation panels</a></li>
+        <li><a href="#volume-pan">Volume &amp; pan</a></li>
+        <li><a href="#tempo">Tempo</a></li>
+        <li><a href="#release">Pseudo-release</a></li>
+      </ul></aside>
+
+      <article class="article">
+        <section id="instrument">
+          <h2>Instruments &amp; Minecraft sounds</h2>
+          <p>Normally, pick a note-block instrument — harp/piano, bass, bass drum, snare, and more — from the inspector's instrument list. Each entry also shows the block family behind the sound. On Minecraft 26.2, four copper trumpet variants (plain, exposed, weathered, oxidized) are available.</p>
+          <p>Choosing <strong>Other Minecraft sound</strong> reveals sound search, sound ID, and pattern fields.</p>
+          <ol class="step-list">
+            <li><strong>Type part of a name.</strong><br>Enter something like <code>bell</code> or <code>ambient</code>.</li>
+            <li><strong>Pick a sound.</strong><br>Choose the Minecraft sound to use.</li>
+            <li><strong>Switch patterns.</strong><br>When one ID holds several tones, pick a single tone via pattern.</li>
+            <li><strong>Press APPLY and listen.</strong></li>
+          </ol>
+          <div class="warning"><strong>Sounds not listed</strong><p>New Minecraft sounds the Oyasai server cannot use yet may not appear as candidates.</p></div>
+          <p>NBS notes with no matching instrument fall back to harp (counts are shown on load). Zero-volume notes display only and stay silent in previews.</p>
+        </section>
+
+        <section id="panels">
+          <h2>Automation panels</h2>
+          <p>Below the piano roll sit four panels: <strong>VOLUME, PAN, TEMPO, and RELEASE</strong>. Volume shows first; switch with tabs. Each panel can be moved, resized, tabbed, and docked (see <a href="settings-en.html#layout">Settings → Layout</a>).</p>
+        </section>
+
+        <section id="volume-pan">
+          <h2>Volume &amp; pan</h2>
+          <ul>
+            <li><strong>Volume:</strong> drag each note's bar or point up and down (0–100).</li>
+            <li><strong>Pan:</strong> adjust left–right spread (−100 to +100, center is 0).</li>
+          </ul>
+          <p>Dragging edits the selection relatively. <strong>MAX VOL</strong> at the top adjusts overall volume.</p>
+        </section>
+
+        <section id="tempo">
+          <h2>Tempo</h2>
+          <p>Add tempo points at the playback position and set BPM plus curve per point. Multiple points change tempo mid-song. Curves are <code>STEP</code>, <code>LINEAR</code>, and <code>SMOOTH</code>.</p>
+          <ol class="step-list">
+            <li><strong>ADD AT PLAYHEAD.</strong><br>Place points where the change starts and where it lands.</li>
+            <li><strong>Set BPM and curve.</strong><br>Type each point's BPM and pick how points connect.</li>
+            <li><strong>Press APPLY.</strong></li>
+            <li><strong>Listen.</strong><br>Check transitions are not too abrupt and speeds match your intent.</li>
+          </ol>
+          <p>Select unneeded points and press <strong>DELETE</strong> (at least one point remains).</p>
+          <div class="example">
+            <div class="example-title">Example: slightly faster toward the chorus</div>
+            <div class="example-body"><p>Place points at the build-up and at the chorus, set 120 BPM then 128 BPM, and choose a smooth curve. Compare playhead and point positions while listening.</p></div>
+          </div>
+        </section>
+
+        <section id="release">
+          <h2>Pseudo-release on selected notes only</h2>
+          <p>Pseudo-release retriggers long notes at a fixed interval, shaping decay or swell with a volume curve. It applies <strong>only to selected notes</strong>.</p>
+          <ol class="step-list">
+            <li><strong>Select target notes.</strong><br>Select only sustained tones such as strings.</li>
+            <li><strong>Open RELEASE and enable it.</strong><br>Check the selected-note count looks right.</li>
+            <li><strong>Set threshold and interval.</strong><br>Choose milliseconds or note values from 1/1 to 1/64. Intervals go down to 1/128.</li>
+            <li><strong>Shape the volume curve.</strong><br>Set start/end volume and curve; optionally add up to two middle points and drag them.</li>
+            <li><strong>Apply and listen.</strong><br>Check retriggers are not too dense and endings sound natural.</li>
+          </ol>
+          <div class="tip"><strong>Safe way to start</strong><p>Try one long note first with a modest interval and roughly 100% → 55% decay. Once it sounds right, add-select similar notes and apply.</p></div>
+          <p>Remove it with <strong>CLEAR SELECTED</strong>.</p>
+          <div class="actions"><a class="button primary" href="save-upload-en.html">Next: save and submit</a></div>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <p>OMMT 3.0.0 · Minecraft 26.2 · Oyasai Server only</p>
+      <p>Bug reports: <a href="https://discord.gg/rgKayZPW6X">OMMT thread in the showcase channel on Discord</a></p>
+    </div>
+  </footer>
+</body>
+</html>

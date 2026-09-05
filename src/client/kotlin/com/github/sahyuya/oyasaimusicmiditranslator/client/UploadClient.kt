@@ -20,7 +20,7 @@ object UploadClient {
   private enum class Stage { IDLE, WAITING_READY, BEGIN, CHUNKS, FINISH, IMPORTING }
   private data class Prepared(
       val id: UUID, val oymi: ByteArray, val compressed: ByteArray, val chunks: List<ByteArray>,
-      val hash: ByteArray, val notes: Int, val requiresCustomSound: Boolean,
+      val hash: ByteArray, val notes: Int, val requiresCustomSound: Boolean, val requiresPitchCents: Boolean,
   )
 
   private var initialized = false
@@ -54,7 +54,7 @@ object UploadClient {
       reset("OyasaiMusic packet upload is unavailable on this server", true, false); return
     }
     val id = UUID.randomUUID()
-    prepared = Prepared(id, ByteArray(0), ByteArray(0), emptyList(), ByteArray(32), 0, false)
+    prepared = Prepared(id, ByteArray(0), ByteArray(0), emptyList(), ByteArray(32), 0, false, false)
     availabilityOnly = true
     connection = handler; requestedAtMs = System.currentTimeMillis(); stage = Stage.WAITING_READY
     if (send(OmmtPluginWire.uploadRequest(id))) {
@@ -94,7 +94,7 @@ object UploadClient {
     availabilityOnly = false
     prepared = Prepared(
         id, oymi.copyOf(), compressed, chunks, MessageDigest.getInstance("SHA-256").digest(oymi),
-        header.noteCount, header.version >= 3 && hasCustomSoundMetadata(oymi),
+        header.noteCount, header.version >= 3 && hasCustomSoundMetadata(oymi), header.version == 4,
     )
     connection = handler; requestedAtMs = System.currentTimeMillis(); nextChunk = 0; stage = Stage.WAITING_READY
     if (send(OmmtPluginWire.uploadRequest(id))) {
@@ -157,7 +157,8 @@ object UploadClient {
           decoded.maxChunks in value.chunks.size..OmmtPluginWire.MAX_CHUNKS &&
           decoded.chunkBytes in OmmtPluginWire.CHUNK_BYTES..OmmtPluginWire.MAX_PACKET_BYTES &&
           (decoded.capabilities and OmmtPluginWire.CAP_COMPACT_ZLIB) != 0 &&
-          (!value.requiresCustomSound || (decoded.capabilities and OmmtPluginWire.CAP_CUSTOM_SOUND_PATTERN) != 0)
+          (!value.requiresCustomSound || (decoded.capabilities and OmmtPluginWire.CAP_CUSTOM_SOUND_PATTERN) != 0) &&
+          (!value.requiresPitchCents || (decoded.capabilities and OmmtPluginWire.CAP_OYMI_V4_PITCH_CENTS) != 0)
         if (!allowed) reset("Server upload capability does not support this song", true, false)
         else { stage = Stage.BEGIN; status = "Preparing packet upload..." }
       }
@@ -200,11 +201,12 @@ object UploadClient {
   private fun validateOymiHeader(bytes: ByteArray): OymiHeader {
     require(bytes.size in 20..OmmtPluginWire.MAX_OYMI_BYTES) { "OYMI must be 20 bytes to 1 MiB" }
     val input = ByteBuffer.wrap(bytes); require(input.int == 0x4F594D49) { "invalid OYMI header" }
-    val version = input.short.toInt(); require(version in 1..3 && input.short.toInt() == 0) { "unsupported OYMI version" }
+    val version = input.short.toInt(); require(version in 1..4 && input.short.toInt() == 0) { "unsupported OYMI version" }
     val metadataSize = input.int; val noteCount = input.int; input.int
     require(metadataSize in 2..(bytes.size - 20)) { "invalid OYMI metadata length" }
     require(noteCount in 1..OmmtPluginWire.MAX_NOTES) { "invalid OYMI note count" }
-    require(20L + metadataSize.toLong() + noteCount.toLong() * 8L == bytes.size.toLong()) { "invalid OYMI note data length" }
+    val noteBytes = if (version == 4) 9L else 8L
+    require(20L + metadataSize.toLong() + noteCount.toLong() * noteBytes == bytes.size.toLong()) { "invalid OYMI note data length" }
     return OymiHeader(version, noteCount)
   }
   private fun hasCustomSoundMetadata(bytes: ByteArray): Boolean {

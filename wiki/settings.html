@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="OMMTの設定リファレンス。一般・配色・レイアウト・キーマップ・共有の全項目と初期値。">
+  <title>設定リファレンス · OMMTユーザーWiki</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/styles.css">
+  <script src="assets/theme.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">本文へ移動</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="index.html"><span class="brand-mark">OM</span><span>OMMT User Wiki</span></a>
+      <nav aria-label="メインナビゲーション">
+        <ul class="nav-list">
+          <li><a href="index.html">はじめに</a></li>
+          <li><a href="install.html">導入</a></li>
+          <li><a href="editing.html">編集</a></li>
+          <li><a href="sound.html">音・自動化</a></li>
+          <li><a href="save-upload.html">保存・送信</a></li>
+          <li><a aria-current="page" href="settings.html">設定</a></li>
+          <li><a href="help.html">ヘルプ</a></li>
+        </ul>
+      </nav>
+      <div class="header-tools">
+        <a class="lang-switch" href="settings-en.html" hreflang="en">English</a>
+        <button class="theme-toggle" id="theme-toggle" type="button">表示: 自動</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="page-shell">
+    <header class="page-heading">
+      <p class="eyebrow">Guide 05 · Settings reference</p>
+      <h1>設定リファレンス</h1>
+      <p>上部の「設定／SETTINGS」（<kbd>Ctrl</kbd>+<kbd>,</kbd>）で開きます。一般・配色・レイアウト・キーマップ・共有の5ページ構成です。</p>
+    </header>
+
+    <div class="content-layout">
+      <aside class="toc" aria-label="このページの目次"><strong>このページ</strong><ul>
+        <li><a href="#general">一般</a></li>
+        <li><a href="#style">配色</a></li>
+        <li><a href="#layout">レイアウト</a></li>
+        <li><a href="#keymap">キーマップ</a></li>
+        <li><a href="#share">共有</a></li>
+      </ul></aside>
+
+      <article class="article">
+        <section id="general">
+          <h2>一般</h2>
+          <div class="table-wrap"><table class="comparison">
+            <thead><tr><th>項目</th><th>初期値</th><th>範囲・操作</th></tr></thead>
+            <tbody>
+              <tr><td>OMMT UIスケール</td><td>100%</td><td>75～150%（5刻み）。Minecraft本体のGUIサイズとは独立</td></tr>
+              <tr><td>テキストサイズ</td><td>110%</td><td>75～150%（5刻み）。UIスケールと掛け合わせて適用</td></tr>
+              <tr><td>グリッド</td><td>AUTO</td><td>AUTO → SPARSE → NORMAL → DENSE の循環。細かすぎる線を間引く</td></tr>
+              <tr><td>コンパクトツールバー</td><td>ON</td><td>上部操作列の表示切替</td></tr>
+              <tr><td>追従開始位置</td><td>45%</td><td>20～70%。追従再生時の画面位置</td></tr>
+            </tbody>
+          </table></div>
+          <div class="tip"><strong>調整の目安</strong><p>一度に大きく変えず、5%ずつ変更して文字・ピアノロール・右インスペクターが同時に見える倍率を探すと整えやすくなります。</p></div>
+        </section>
+
+        <section id="style">
+          <h2>配色</h2>
+          <p>まず5つの基本スタイルから選びます。その後の個別調整はすぐエディターへ反映されます。<strong>「基本スタイルへ戻す／RESET TO BASE STYLE」</strong>で初期値に戻せます。配色を変えても楽曲内容は変わりません。</p>
+          <div class="table-wrap"><table class="comparison">
+            <thead><tr><th>基本スタイル</th><th>印象</th></tr></thead>
+            <tbody>
+              <tr><td>スタジオ・スレート</td><td>標準の青灰色</td></tr>
+              <tr><td>オブシディアン</td><td>角の丸みなしの黒基調</td></tr>
+              <tr><td>ミッドナイト・ブルー</td><td>濃い青基調</td></tr>
+              <tr><td>ウォーム・グラファイト</td><td>暖色の灰色、丸みが大きい</td></tr>
+              <tr><td>DAWグラファイト</td><td>青緑アクセントの灰色</td></tr>
+            </tbody>
+          </table></div>
+
+          <h3>色（30項目）</h3>
+          <div class="table-wrap"><table class="comparison">
+            <thead><tr><th>分類</th><th>項目</th></tr></thead>
+            <tbody>
+              <tr><td>文字・背景</td><td>文字、補助文字、ウィンドウ背景、パネル背景、ポップアップ背景</td></tr>
+              <tr><td>タイトル・見出し</td><td>選択中のタイトル、非選択タイトル、ライブラリ見出し、ワークスペース見出し、インスペクター見出し、見出し</td></tr>
+              <tr><td>枠・入力</td><td>境界線、入力欄、ホバー中の入力欄、ボタン、アクセント、チェックマーク</td></tr>
+              <tr><td>スクロールバー</td><td>スクロールバー、ホバー中、操作中</td></tr>
+              <tr><td>ドックタブ（7色）</td><td>ドックタブ、ホバー中、選択中、非選択、選択タブの上線、非フォーカス時の選択タブ、同上線</td></tr>
+              <tr><td>ピアノロール</td><td>ピアノロール背景、グリッド線、バニラ音域外</td></tr>
+            </tbody>
+          </table></div>
+          <p>アクセント色は選択・アクティブ状態、音域外の色はバニラ音域外の背景に使われます。ノート・グリッド・再生位置と区別できる組み合わせを選んでください。</p>
+
+          <h3>サイズ（9項目）</h3>
+          <div class="table-wrap"><table class="comparison">
+            <thead><tr><th>項目</th><th>範囲</th></tr></thead>
+            <tbody>
+              <tr><td>ウィンドウ左右・上下余白</td><td>2～24</td></tr>
+              <tr><td>入力欄左右余白</td><td>2～20</td></tr>
+              <tr><td>入力欄上下余白</td><td>2～16</td></tr>
+              <tr><td>項目の左右・上下間隔</td><td>1～20</td></tr>
+              <tr><td>角の丸み</td><td>0～12</td></tr>
+              <tr><td>スクロールバー幅</td><td>8～24</td></tr>
+              <tr><td>境界線の幅</td><td>0～2</td></tr>
+            </tbody>
+          </table></div>
+        </section>
+
+        <section id="layout">
+          <h2>レイアウト</h2>
+          <p>ライブラリ、ノートインスペクター、下部編集パネル、他パートの半透明表示を切り替えられます。各パネルはタイトル部分のドラッグで移動・ドッキング・タブ化、境界ドラッグで広さ調整ができます。</p>
+          <div class="table-wrap"><table class="comparison">
+            <thead><tr><th>項目</th><th>初期値</th></tr></thead>
+            <tbody>
+              <tr><td>MIDIライブラリ</td><td>表示</td></tr>
+              <tr><td>ノートインスペクター</td><td>表示</td></tr>
+              <tr><td>下部編集パネル（音量・定位・テンポ・リリース）</td><td>表示</td></tr>
+              <tr><td>他パートを半透明表示</td><td>ON</td></tr>
+            </tbody>
+          </table></div>
+          <p>調整後に<strong>「現在の配置を保存／SAVE CURRENT LAYOUT」</strong>を押すと明示的に保存できます。やり直す場合は<strong>「標準配置に戻す／RESTORE DEFAULT LAYOUT」</strong>を押します。</p>
+          <div class="example">
+            <div class="example-title">例: ピアノロールを広く使う</div>
+            <div class="example-body"><p>音量・定位・テンポ・リリースを画面下の同じ場所へ重ねて4タブにまとめ、インスペクターを右端、ライブラリを左端に置くと中央が広く保てます。</p></div>
+          </div>
+        </section>
+
+        <section id="keymap">
+          <h2>キーマップ</h2>
+          <p>操作名の横のボタンを押してから新しい組み合わせを入力します。<kbd>Backspace</kbd>（または<kbd>Delete</kbd>）で割り当て解除、<kbd>Esc</kbd>で変更中止です。全操作の一覧と初期値は<a href="editing.html#shortcuts">編集ページの表</a>を参照してください。</p>
+          <h3>マウスホイール</h3>
+          <div class="table-wrap"><table class="comparison">
+            <thead><tr><th>修飾キー</th><th>初期割当</th></tr></thead>
+            <tbody>
+              <tr><td>なし</td><td>音高方向の移動</td></tr>
+              <tr><td><kbd>Shift</kbd></td><td>タイムライン移動</td></tr>
+              <tr><td><kbd>Ctrl</kbd></td><td>時間方向の拡大縮小</td></tr>
+              <tr><td><kbd>Alt</kbd></td><td>音高方向の拡大縮小</td></tr>
+            </tbody>
+          </table></div>
+          <p>各修飾キーにはタイムライン移動・時間方向拡大縮小・音高方向拡大縮小・音高方向移動・無効を割り当てられます。範囲選択（初期<kbd>Shift</kbd>）・選択への追加（初期<kbd>Ctrl</kbd>）に使う修飾キー、パンに使うボタン（右／中クリック）も変更できます。確定・適用（初期<kbd>Enter</kbd>）は入力欄編集中のみ有効な特殊な割り当てです。</p>
+          <div class="warning"><strong>同じキーの重複に注意</strong><p>複数の操作へ同じ組み合わせを割り当てると、意図した操作を呼び出しにくくなります。変更後はノート選択と再生で確認してください。</p></div>
+        </section>
+
+        <section id="share">
+          <h2>共有</h2>
+          <p>配色・ウィンドウ配置・キーマップ・表示操作設定を1つの<code>OMMTCFG1:</code>文字列にできます。ここはバックアップと共有専用で、配色自体は「配色」、配置自体は「レイアウト」で編集します。</p>
+          <h3>エクスポートする</h3>
+          <ol>
+            <li><strong>「エクスポート／EXPORT」</strong>を押します。</li>
+            <li>表示された文字列を<strong>「コピー／COPY」</strong>します。</li>
+            <li>自分だけが分かるメモなどへ保存します。</li>
+          </ol>
+          <h3>インポートする</h3>
+          <ol>
+            <li>設定文字列をコピーします。</li>
+            <li>OMMTの設定画面で<strong>「貼り付け／PASTE」</strong>を押します。</li>
+            <li><strong>「インポート／IMPORT」</strong>を押し、配置と操作を確認します。</li>
+          </ol>
+          <div class="notice"><strong>曲は含まれません</strong><p>設定文字列にMIDI・NBS・<code>.ommt</code>・ノート・曲名は含まれません。曲を移す場合は<code>OMMT/midi</code>・<code>OMMT/nbs</code>・<code>OMMT/saves</code>のファイルを別途コピーしてください。</p></div>
+          <div class="actions"><a class="button primary" href="help.html">困ったときはヘルプへ</a></div>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <p>OMMT 3.0.0 · Minecraft 26.2 · Oyasai Server専用</p>
+      <p>不具合報告: <a href="https://discord.gg/rgKayZPW6X">Discordのshowcase内OMMTスレッド</a></p>
+    </div>
+  </footer>
+</body>
+</html>

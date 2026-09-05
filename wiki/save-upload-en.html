@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Save OMMT edits as .ommt, preview them, and submit private drafts to the Oyasai server.">
+  <title>Save, Preview &amp; Submit · OMMT User Wiki</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/styles.css">
+  <script src="assets/theme.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="index-en.html"><span class="brand-mark">OM</span><span>OMMT User Wiki</span></a>
+      <nav aria-label="Main navigation">
+        <ul class="nav-list">
+          <li><a href="index-en.html">Start</a></li>
+          <li><a href="install-en.html">Install</a></li>
+          <li><a href="editing-en.html">Edit</a></li>
+          <li><a href="sound-en.html">Sound</a></li>
+          <li><a aria-current="page" href="save-upload-en.html">Save &amp; Submit</a></li>
+          <li><a href="settings-en.html">Settings</a></li>
+          <li><a href="help-en.html">Help</a></li>
+        </ul>
+      </nav>
+      <div class="header-tools">
+        <a class="lang-switch" href="save-upload.html" hreflang="ja">日本語</a>
+        <button class="theme-toggle" id="theme-toggle" type="button">Theme: Auto</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="page-shell">
+    <header class="page-heading">
+      <p class="eyebrow">Guide 04 · Save &amp; submit</p>
+      <h1>Save, Preview &amp; Submit</h1>
+      <p>Save in-progress work to a local project and submit only finished songs as private drafts to the Oyasai server.</p>
+    </header>
+
+    <div class="content-layout">
+      <aside class="toc" aria-label="On this page"><strong>On this page</strong><ul>
+        <li><a href="#difference">Save vs preview vs submit</a></li>
+        <li><a href="#save">Saving edits</a></li>
+        <li><a href="#resume">Resuming work</a></li>
+        <li><a href="#preview">Preview checklist</a></li>
+        <li><a href="#upload">Submitting a draft</a></li>
+        <li><a href="#after">After submitting</a></li>
+      </ul></aside>
+
+      <article class="article">
+        <section id="difference">
+          <h2>“Save”, “preview”, and “submit” compared</h2>
+          <div class="table-wrap"><table class="comparison">
+            <thead><tr><th>Action</th><th>What happens</th><th>Sent to server?</th></tr></thead>
+            <tbody>
+              <tr><td><strong>SAVE PROJECT</strong></td><td>Creates an editable <code>.ommt</code> project in <code>OMMT/saves</code></td><td>No</td></tr>
+              <tr><td><strong>Play / preview</strong></td><td>Checks the current edit on your own client</td><td>No</td></tr>
+              <tr><td><strong>UPLOAD DRAFT</strong></td><td>Sends the finished song to the Oyasai server as a private OyasaiMusic draft</td><td>Yes</td></tr>
+            </tbody>
+          </table></div>
+          <div class="notice"><strong>Source MIDI/NBS files are never overwritten</strong><p>Edits are never written back to the original <code>.mid</code> / <code>.midi</code> / <code>.nbs</code>. Save an <code>.ommt</code> project to continue later.</p></div>
+        </section>
+
+        <section id="save">
+          <h2>Saving edits to <code>.ommt</code></h2>
+          <ol class="step-list">
+            <li><strong>Load and edit.</strong><br>Arrange notes, part names, tempo, volume, pan, and pseudo-release.</li>
+            <li><strong>Press SAVE PROJECT.</strong><br>An <code>.ommt</code> file is created from the current song title. At least one note is required.</li>
+            <li><strong>Check the confirmation.</strong><br>Once saved, you can close the editor and resume later.</li>
+          </ol>
+          <p><code>.ommt</code> stores not only notes and parts but also tempo, volume/pan, pseudo-release, and view state. File names are sanitized and numbered when they collide.</p>
+          <div class="example">
+            <div class="example-title">Example: editing across two days</div>
+            <div class="example-body"><p>On day one, finish part arrangement and press “Save project”. On day two, load the saved <code>.ommt</code> from the library's <strong>SAVE</strong> tab and resume from tempo and volume. No need to reload the source MIDI/NBS.</p></div>
+          </div>
+          <div class="warning"><strong>Back up important projects</strong><p>Copy <code>.ommt</code> files from <code>OMMT/saves</code> elsewhere so they survive profile rebuilds.</p></div>
+        </section>
+
+        <section id="resume">
+          <h2>Resuming saved work</h2>
+          <ol class="step-list">
+            <li><strong>Open the SAVE tab.</strong><br>Not the MIDI or NBS tab — saves live in <code>OMMT/saves</code>.</li>
+            <li><strong>Select the <code>.ommt</code> file.</strong></li>
+            <li><strong>Press LOAD SELECTED PROJECT.</strong><br>Double-clicking, or LOAD SAVE at the top, works too.</li>
+            <li><strong>Verify the restored state.</strong><br>Check title, parts, tempo, and notes match the saved session.</li>
+          </ol>
+          <p>To restart from source, use the MIDI/NBS tabs; to continue, use the saves tab.</p>
+        </section>
+
+        <section id="preview">
+          <h2>Preview checklist before submitting</h2>
+          <p>Listen through the whole song, and check these points separately for easier fixes.</p>
+          <ul class="checklist">
+            <li>No notes stray extremely high or low in the overview.</li>
+            <li>Each part's instrument fits its role.</li>
+            <li>The melody is not buried, and no part is too loud.</li>
+            <li>Panned sounds are not pulled too far to one side.</li>
+            <li>Tempo changes are not too abrupt and speeds match your intent.</li>
+            <li>Only pseudo-release notes repeat, with natural intervals and decay.</li>
+            <li>No leftover silence or stray notes at the end.</li>
+          </ul>
+          <p>Play with <kbd>Space</kbd>, jump to the start with <kbd>Home</kbd>, preview only the selection with <kbd>P</kbd>. <strong>FOLLOW</strong> ON tracks the playhead; OFF pins the view. OFF suits detail fixes, ON suits full checks.</p>
+        </section>
+
+        <section id="upload">
+          <h2>Submitting a draft to the Oyasai server</h2>
+          <div class="warning"><strong>Check the destination</strong><p>Draft submission targets the Oyasai server. It cannot send elsewhere (nothing is transmitted), and server permission is required.</p></div>
+          <ol class="step-list">
+            <li><strong>Join the Oyasai server.</strong><br>Enter a place where you can submit, and open OMMT.</li>
+            <li><strong>Confirm the final version.</strong><br>Check the current edit is finished, including title and parts.</li>
+            <li><strong>Press UPLOAD DRAFT.</strong><br>Progress phases (checking, uploading, verifying, importing) and percent are shown.</li>
+            <li><strong>Wait for completion.</strong><br>Do not close the screen or leave until success or an error appears.</li>
+          </ol>
+          <p>The server validates submissions. Drafts are rejected for missing permission, oversized songs, or unusable sounds. Fix what the error names and resend.</p>
+          <div class="tip"><strong>Submit less often</strong><p>Save to <code>.ommt</code> and preview locally while editing. Submit only when the finished version is confirmed, to avoid piling up drafts.</p></div>
+        </section>
+
+        <section id="after">
+          <h2>After submitting</h2>
+          <p>Success creates a <strong>private draft</strong>. Nothing is published or played to everyone automatically. Further song management happens in OyasaiMusic on the server.</p>
+          <p>When a supported song plays on the server, players with OMMT may receive it in advance for stable client-side playback. Players without OMMT hear normal server playback. No manual playback selection is needed.</p>
+          <p>To check whether buffered playback was used, search <code>OMMT/BufferedPlayback</code> in the profile's <code>logs/latest.log</code>. Status never appears in game chat.</p>
+          <div class="actions"><a class="button" href="editing-en.html">Back to editing</a><a class="button primary" href="settings-en.html">Settings &amp; troubleshooting</a></div>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <p>OMMT 3.0.0 · Minecraft 26.2 · Oyasai Server only</p>
+      <p>Bug reports: <a href="https://discord.gg/rgKayZPW6X">OMMT thread in the showcase channel on Discord</a></p>
+    </div>
+  </footer>
+</body>
+</html>

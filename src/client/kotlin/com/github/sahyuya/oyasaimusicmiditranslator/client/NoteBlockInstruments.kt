@@ -8,7 +8,7 @@ package com.github.sahyuya.oyasaimusicmiditranslator.client
  * の値(0〜15)と一致するため、ImGuiのコンボボックスへ [ImInt] をそのまま束縛できる。
  */
 object NoteBlockInstruments {
-    const val OTHER_INDEX = 16
+    const val OTHER_INDEX = 20
     data class Entry(
         val id: Int,
         val key: String,
@@ -35,6 +35,10 @@ object NoteBlockInstruments {
         Entry(13, "bit", "Bit", "ビット", "Emerald Block", "エメラルドブロック"),
         Entry(14, "banjo", "Banjo", "バンジョー", "Hay Bale", "干草の俵"),
         Entry(15, "pling", "Pling", "プリング", "Glowstone", "グロウストーン"),
+        Entry(16, "trumpet", "Trumpet", "ラッパ", "Copper Block", "銅ブロック"),
+        Entry(17, "trumpet_exposed", "Exposed Trumpet", "風化したラッパ", "Exposed Copper", "風化した銅"),
+        Entry(18, "trumpet_oxidized", "Oxidized Trumpet", "酸化したラッパ", "Oxidized Copper", "酸化した銅"),
+        Entry(19, "trumpet_weathered", "Weathered Trumpet", "錆びたラッパ", "Weathered Copper", "錆びた銅"),
     )
 
     // The bundled Minecraft font does not contain the em dash on every installation and rendered

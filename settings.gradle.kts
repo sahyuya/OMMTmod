@@ -7,6 +7,6 @@ pluginManagement {
     }
 }
 
-// Keep the IDE and Gradle project identity stable. The 26.x adapter is deliberately
-// an independent Java-25 Gradle project and must not be included from this Java-21 root.
+// Keep the IDE and Gradle project identity stable. The root is the maintained Java-25/26.2
+// project; versions/adapter-26 contributes only the thin official-name compatibility source.
 rootProject.name = "OMMT"

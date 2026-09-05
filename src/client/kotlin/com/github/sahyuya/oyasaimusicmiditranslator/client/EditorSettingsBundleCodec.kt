@@ -15,7 +15,7 @@ data class EditorSettingsBundle(val settings: EditorSettings, val layout: String
 object EditorSettingsBundleCodec {
   private const val PREFIX = "OMMTCFG1:"
   private const val MAGIC = 0x4f4d4346 // OMCF
-  private const val VERSION = 2
+  private const val VERSION = 6
   private const val MAX_LAYOUT_BYTES = 512 * 1024
   private const val MAX_BINARY_BYTES = 1024 * 1024
 
@@ -59,14 +59,20 @@ object EditorSettingsBundleCodec {
     val compact = input.readBoolean(); val library = input.readBoolean(); val inspector = input.readBoolean(); val automation = input.readBoolean()
     val density = readString(input, 16).also { require(it in setOf("AUTO", "SPARSE", "NORMAL", "DENSE")) }
     val otherParts = input.readBoolean(); val followLead = input.readInt(); val tool = enumAt<EditorTool>(input.readUnsignedByte(), "editor tool"); val scale = input.readInt(); val theme = enumAt<EditorTheme>(input.readUnsignedByte(), "theme")
-    val style = if (binaryVersion >= 2) readStyle(input) else EditorStylePresets.forTheme(theme)
+    val style = if (binaryVersion >= 2) readStyle(input, binaryVersion, theme) else EditorStylePresets.forTheme(theme)
     val wheelPlain = enumAt<WheelAction>(input.readUnsignedByte(), "wheel action"); val wheelShift = enumAt<WheelAction>(input.readUnsignedByte(), "wheel action"); val wheelControl = enumAt<WheelAction>(input.readUnsignedByte(), "wheel action"); val wheelAlt = enumAt<WheelAction>(input.readUnsignedByte(), "wheel action")
     val range = enumAt<GestureModifier>(input.readUnsignedByte(), "selection modifier"); val additive = enumAt<GestureModifier>(input.readUnsignedByte(), "selection modifier"); val pan = enumAt<PanMouseButton>(input.readUnsignedByte(), "pan button")
-    require(input.readInt() == EditorAction.entries.size) { "Invalid OMMT keymap size" }
+    // Keymap is positional by enum order with CONFIRM appended last: v4 blobs carry
+    // one fewer entry and decode with CONFIRM at its default.
+    val keymapCount = input.readInt()
+    require(keymapCount == EditorAction.entries.size || keymapCount == EditorAction.entries.size - 1) { "Invalid OMMT keymap size" }
     val defaults = EditorKeymap()
-    val keymap = EditorKeymap(EditorAction.entries.associateWith { action -> EditorKeyStroke.parse(readString(input, 64), defaults[action]) })
+    val keymap = EditorKeymap(EditorAction.entries.associateWith { action ->
+      if (action == EditorAction.CONFIRM && keymapCount < EditorAction.entries.size) action.default
+      else EditorKeyStroke.parse(readString(input, 64), defaults[action])
+    })
     val settings = EditorSettings(
-        version = 5, compactToolbar = compact, showLibrary = library, showInspector = inspector,
+        version = 6, compactToolbar = compact, showLibrary = library, showInspector = inspector,
         showAutomation = automation, gridDensity = density, showOtherParts = otherParts,
         followLead = followLead, lastTool = tool, uiScalePercent = scale, theme = theme,
         style = style, keymap = keymap, wheelPlain = wheelPlain, wheelShift = wheelShift,
@@ -78,7 +84,7 @@ object EditorSettingsBundleCodec {
   }
 
   private fun validate(value: EditorSettings) {
-    require(value.version == 5 && value.gridDensity in setOf("AUTO", "SPARSE", "NORMAL", "DENSE"))
+    require(value.version == 6 && value.gridDensity in setOf("AUTO", "SPARSE", "NORMAL", "DENSE"))
     require(value.followLead in 20..70 && value.uiScalePercent in 75..150)
     require(value.style == value.style.normalized()) { "Invalid OMMT style metrics" }
   }
@@ -87,9 +93,14 @@ object EditorSettingsBundleCodec {
     listOf(
         style.textColor, style.disabledTextColor, style.windowBackgroundColor,
         style.panelBackgroundColor, style.popupBackgroundColor, style.titleBackgroundColor,
+        style.libraryHeaderColor, style.workspaceHeaderColor, style.inspectorHeaderColor,
         style.borderColor, style.frameColor, style.frameHoveredColor, style.headerColor,
         style.buttonColor, style.accentColor, style.pianoRollColor, style.gridColor,
-        style.outOfRangeColor,
+        style.outOfRangeColor, style.inactiveTitleBackgroundColor, style.checkMarkColor,
+        style.scrollbarGrabColor, style.scrollbarGrabHoveredColor, style.scrollbarGrabActiveColor,
+        style.dockedTabColor, style.dockedTabHoveredColor, style.dockedTabActiveColor,
+        style.dockedTabUnfocusedColor, style.dockedTabSelectedOverlineColor,
+        style.dockedTabDimmedSelectedColor, style.dockedTabDimmedSelectedOverlineColor,
     ).forEach(out::writeInt)
     listOf(
         style.windowPaddingX, style.windowPaddingY, style.framePaddingX, style.framePaddingY,
@@ -98,20 +109,47 @@ object EditorSettingsBundleCodec {
     ).forEach(out::writeInt)
   }
 
-  private fun readStyle(input: DataInputStream): EditorStyle = EditorStyle(
+  private fun readStyle(input: DataInputStream, binaryVersion: Int, theme: EditorTheme): EditorStyle = EditorStyle(
       textColor = input.readInt(), disabledTextColor = input.readInt(),
       windowBackgroundColor = input.readInt(), panelBackgroundColor = input.readInt(),
       popupBackgroundColor = input.readInt(), titleBackgroundColor = input.readInt(),
+      libraryHeaderColor = readHeaderColor(input, binaryVersion, theme, 3) { it.libraryHeaderColor },
+      workspaceHeaderColor = readHeaderColor(input, binaryVersion, theme, 3) { it.workspaceHeaderColor },
+      inspectorHeaderColor = readHeaderColor(input, binaryVersion, theme, 3) { it.inspectorHeaderColor },
       borderColor = input.readInt(), frameColor = input.readInt(),
       frameHoveredColor = input.readInt(), headerColor = input.readInt(),
       buttonColor = input.readInt(), accentColor = input.readInt(),
       pianoRollColor = input.readInt(), gridColor = input.readInt(),
-      outOfRangeColor = input.readInt(), windowPaddingX = input.readInt(),
+      outOfRangeColor = input.readInt(),
+      inactiveTitleBackgroundColor = readHeaderColor(input, binaryVersion, theme, 4) { it.inactiveTitleBackgroundColor },
+      checkMarkColor = readHeaderColor(input, binaryVersion, theme, 4) { it.checkMarkColor },
+      scrollbarGrabColor = readHeaderColor(input, binaryVersion, theme, 4) { it.scrollbarGrabColor },
+      scrollbarGrabHoveredColor = readHeaderColor(input, binaryVersion, theme, 4) { it.scrollbarGrabHoveredColor },
+      scrollbarGrabActiveColor = readHeaderColor(input, binaryVersion, theme, 4) { it.scrollbarGrabActiveColor },
+      dockedTabColor = readHeaderColor(input, binaryVersion, theme, 4) { it.dockedTabColor },
+      dockedTabHoveredColor = readHeaderColor(input, binaryVersion, theme, 4) { it.dockedTabHoveredColor },
+      dockedTabActiveColor = readHeaderColor(input, binaryVersion, theme, 4) { it.dockedTabActiveColor },
+      dockedTabUnfocusedColor = readHeaderColor(input, binaryVersion, theme, 4) { it.dockedTabUnfocusedColor },
+      dockedTabSelectedOverlineColor = readHeaderColor(input, binaryVersion, theme, 6) { it.dockedTabSelectedOverlineColor },
+      dockedTabDimmedSelectedColor = readHeaderColor(input, binaryVersion, theme, 6) { it.dockedTabDimmedSelectedColor },
+      dockedTabDimmedSelectedOverlineColor = readHeaderColor(input, binaryVersion, theme, 6) { it.dockedTabDimmedSelectedOverlineColor },
+      windowPaddingX = input.readInt(),
       windowPaddingY = input.readInt(), framePaddingX = input.readInt(),
       framePaddingY = input.readInt(), itemSpacingX = input.readInt(),
       itemSpacingY = input.readInt(), rounding = input.readInt(),
       scrollbarSize = input.readInt(), borderSize = input.readInt(),
   )
+
+  /** Appended colors fall back to the theme preset when the bundle predates them. */
+  private inline fun readHeaderColor(
+      input: DataInputStream,
+      binaryVersion: Int,
+      theme: EditorTheme,
+      minVersion: Int,
+      preset: (EditorStyle) -> Int,
+  ): Int =
+      if (binaryVersion >= minVersion) input.readInt()
+      else preset(EditorStylePresets.forTheme(theme))
 
   private fun writeString(out: DataOutputStream, value: String, maximumBytes: Int) {
     val bytes = value.toByteArray(StandardCharsets.UTF_8); require(bytes.size <= maximumBytes)

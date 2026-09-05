@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="OMMT troubleshooting: files, display, submission issues, and where to report.">
+  <title>Help · OMMT User Wiki</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/styles.css">
+  <script src="assets/theme.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="index-en.html"><span class="brand-mark">OM</span><span>OMMT User Wiki</span></a>
+      <nav aria-label="Main navigation">
+        <ul class="nav-list">
+          <li><a href="index-en.html">Start</a></li>
+          <li><a href="install-en.html">Install</a></li>
+          <li><a href="editing-en.html">Edit</a></li>
+          <li><a href="sound-en.html">Sound</a></li>
+          <li><a href="save-upload-en.html">Save &amp; Submit</a></li>
+          <li><a href="settings-en.html">Settings</a></li>
+          <li><a aria-current="page" href="help-en.html">Help</a></li>
+        </ul>
+      </nav>
+      <div class="header-tools">
+        <a class="lang-switch" href="help.html" hreflang="ja">日本語</a>
+        <button class="theme-toggle" id="theme-toggle" type="button">Theme: Auto</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="page-shell">
+    <header class="page-heading">
+      <p class="eyebrow">Guide 06 · Help</p>
+      <h1>When Stuck</h1>
+      <p>Check common issues by cause. If nothing helps, contact the report destination at the end.</p>
+    </header>
+
+    <div class="content-layout">
+      <aside class="toc" aria-label="On this page"><strong>On this page</strong><ul>
+        <li><a href="#files">Missing files</a></li>
+        <li><a href="#display">Display &amp; controls</a></li>
+        <li><a href="#upload">Submission &amp; playback</a></li>
+        <li><a href="#layout">Restoring layout</a></li>
+        <li><a href="#report">Where to report</a></li>
+      </ul></aside>
+
+      <article class="article">
+        <section id="files">
+          <h2>Missing or unloadable files</h2>
+          <h3>MIDI files do not appear</h3>
+          <ul>
+            <li>Check the extension is <code>.mid</code> or <code>.midi</code>.</li>
+            <li>Check you placed them where “Open folder” points.</li>
+            <li>Press “Refresh” after adding files.</li>
+          </ul>
+          <h3>NBS files do not appear</h3>
+          <ul>
+            <li>Check the extension is <code>.nbs</code>.</li>
+            <li>Open <code>OMMT/nbs</code> from the library's NBS tab.</li>
+            <li>Press “Refresh” after adding files.</li>
+          </ul>
+          <h3>Cannot open folders</h3>
+          <p>OMMT uses Explorer on Windows, open on macOS, and xdg-open on Linux. On failure, open the active profile's game directory yourself and move to <code>OMMT/midi</code> or <code>OMMT/nbs</code>. These are created at client startup.</p>
+          <h3>Cannot find <code>.ommt</code> files</h3>
+          <p>Switch the library to the <strong>SAVE</strong> tab instead of MIDI/NBS. Save files live in <code>OMMT/saves</code>.</p>
+        </section>
+
+        <section id="display">
+          <h2>Display &amp; controls feel wrong</h2>
+          <h3>Buttons or rows are cut off</h3>
+          <p>Lower the OMMT UI scale a little and drag window borders wider. Tabbing unused panels together widens the piano roll.</p>
+          <h3>Wheel direction or role feels wrong</h3>
+          <p>Change per-modifier actions under <a href="settings-en.html#keymap">Settings → Keymap</a>. Matching your usual DAW reduces confusion.</p>
+          <h3>A key does not do what you expect</h3>
+          <p>Check the keymap for the same combination bound to several actions.</p>
+        </section>
+
+        <section id="upload">
+          <h2>Submission &amp; playback issues</h2>
+          <h3>Draft submission is unavailable or fails</h3>
+          <ul>
+            <li>Check you are connected to the Oyasai server.</li>
+            <li>Check you have submission permission.</li>
+            <li>Do not start submissions back-to-back; wait for completion or an error.</li>
+            <li>When an error names unusable sounds or song size, fix those parts and resend.</li>
+          </ul>
+          <h3>Checking for buffered playback</h3>
+          <p>Search <code>OMMT/BufferedPlayback</code> in the profile's <code>logs/latest.log</code>. It never appears in game chat.</p>
+          <h3>“Bundled resource pack is outdated” message</h3>
+          <p>Follow the chat guidance to update (the mentioned command works too). Until then, playback uses the normal range.</p>
+        </section>
+
+        <section id="layout">
+          <h2>Restoring a broken layout</h2>
+          <p>If you exported a settings string while things were fine, import it. Without a backup, quit Minecraft, move the profile's <code>config/ommt-imgui-layout.ini</code> elsewhere, and restart to rebuild the default layout. Keep the moved file until you confirm recovery.</p>
+        </section>
+
+        <section id="report">
+          <h2>Where to report</h2>
+          <p>Report to the <strong>OMMT thread in the showcase channel</strong> on the Oyasai server Discord.</p>
+          <p><a class="button primary" href="https://discord.gg/rgKayZPW6X">Open the Oyasai server Discord</a></p>
+          <p>These details make the situation easier to confirm.</p>
+          <ul class="checklist">
+            <li>Minecraft version</li>
+            <li>OMMT version</li>
+            <li>What you did and what you expected</li>
+            <li>What actually happened</li>
+            <li>Screenshots or logs when possible</li>
+          </ul>
+          <p>Attach MIDI/NBS files only when you hold sharing rights and are fine sharing them.</p>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <p>OMMT 3.0.0 · Minecraft 26.2 · Oyasai Server only</p>
+      <p>Bug reports: <a href="https://discord.gg/rgKayZPW6X">OMMT thread in the showcase channel on Discord</a></p>
+    </div>
+  </footer>
+</body>
+</html>

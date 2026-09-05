@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="OMMTで楽器・Minecraftサウンドを選び、音量・定位・テンポ・疑似リリースを整える方法。">
+  <title>音と自動化を整える · OMMTユーザーWiki</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/styles.css">
+  <script src="assets/theme.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">本文へ移動</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="index.html"><span class="brand-mark">OM</span><span>OMMT User Wiki</span></a>
+      <nav aria-label="メインナビゲーション">
+        <ul class="nav-list">
+          <li><a href="index.html">はじめに</a></li>
+          <li><a href="install.html">導入</a></li>
+          <li><a href="editing.html">編集</a></li>
+          <li><a aria-current="page" href="sound.html">音・自動化</a></li>
+          <li><a href="save-upload.html">保存・送信</a></li>
+          <li><a href="settings.html">設定</a></li>
+          <li><a href="help.html">ヘルプ</a></li>
+        </ul>
+      </nav>
+      <div class="header-tools">
+        <a class="lang-switch" href="sound-en.html" hreflang="en">English</a>
+        <button class="theme-toggle" id="theme-toggle" type="button">表示: 自動</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="page-shell">
+    <header class="page-heading">
+      <p class="eyebrow">Guide 03 · Sound &amp; automation</p>
+      <h1>音と自動化を整える</h1>
+      <p>楽器とMinecraftサウンドを選び、音量・定位・テンポ・疑似リリースで仕上げます。</p>
+    </header>
+
+    <div class="content-layout">
+      <aside class="toc" aria-label="このページの目次"><strong>このページ</strong><ul>
+        <li><a href="#instrument">楽器とサウンド</a></li>
+        <li><a href="#panels">自動化パネル</a></li>
+        <li><a href="#volume-pan">音量・定位</a></li>
+        <li><a href="#tempo">テンポ</a></li>
+        <li><a href="#release">疑似リリース</a></li>
+      </ul></aside>
+
+      <article class="article">
+        <section id="instrument">
+          <h2>楽器とMinecraftサウンドを選ぶ</h2>
+          <p>通常はノートインスペクターの楽器一覧から、ハープ／ピアノ、ベース、バスドラム、スネアなどの音符ブロック楽器を選びます。楽器名の横には、その音になるブロック系統も表示されます。Minecraft 26.2では通常・露出・風化・酸化のラッパ系4音も選べます。</p>
+          <p><strong>「その他のMinecraftサウンド／Other Minecraft sound」</strong>を選ぶと、サウンド検索・サウンドID・パターンの欄が現れます。</p>
+          <ol class="step-list">
+            <li><strong>検索欄へ名前の一部を入れる。</strong><br><code>bell</code>や<code>ambient</code>など、探したい名前の一部を入力します。</li>
+            <li><strong>候補からサウンドを選ぶ。</strong><br>使いたいMinecraftサウンドを選びます。</li>
+            <li><strong>パターンを切り替える。</strong><br>同じIDに複数の音がある場合は、パターンで単一の音を選びます。</li>
+            <li><strong>「適用／APPLY」を押して試聴する。</strong></li>
+          </ol>
+          <div class="warning"><strong>候補にない音</strong><p>おやさいサーバー側でまだ使用できない新しいMinecraftサウンドは、候補に表示されない場合があります。</p></div>
+          <p>NBS由来で対応音源がない音はハープへ変換されます（件数は読込時に表示）。音量0のノートは表示専用で、試聴時は無音です。</p>
+        </section>
+
+        <section id="panels">
+          <h2>自動化パネルについて</h2>
+          <p>ピアノロール下部には<strong>音量／VOLUME・定位／PAN・テンポ／TEMPO・リリース／RELEASE</strong>の4パネルがあります。エディターを開いた直後は音量が表示され、タブで切り替えられます。各パネルは移動・サイズ変更・タブ化・ドッキングができます（<a href="settings.html#layout">設定 → レイアウト</a>）。</p>
+        </section>
+
+        <section id="volume-pan">
+          <h2>音量・定位を整える</h2>
+          <ul>
+            <li><strong>音量:</strong> ノートごとの棒や点を上下に動かし、大きさを調整します（0～100）。</li>
+            <li><strong>定位:</strong> 左右の広がりを調整します（-100～+100、中央は0）。</li>
+          </ul>
+          <p>ドラッグで選択音の値を相対編集できます。上部の<strong>「音量正規化／MAX VOL」</strong>は音量の全体調整に使います。</p>
+        </section>
+
+        <section id="tempo">
+          <h2>テンポを整える</h2>
+          <p>テンポパネルでは再生位置にテンポ点を追加し、BPMと曲線を設定します。複数点で曲の途中のテンポを変えられます。曲線は<code>STEP</code>（段階）・<code>LINEAR</code>（直線）・<code>SMOOTH</code>（滑らか）から選びます。</p>
+          <ol class="step-list">
+            <li><strong>「再生位置に追加／ADD AT PLAYHEAD」で点を置く。</strong><br>変化を始める位置と変わった後の位置へ点を置きます。</li>
+            <li><strong>BPMと曲線を決める。</strong><br>各点のBPMを入力し、点同士のつながり方を選びます。</li>
+            <li><strong>「適用／APPLY」を押す。</strong></li>
+            <li><strong>試聴して確認する。</strong><br>テンポ点の前後が急すぎないか、意図した速さか確認します。</li>
+          </ol>
+          <p>不要な点は選んで<strong>「削除／DELETE」</strong>します（1点以上残します）。</p>
+          <div class="example">
+            <div class="example-title">例: サビへ向けて少し速くする</div>
+            <div class="example-body"><p>変化開始位置とサビ位置へテンポ点を置き、前者を120 BPM、サビ側を128 BPMにし、曲線を滑らかにします。再生位置とテンポ点を見比べながら試聴します。</p></div>
+          </div>
+        </section>
+
+        <section id="release">
+          <h2>選択音だけに疑似リリースを付ける</h2>
+          <p>疑似リリースは、長いノートを一定間隔で繰り返し鳴らし、音量カーブで減衰や上昇を作る機能です。適用対象は<strong>選択したノートだけ</strong>です。</p>
+          <ol class="step-list">
+            <li><strong>対象ノートを選ぶ。</strong><br>弦や持続音など、伸ばしたいノートだけを選択します。</li>
+            <li><strong>リリースパネルを開き、有効にする。</strong><br>選択音数が想定どおりか確認します。</li>
+            <li><strong>連打判定と間隔を決める。</strong><br>ミリ秒または1/1～1/64などの音価から選びます。間隔はさらに1/128まで選べます。</li>
+            <li><strong>音量カーブを作る。</strong><br>開始音量・終了音量・曲線を決めます。必要なら中間点を最大2つ追加し、上下左右へ動かします。</li>
+            <li><strong>適用して試聴する。</strong><br>連打が細かすぎないか、終わり方が自然か確認します。</li>
+          </ol>
+          <div class="tip"><strong>安全な始め方</strong><p>まず長いノートを1音だけ選び、控えめな間隔と100%→55%程度の減衰で試してください。意図した音になったら同じ役割のノートを追加選択して適用すると調整しやすくなります。</p></div>
+          <p>不要になったら<strong>「選択音から解除／CLEAR SELECTED」</strong>で選択音のリリースを外せます。</p>
+          <div class="actions"><a class="button primary" href="save-upload.html">次へ: 保存して送信する</a></div>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <p>OMMT 3.0.0 · Minecraft 26.2 · Oyasai Server専用</p>
+      <p>不具合報告: <a href="https://discord.gg/rgKayZPW6X">Discordのshowcase内OMMTスレッド</a></p>
+    </div>
+  </footer>
+</body>
+</html>

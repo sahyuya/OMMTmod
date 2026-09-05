@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="OMMT settings reference: every item on the General, Style, Layout, Keymap, and Share pages with defaults.">
+  <title>Settings Reference · OMMT User Wiki</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/styles.css">
+  <script src="assets/theme.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="index-en.html"><span class="brand-mark">OM</span><span>OMMT User Wiki</span></a>
+      <nav aria-label="Main navigation">
+        <ul class="nav-list">
+          <li><a href="index-en.html">Start</a></li>
+          <li><a href="install-en.html">Install</a></li>
+          <li><a href="editing-en.html">Edit</a></li>
+          <li><a href="sound-en.html">Sound</a></li>
+          <li><a href="save-upload-en.html">Save &amp; Submit</a></li>
+          <li><a aria-current="page" href="settings-en.html">Settings</a></li>
+          <li><a href="help-en.html">Help</a></li>
+        </ul>
+      </nav>
+      <div class="header-tools">
+        <a class="lang-switch" href="settings.html" hreflang="ja">日本語</a>
+        <button class="theme-toggle" id="theme-toggle" type="button">Theme: Auto</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="page-shell">
+    <header class="page-heading">
+      <p class="eyebrow">Guide 05 · Settings reference</p>
+      <h1>Settings Reference</h1>
+      <p>Open with SETTINGS at the top (<kbd>Ctrl</kbd>+<kbd>,</kbd>). Five pages: General, Style, Layout, Keymap, Share.</p>
+    </header>
+
+    <div class="content-layout">
+      <aside class="toc" aria-label="On this page"><strong>On this page</strong><ul>
+        <li><a href="#general">General</a></li>
+        <li><a href="#style">Style</a></li>
+        <li><a href="#layout">Layout</a></li>
+        <li><a href="#keymap">Keymap</a></li>
+        <li><a href="#share">Share</a></li>
+      </ul></aside>
+
+      <article class="article">
+        <section id="general">
+          <h2>General</h2>
+          <div class="table-wrap"><table class="comparison">
+            <thead><tr><th>Item</th><th>Default</th><th>Range / behavior</th></tr></thead>
+            <tbody>
+              <tr><td>OMMT UI scale</td><td>100%</td><td>75–150% in steps of 5. Independent of Minecraft's GUI scale</td></tr>
+              <tr><td>Text size</td><td>110%</td><td>75–150% in steps of 5. Multiplied with the UI scale</td></tr>
+              <tr><td>Grid</td><td>AUTO</td><td>Cycles AUTO → SPARSE → NORMAL → DENSE. Thins out dense lines</td></tr>
+              <tr><td>Compact toolbar</td><td>ON</td><td>Toggles the top control strip</td></tr>
+              <tr><td>Follow lead</td><td>45%</td><td>20–70%. Screen position while following playback</td></tr>
+            </tbody>
+          </table></div>
+          <div class="tip"><strong>How to tune</strong><p>Change 5% at a time until text, piano roll, and the right inspector fit together.</p></div>
+        </section>
+
+        <section id="style">
+          <h2>Style</h2>
+          <p>Pick one of five base styles first. Later tweaks apply to the editor immediately. <strong>RESET TO BASE STYLE</strong> restores the defaults. Changing colors never alters song data.</p>
+          <div class="table-wrap"><table class="comparison">
+            <thead><tr><th>Base style</th><th>Look</th></tr></thead>
+            <tbody>
+              <tr><td>Studio Slate</td><td>Default blue-gray</td></tr>
+              <tr><td>Obsidian</td><td>Black, square corners</td></tr>
+              <tr><td>Midnight Blue</td><td>Deep blue</td></tr>
+              <tr><td>Warm Graphite</td><td>Warm gray, large rounding</td></tr>
+              <tr><td>DAW Graphite</td><td>Gray with teal accents</td></tr>
+            </tbody>
+          </table></div>
+
+          <h3>Colors (30 items)</h3>
+          <div class="table-wrap"><table class="comparison">
+            <thead><tr><th>Group</th><th>Items</th></tr></thead>
+            <tbody>
+              <tr><td>Text &amp; background</td><td>Text, disabled text, window/panel/popup backgrounds</td></tr>
+              <tr><td>Titles &amp; headers</td><td>Active/inactive titles, library/workspace/inspector headers, headers</td></tr>
+              <tr><td>Frames &amp; inputs</td><td>Borders, input frame, hovered frame, buttons, accent, check mark</td></tr>
+              <tr><td>Scrollbar</td><td>Thumb, hovered, active</td></tr>
+              <tr><td>Docked tabs (7)</td><td>Tab, hovered, active, unfocused, selected overline, dimmed-selected, dimmed-selected overline</td></tr>
+              <tr><td>Piano roll</td><td>Background, grid lines, outside-vanilla-range</td></tr>
+            </tbody>
+          </table></div>
+          <p>The accent color marks selection and active states; the out-of-range color marks the background beyond the vanilla range. Keep them distinguishable from notes, grid, and playhead.</p>
+
+          <h3>Sizes (9 items)</h3>
+          <div class="table-wrap"><table class="comparison">
+            <thead><tr><th>Item</th><th>Range</th></tr></thead>
+            <tbody>
+              <tr><td>Window padding H / V</td><td>2–24</td></tr>
+              <tr><td>Input padding H</td><td>2–20</td></tr>
+              <tr><td>Input padding V</td><td>2–16</td></tr>
+              <tr><td>Item spacing H / V</td><td>1–20</td></tr>
+              <tr><td>Corner rounding</td><td>0–12</td></tr>
+              <tr><td>Scrollbar width</td><td>8–24</td></tr>
+              <tr><td>Border width</td><td>0–2</td></tr>
+            </tbody>
+          </table></div>
+        </section>
+
+        <section id="layout">
+          <h2>Layout</h2>
+          <p>Toggle the library, Note Inspector, bottom editor panels, and ghosting of other parts. Drag panel titles to move, dock, or tab them; drag borders to resize.</p>
+          <div class="table-wrap"><table class="comparison">
+            <thead><tr><th>Item</th><th>Default</th></tr></thead>
+            <tbody>
+              <tr><td>MIDI library</td><td>Shown</td></tr>
+              <tr><td>Note Inspector</td><td>Shown</td></tr>
+              <tr><td>Bottom editor panels (volume, pan, tempo, release)</td><td>Shown</td></tr>
+              <tr><td>Ghost other parts</td><td>ON</td></tr>
+            </tbody>
+          </table></div>
+          <p>Press <strong>SAVE CURRENT LAYOUT</strong> to persist an arrangement explicitly, or <strong>RESTORE DEFAULT LAYOUT</strong> to redo it.</p>
+          <div class="example">
+            <div class="example-title">Example: a wide piano roll</div>
+            <div class="example-body"><p>Stack volume, pan, tempo, and release as four tabs at the bottom, keep the inspector right and the library left, and the central roll stays wide.</p></div>
+          </div>
+        </section>
+
+        <section id="keymap">
+          <h2>Keymap</h2>
+          <p>Press a row's button, then type the new combination. <kbd>Backspace</kbd> (or <kbd>Delete</kbd>) unbinds, <kbd>Esc</kbd> cancels. Defaults are listed in the <a href="editing-en.html#shortcuts">editing shortcut table</a>.</p>
+          <h3>Mouse wheel</h3>
+          <div class="table-wrap"><table class="comparison">
+            <thead><tr><th>Modifier</th><th>Default</th></tr></thead>
+            <tbody>
+              <tr><td>None</td><td>Pitch scroll</td></tr>
+              <tr><td><kbd>Shift</kbd></td><td>Timeline scroll</td></tr>
+              <tr><td><kbd>Ctrl</kbd></td><td>Time zoom</td></tr>
+              <tr><td><kbd>Alt</kbd></td><td>Pitch zoom</td></tr>
+            </tbody>
+          </table></div>
+          <p>Each modifier accepts timeline scroll, time zoom, pitch zoom, pitch scroll, or none. Range-select (default <kbd>Shift</kbd>), add-to-selection (default <kbd>Ctrl</kbd>), and the pan button (right/middle click) can change too. Confirm/Apply (default <kbd>Enter</kbd>) only works while editing a field.</p>
+          <div class="warning"><strong>Watch for duplicates</strong><p>Binding the same combination to several actions makes them hard to trigger. Test note selection and playback after changes.</p></div>
+        </section>
+
+        <section id="share">
+          <h2>Share</h2>
+          <p>Pack colors, window layout, keymap, and display settings into one <code>OMMTCFG1:</code> string. This page is for backup and sharing only — edit colors under Style and layout under Layout first.</p>
+          <h3>Export</h3>
+          <ol>
+            <li>Press <strong>EXPORT</strong>.</li>
+            <li>Press <strong>COPY</strong> on the shown string.</li>
+            <li>Keep it somewhere only you can find.</li>
+          </ol>
+          <h3>Import</h3>
+          <ol>
+            <li>Copy a settings string.</li>
+            <li>Press <strong>PASTE</strong> in OMMT's settings.</li>
+            <li>Press <strong>IMPORT</strong> and check layout and controls.</li>
+          </ol>
+          <div class="notice"><strong>No songs included</strong><p>Settings strings contain no MIDI, NBS, <code>.ommt</code>, notes, or titles. Copy files under <code>OMMT/midi</code>, <code>OMMT/nbs</code>, and <code>OMMT/saves</code> separately to move songs.</p></div>
+          <div class="actions"><a class="button primary" href="help-en.html">See help when stuck</a></div>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <p>OMMT 3.0.0 · Minecraft 26.2 · Oyasai Server only</p>
+      <p>Bug reports: <a href="https://discord.gg/rgKayZPW6X">OMMT thread in the showcase channel on Discord</a></p>
+    </div>
+  </footer>
+</body>
+</html>

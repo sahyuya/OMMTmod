@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="OMMT user wiki: load, edit, save, and submit MIDI/NBS songs for the Oyasai server.">
+  <title>OMMT User Wiki</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/styles.css">
+  <script src="assets/theme.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="index-en.html"><span class="brand-mark">OM</span><span>OMMT User Wiki</span></a>
+      <nav aria-label="Main navigation">
+        <ul class="nav-list">
+          <li><a aria-current="page" href="index-en.html">Start</a></li>
+          <li><a href="install-en.html">Install</a></li>
+          <li><a href="editing-en.html">Edit</a></li>
+          <li><a href="sound-en.html">Sound</a></li>
+          <li><a href="save-upload-en.html">Save &amp; Submit</a></li>
+          <li><a href="settings-en.html">Settings</a></li>
+          <li><a href="help-en.html">Help</a></li>
+        </ul>
+      </nav>
+      <div class="header-tools">
+        <a class="lang-switch" href="index.html" hreflang="ja">日本語</a>
+        <button class="theme-toggle" id="theme-toggle" type="button">Theme: Auto</button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" class="page-shell">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Oyasai Server MIDI / NBS workspace</p>
+        <h1>Arrange MIDI and NBS inside Minecraft.</h1>
+        <p class="hero-copy">OMMT (OyasaiMusicMidiTranslator) is a client-only mod for loading MIDI and Note Block Studio (NBS) songs, editing them on a piano roll, and submitting them as private drafts to OyasaiMusic on the Oyasai server. This wiki walks you from installation to submission.</p>
+        <div class="actions">
+          <a class="button primary" href="install-en.html">Start with installation</a>
+          <a class="button" href="editing-en.html">See editing basics</a>
+        </div>
+      </div>
+
+      <div class="editor-preview" aria-label="Stylized OMMT piano roll">
+        <div class="preview-title">OMMT · MIDI workspace</div>
+        <div class="preview-toolbar"><span></span><span></span><span></span></div>
+        <div class="preview-roll">
+          <div class="preview-keys"></div>
+          <span class="note" style="--x: 18%; --y: 35%; --w: 24%"></span>
+          <span class="note" style="--x: 46%; --y: 29%; --w: 15%"></span>
+          <span class="note green" style="--x: 64%; --y: 24%; --w: 24%"></span>
+          <span class="note gold" style="--x: 12%; --y: 49%; --w: 13%"></span>
+          <span class="note gold" style="--x: 30%; --y: 53%; --w: 17%"></span>
+          <span class="note gold" style="--x: 54%; --y: 46%; --w: 12%"></span>
+          <span class="note" style="--x: 18%; --y: 68%; --w: 29%"></span>
+          <span class="note" style="--x: 51%; --y: 72%; --w: 22%"></span>
+          <span class="note green" style="--x: 76%; --y: 64%; --w: 17%"></span>
+          <div class="playhead"></div>
+        </div>
+        <div class="preview-lane" aria-hidden="true">
+          <span style="--h: 30%"></span><span style="--h: 65%"></span><span style="--h: 48%"></span><span style="--h: 82%"></span><span style="--h: 43%"></span><span style="--h: 74%"></span><span style="--h: 57%"></span><span style="--h: 88%"></span><span style="--h: 50%"></span><span style="--h: 72%"></span><span style="--h: 41%"></span><span style="--h: 78%"></span>
+        </div>
+      </div>
+    </section>
+
+    <div class="notice">
+      <strong>Built for the Oyasai server</strong>
+      <p>Editing and local preview work in any world, but draft submission only works on the Oyasai server.</p>
+    </div>
+
+    <section aria-labelledby="flow-title">
+      <p class="eyebrow">Basic flow</p>
+      <h2 id="flow-title">Five steps to submit a song</h2>
+      <ol class="flow">
+        <li><strong>Place source files</strong><span>Put MIDI files in <code>OMMT/midi</code> and NBS files in <code>OMMT/nbs</code>.</span></li>
+        <li><strong>Load</strong><span>Pick a song from the library to open it on the piano roll.</span></li>
+        <li><strong>Edit</strong><span>Arrange notes, parts, instruments, volume, and tempo.</span></li>
+        <li><strong>Preview &amp; save</strong><span>Listen locally and save an <code>.ommt</code> project to resume later.</span></li>
+        <li><strong>Submit draft</strong><span>Send it as a private draft to the Oyasai server.</span></li>
+      </ol>
+    </section>
+
+    <section aria-labelledby="guide-title">
+      <p class="eyebrow">Choose a guide</p>
+      <h2 id="guide-title">Read by goal</h2>
+      <div class="card-grid">
+        <a class="card" href="install-en.html"><span class="number">GUIDE 01</span><h3>Install OMMT</h3><p>Check the matching JAR and required mods, then add your first song to the library.</p></a>
+        <a class="card" href="editing-en.html"><span class="number">GUIDE 02</span><h3>Load and edit songs</h3><p>Learn note selection, moving, part arrangement, and snap.</p></a>
+        <a class="card" href="sound-en.html"><span class="number">GUIDE 03</span><h3>Shape sound &amp; automation</h3><p>Adjust instruments, volume, pan, tempo, and pseudo-release.</p></a>
+        <a class="card" href="save-upload-en.html"><span class="number">GUIDE 04</span><h3>Save and submit</h3><p>Save an <code>.ommt</code> project, preview it, then submit the draft.</p></a>
+        <a class="card" href="settings-en.html"><span class="number">GUIDE 05</span><h3>Fit the UI to you</h3><p>Change display scale, colors, layout, keys, and wheel behavior.</p></a>
+        <a class="card" href="help-en.html"><span class="number">GUIDE 06</span><h3>When stuck</h3><p>Common issues, what to check, and where to report.</p></a>
+      </div>
+    </section>
+
+    <section aria-labelledby="before-title">
+      <h2 id="before-title">Before you start</h2>
+      <ul class="checklist">
+        <li>OMMT follows your Minecraft language: Japanese for Japanese, English otherwise.</li>
+        <li>Source MIDI/NBS files and <code>.ommt</code> projects are separate files.</li>
+        <li>Saving a project does not submit anything to a server.</li>
+        <li>Submitting creates a private draft — nothing is published automatically.</li>
+        <li>Only use MIDI/NBS files you are allowed to use and share.</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <p>OMMT 3.0.0 · Minecraft 26.2 · Oyasai Server only</p>
+      <p>Bug reports: <a href="https://discord.gg/rgKayZPW6X">OMMT thread in the showcase channel on Discord</a></p>
+    </div>
+  </footer>
+</body>
+</html>

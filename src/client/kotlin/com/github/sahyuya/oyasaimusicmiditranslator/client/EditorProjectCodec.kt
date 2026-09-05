@@ -13,7 +13,8 @@ import java.util.zip.GZIPOutputStream
 /** Versioned, bounded local project format used by the `.ommt` files in `OMMT/saves`. */
 object EditorProjectCodec {
   private const val MAGIC = 0x4f4d4d54 // OMMT
-  private const val VERSION = 1
+  /** v2 adds a signed, absolute pitch-in-cents field after the legacy display pitch. */
+  private const val VERSION = 2
   private const val FLAG_GZIP = 1
   private const val HEADER_BYTES = 20
   private const val MAX_COMPRESSED_BYTES = 64 * 1024 * 1024
@@ -57,9 +58,11 @@ object EditorProjectCodec {
     val compressed: ByteArray
     val expectedBodySize: Int
     val expectedCrc: Int
+    val version: Int
     DataInputStream(ByteArrayInputStream(file)).use { input ->
       require(input.readInt() == MAGIC) { "Invalid OMMT project signature" }
-      require(input.readUnsignedShort() == VERSION) { "Unsupported OMMT project version" }
+      version = input.readUnsignedShort()
+      require(version in 1..VERSION) { "Unsupported OMMT project version" }
       require(input.readUnsignedShort() == FLAG_GZIP) { "Unsupported OMMT project compression" }
       expectedBodySize = input.readInt()
       val compressedSize = input.readInt()
@@ -72,7 +75,7 @@ object EditorProjectCodec {
     val body = inflateBounded(compressed, expectedBodySize)
     require(CRC32().apply { update(body) }.value.toInt() == expectedCrc) { "OMMT project checksum mismatch" }
     return DataInputStream(ByteArrayInputStream(body)).use { input ->
-      readBody(input).also { require(input.available() == 0) { "Trailing OMMT project data" } }
+      readBody(input, version).also { require(input.available() == 0) { "Trailing OMMT project data" } }
     }
   }
 
@@ -105,7 +108,7 @@ object EditorProjectCodec {
     }
     out.writeInt(value.notes.size)
     value.notes.forEach { note ->
-      out.writeInt(note.time); out.writeInt(note.duration); out.writeInt(note.instrument); out.writeInt(note.pitch); out.writeInt(note.volume); out.writeInt(note.pan); out.writeInt(note.part)
+      out.writeInt(note.time); out.writeInt(note.duration); out.writeInt(note.instrument); out.writeInt(note.pitch); out.writeInt(note.pitchCents); out.writeInt(note.volume); out.writeInt(note.pan); out.writeInt(note.part)
       out.writeInt(note.sourceTrack); out.writeInt(note.sourceChannel); out.writeLong(note.sourceTick); out.writeLong(note.sourceDurationTicks)
       out.writeBoolean(note.retriggerOverride != null); note.retriggerOverride?.let { writeProfile(out, it) }
       out.writeBoolean(note.customSound != null); note.customSound?.let { writeString(out, it, 512); out.writeInt(note.customSoundPattern ?: 1) }
@@ -115,7 +118,7 @@ object EditorProjectCodec {
     out.writeInt(value.selected.coerceIn(0, (value.notes.size - 1).coerceAtLeast(0)))
   }
 
-  private fun readBody(input: DataInputStream): EditorSnapshot {
+  private fun readBody(input: DataInputStream, version: Int): EditorSnapshot {
     val title = readString(input, 512).take(120).ifBlank { "Untitled song" }
     val bpm = input.readInt().also { require(it in 1..60_000) { "Invalid BPM" } }
     val offset = input.readInt().also { require(it >= 0) { "Invalid timeline offset" } }
@@ -152,6 +155,7 @@ object EditorProjectCodec {
           duration = input.readInt().also { require(it in 1..60_000) { "Invalid note duration" } },
           instrument = input.readInt().also { require(it in 0..15) { "Invalid note instrument" } },
           pitch = input.readInt().also { require(it in NoteBlockPitch.DISPLAY_MIN..NoteBlockPitch.DISPLAY_MAX) { "Invalid note pitch" } },
+          pitchCents = if (version >= 2) input.readInt().also { require(it in -5400..7300) { "Invalid note pitch cents" } } else 0,
           volume = input.readInt().also { require(it in 0..100) { "Invalid note volume" } },
           pan = input.readInt().also { require(it in -100..100) { "Invalid note pan" } },
           part = input.readInt().also { require(it in parts.indices) { "Invalid note part" } },
@@ -160,6 +164,7 @@ object EditorProjectCodec {
           sourceTick = readOptionalTick(input),
           sourceDurationTicks = readOptionalTick(input),
       )
+      if (version == 1) note.pitchCents = note.pitch * 100
       if (input.readBoolean()) note.retriggerOverride = readProfile(input)
       if (input.readBoolean()) {
         note.customSound = readString(input, 512).also { require(SOUND_ID.matches(it)) { "Invalid Minecraft sound ID" } }
@@ -229,7 +234,7 @@ object EditorProjectCodec {
     require(value.snapDivisor in setOf(0, 4, 8, 16, 32, 64))
     require(value.part in value.parts.indices && value.notes.all { it.part in value.parts.indices })
     require(value.notes.all { note ->
-      note.time >= 0 && note.duration in 1..60_000 && note.instrument in 0..15 && note.pitch in NoteBlockPitch.DISPLAY_MIN..NoteBlockPitch.DISPLAY_MAX && note.volume in 0..100 && note.pan in -100..100 &&
+      note.time >= 0 && note.duration in 1..60_000 && note.instrument in 0..15 && note.pitch in NoteBlockPitch.DISPLAY_MIN..NoteBlockPitch.DISPLAY_MAX && note.pitchCents in -5400..7300 && note.volume in 0..100 && note.pan in -100..100 &&
           note.sourceTrack in -1..65_535 && note.sourceChannel in -1..15 && (note.sourceTick == -1L || note.sourceTick in 0..MAX_TICK) && (note.sourceDurationTicks == -1L || note.sourceDurationTicks in 0..MAX_TICK) &&
           (note.retriggerOverride == null || note.retriggerOverride == note.retriggerOverride?.normalized()) &&
           (note.customSound == null && note.customSoundPattern == null || note.customSound?.matches(SOUND_ID) == true && (note.customSoundPattern ?: 0) in 1..65_535)
