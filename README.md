@@ -116,3 +116,9 @@ Java 25 で次を実行します。`buildAllSupported` と `verifyAllSupported` 
 成果物は `build/libs/OyasaiMusicMidiTranslator-3.0.0-fabric26.2.jar` です。ビルド・codec検証の成功は、実ゲームでの描画・入力・接続確認を代替しません。
 
 共有通信仕様、サイズ上限、互換性、失敗時のフォールバックは [`../docs/interop/INTEROP_CONTRACT.md`](../docs/interop/INTEROP_CONTRACT.md) を参照してください。
+
+### MOD内フォントについて / About the fonts in this MOD
+本Modには、GoogleおよびAdobeが開発したフォント「Noto Sans JP」が含まれています。このフォントは SIL Open Font License 1.1 に基づいて配布されています。
+Credits:This mod includes "Noto Sans JP" designed by Google and Adobe, which is licensed under the SIL Open Font License 1.1.
+- Noto Sans JP: google.com
+- SIL Open Font License 1.1: openfontlicense.org
