@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="テンポ点を置き、BPMと点の間の変わり方を決めます。"><meta name="color-scheme" content="light dark">
+<title>曲の途中でテンポを変える · OMMT Wiki</title><link rel="icon" href="assets/favicon.svg"><link rel="stylesheet" href="assets/styles.css">
+<link rel="alternate" hreflang="en" href="tempo-en.html">
+<script src="assets/theme.js" defer></script><script src="assets/search-index.js" defer></script><script src="assets/wiki.js" defer></script></head>
+<body><a class="skip" href="#main">本文へ移動</a>
+<header class="topbar"><a class="brand" href="index.html">OMMT<span>Wiki</span></a>
+<button class="menu-button" aria-controls="sidebar" aria-expanded="false">ページ一覧</button>
+<button class="search-button" data-search-open aria-haspopup="dialog">Wiki内を検索<kbd>/</kbd></button>
+<a class="language" lang="en" href="tempo-en.html">English</a>
+<button class="theme-button" aria-label="配色" title="配色">配色</button></header>
+<div class="layout"><aside class="sidebar" id="sidebar"><nav aria-label="ページ一覧"><section class="nav-group"><h2>はじめる</h2><ul><li><a href="index.html">OMMTの使い方</a></li><li><a href="install.html">導入と最初の起動</a></li><li><a href="first-song.html">最初の1曲を送る</a></li></ul></section><section class="nav-group"><h2>編集する</h2><ul><li><a href="editing.html">ノートの選択と編集</a></li><li><a href="parts.html">パートを整理する</a></li><li><a href="sound.html">楽器とサウンドを選ぶ</a></li><li><a href="volume-pan.html">音量と定位を整える</a></li><li><a href="tempo.html" aria-current="page">曲の途中でテンポを変える</a></li><li><a href="release.html">長い音に疑似リリースを付ける</a></li></ul></section><section class="nav-group"><h2>調べる</h2><ul><li><a href="save-upload.html">保存・再開・下書き送信</a></li><li><a href="settings.html">画面と操作を自分に合わせる</a></li><li><a href="shortcuts.html">ショートカット一覧</a></li><li><a href="glossary.html">用語集</a></li><li><a href="help.html">困ったとき</a></li></ul></section></nav><div class="sidebar-footer">OMMT 3.0.1<br>Minecraft 26.2</div></aside>
+<main id="main" tabindex="-1"><nav class="breadcrumbs" aria-label="パンくず"><ol><li><a href="index.html">ホーム</a></li><li>編集する</li><li aria-current="page">曲の途中でテンポを変える</li></ol></nav>
+<article><header class="article-header"><h1>曲の途中でテンポを変える</h1><p class="intro">テンポ点を置き、BPMと点の間の変わり方を決めます。</p></header>
+<details class="mobile-toc"><summary>このページ</summary><ul><li><a href="#points">テンポ点を追加する</a></li><li><a href="#curves">曲線の選び方</a></li><li><a href="#example">例：最後のフレーズをゆっくりにする</a></li></ul></details>
+<section id="points"><h2>テンポ点を追加する</h2><p>BPMは曲の速さです。曲の途中で変えたいときは、下部の「テンポ」パネルを使います。</p><ol><li>再生位置を変化させたい場所へ移します。</li><li>「再生位置に追加」を押します。</li><li>BPMと曲線を設定して「適用」を押します。</li><li>変化の前から再生して確認します。</li></ol><p>MIDIに元々テンポ変化がある場合は、読み込まれた点を先に確認してください。点を増やす前に、既存の点を編集できないかを見ます。</p></section>
+<section id="curves"><h2>曲線の選び方</h2><table><thead><tr><th>曲線</th><th>聞こえ方の目安</th></tr></thead><tbody><tr><td>STEP</td><td>境目で速さを切り替える</td></tr><tr><td>LINEAR</td><td>直線的に速さを変える</td></tr><tr><td>SMOOTH</td><td>滑らかに速さを変える</td></tr></tbody></table><p>グラフのつながりを見て、意図した区間に曲線が付いているか確認してください。設定後は必ずその区間を試聴します。</p></section>
+<section id="example"><h2>例：最後のフレーズをゆっくりにする</h2><ol><li>変化を始める位置と、遅くし終える位置に点を用意します。</li><li>最初を120 BPM、後を100 BPMにします。</li><li>その間がLINEARまたはSMOOTHでつながるように設定します。</li><li>遅くなる前の数小節から試聴し、速さと変化の長さを調整します。</li></ol><p>一瞬で速さが変わる場合は、曲線がSTEPになっていないか、点同士が近すぎないかを確認します。</p></section></article><nav class="page-turn" aria-label="前後の記事"><a href="volume-pan.html"><small>前のページ</small><span>音量と定位を整える</span></a><a href="release.html"><small>次のページ</small><span>長い音に疑似リリースを付ける</span></a></nav>
+<footer>おやさいサーバー専用 · Minecraft 26.2<a href="help.html#report">不具合を報告</a></footer></main>
+<aside class="toc"><nav aria-label="このページ"><p>このページ</p><ul><li><a href="#points">テンポ点を追加する</a></li><li><a href="#curves">曲線の選び方</a></li><li><a href="#example">例：最後のフレーズをゆっくりにする</a></li></ul></nav></aside></div>
+<dialog class="search-dialog" aria-labelledby="search-title"><div class="search-top"><h2 id="search-title">Wiki内を検索</h2><button data-search-close aria-label="閉じる">閉じる</button></div>
+<label class="sr-only" for="search-input">Wiki内を検索</label><input id="search-input" type="search" maxlength="120" autocomplete="off" placeholder="例：音が出ない、パート移動、リリース">
+<p class="search-status" role="status" aria-live="polite"></p><ul class="search-results"></ul></dialog>
+<noscript><p class="nojs">検索にはJavaScriptが必要です。ページ一覧からも記事を探せます。</p></noscript></body></html>

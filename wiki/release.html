@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="音を繰り返し鳴らしながら音量を変え、減衰や盛り上がりを作ります。"><meta name="color-scheme" content="light dark">
+<title>長い音に疑似リリースを付ける · OMMT Wiki</title><link rel="icon" href="assets/favicon.svg"><link rel="stylesheet" href="assets/styles.css">
+<link rel="alternate" hreflang="en" href="release-en.html">
+<script src="assets/theme.js" defer></script><script src="assets/search-index.js" defer></script><script src="assets/wiki.js" defer></script></head>
+<body><a class="skip" href="#main">本文へ移動</a>
+<header class="topbar"><a class="brand" href="index.html">OMMT<span>Wiki</span></a>
+<button class="menu-button" aria-controls="sidebar" aria-expanded="false">ページ一覧</button>
+<button class="search-button" data-search-open aria-haspopup="dialog">Wiki内を検索<kbd>/</kbd></button>
+<a class="language" lang="en" href="release-en.html">English</a>
+<button class="theme-button" aria-label="配色" title="配色">配色</button></header>
+<div class="layout"><aside class="sidebar" id="sidebar"><nav aria-label="ページ一覧"><section class="nav-group"><h2>はじめる</h2><ul><li><a href="index.html">OMMTの使い方</a></li><li><a href="install.html">導入と最初の起動</a></li><li><a href="first-song.html">最初の1曲を送る</a></li></ul></section><section class="nav-group"><h2>編集する</h2><ul><li><a href="editing.html">ノートの選択と編集</a></li><li><a href="parts.html">パートを整理する</a></li><li><a href="sound.html">楽器とサウンドを選ぶ</a></li><li><a href="volume-pan.html">音量と定位を整える</a></li><li><a href="tempo.html">曲の途中でテンポを変える</a></li><li><a href="release.html" aria-current="page">長い音に疑似リリースを付ける</a></li></ul></section><section class="nav-group"><h2>調べる</h2><ul><li><a href="save-upload.html">保存・再開・下書き送信</a></li><li><a href="settings.html">画面と操作を自分に合わせる</a></li><li><a href="shortcuts.html">ショートカット一覧</a></li><li><a href="glossary.html">用語集</a></li><li><a href="help.html">困ったとき</a></li></ul></section></nav><div class="sidebar-footer">OMMT 3.0.1<br>Minecraft 26.2</div></aside>
+<main id="main" tabindex="-1"><nav class="breadcrumbs" aria-label="パンくず"><ol><li><a href="index.html">ホーム</a></li><li>編集する</li><li aria-current="page">長い音に疑似リリースを付ける</li></ol></nav>
+<article><header class="article-header"><h1>長い音に疑似リリースを付ける</h1><p class="intro">音を繰り返し鳴らしながら音量を変え、減衰や盛り上がりを作ります。</p></header>
+<details class="mobile-toc"><summary>このページ</summary><ul><li><a href="#meaning">音をそのまま引き伸ばす機能ではありません</a></li><li><a href="#controls">設定する項目</a></li><li><a href="#example">1音で試す</a></li></ul></details>
+<section id="meaning"><h2>音をそのまま引き伸ばす機能ではありません</h2><p>疑似リリースは、長いノートの途中で同じ音を一定間隔で鳴らし直す機能です。サンプル音そのものを長くするわけではないため、楽器や間隔によっては連打が聞こえます。</p><p>適用するのは<strong>選択音だけ</strong>です。まず長い1音で試し、効果を確認してから範囲を広げてください。</p></section>
+<section id="controls"><h2>設定する項目</h2><table><thead><tr><th>項目</th><th>意味</th></tr></thead><tbody><tr><td>連打判定</td><td>繰り返しの対象にするノートの長さ。ミリ秒または1/1〜1/64</td></tr><tr><td>連打間隔</td><td>次の音を鳴らすまでの間隔。ミリ秒または1/1〜1/128</td></tr><tr><td>開始・終了音量</td><td>ノートの元音量に対する割合（0〜100%）</td></tr><tr><td>曲線・中間点</td><td>音量の推移。中間点は最大2つで、上下左右へ動かせる</td></tr></tbody></table><p>音価を使うと曲の拍に沿った指定になります。固定の時間で繰り返したい場合はミリ秒を選びます。</p></section>
+<section id="example"><h2>1音で試す</h2><ol><li>長いノートを1音選び、「リリース」を開きます。</li><li>有効にし、連打判定をそのノートより短く設定します。</li><li>例として間隔を1/16、開始100%、終了30%、曲線SMOOTHにします。</li><li>「適用」を押して聞きます。連打が目立つ場合は間隔や楽器を変えます。</li></ol><p>この数値は調整を始める例です。短いノートや打楽器など、疑似リリースが合わない音もあります。不要になったら対象音を選び、「選択音から解除」を押してください。</p></section></article><nav class="page-turn" aria-label="前後の記事"><a href="tempo.html"><small>前のページ</small><span>曲の途中でテンポを変える</span></a><a href="save-upload.html"><small>次のページ</small><span>保存・再開・下書き送信</span></a></nav>
+<footer>おやさいサーバー専用 · Minecraft 26.2<a href="help.html#report">不具合を報告</a></footer></main>
+<aside class="toc"><nav aria-label="このページ"><p>このページ</p><ul><li><a href="#meaning">音をそのまま引き伸ばす機能ではありません</a></li><li><a href="#controls">設定する項目</a></li><li><a href="#example">1音で試す</a></li></ul></nav></aside></div>
+<dialog class="search-dialog" aria-labelledby="search-title"><div class="search-top"><h2 id="search-title">Wiki内を検索</h2><button data-search-close aria-label="閉じる">閉じる</button></div>
+<label class="sr-only" for="search-input">Wiki内を検索</label><input id="search-input" type="search" maxlength="120" autocomplete="off" placeholder="例：音が出ない、パート移動、リリース">
+<p class="search-status" role="status" aria-live="polite"></p><ul class="search-results"></ul></dialog>
+<noscript><p class="nojs">検索にはJavaScriptが必要です。ページ一覧からも記事を探せます。</p></noscript></body></html>

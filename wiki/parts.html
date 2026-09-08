@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="主旋律・伴奏・ベースなど、後から選びやすい単位に曲を分けます。"><meta name="color-scheme" content="light dark">
+<title>パートを整理する · OMMT Wiki</title><link rel="icon" href="assets/favicon.svg"><link rel="stylesheet" href="assets/styles.css">
+<link rel="alternate" hreflang="en" href="parts-en.html">
+<script src="assets/theme.js" defer></script><script src="assets/search-index.js" defer></script><script src="assets/wiki.js" defer></script></head>
+<body><a class="skip" href="#main">本文へ移動</a>
+<header class="topbar"><a class="brand" href="index.html">OMMT<span>Wiki</span></a>
+<button class="menu-button" aria-controls="sidebar" aria-expanded="false">ページ一覧</button>
+<button class="search-button" data-search-open aria-haspopup="dialog">Wiki内を検索<kbd>/</kbd></button>
+<a class="language" lang="en" href="parts-en.html">English</a>
+<button class="theme-button" aria-label="配色" title="配色">配色</button></header>
+<div class="layout"><aside class="sidebar" id="sidebar"><nav aria-label="ページ一覧"><section class="nav-group"><h2>はじめる</h2><ul><li><a href="index.html">OMMTの使い方</a></li><li><a href="install.html">導入と最初の起動</a></li><li><a href="first-song.html">最初の1曲を送る</a></li></ul></section><section class="nav-group"><h2>編集する</h2><ul><li><a href="editing.html">ノートの選択と編集</a></li><li><a href="parts.html" aria-current="page">パートを整理する</a></li><li><a href="sound.html">楽器とサウンドを選ぶ</a></li><li><a href="volume-pan.html">音量と定位を整える</a></li><li><a href="tempo.html">曲の途中でテンポを変える</a></li><li><a href="release.html">長い音に疑似リリースを付ける</a></li></ul></section><section class="nav-group"><h2>調べる</h2><ul><li><a href="save-upload.html">保存・再開・下書き送信</a></li><li><a href="settings.html">画面と操作を自分に合わせる</a></li><li><a href="shortcuts.html">ショートカット一覧</a></li><li><a href="glossary.html">用語集</a></li><li><a href="help.html">困ったとき</a></li></ul></section></nav><div class="sidebar-footer">OMMT 3.0.1<br>Minecraft 26.2</div></aside>
+<main id="main" tabindex="-1"><nav class="breadcrumbs" aria-label="パンくず"><ol><li><a href="index.html">ホーム</a></li><li>編集する</li><li aria-current="page">パートを整理する</li></ol></nav>
+<article><header class="article-header"><h1>パートを整理する</h1><p class="intro">主旋律・伴奏・ベースなど、後から選びやすい単位に曲を分けます。</p></header>
+<details class="mobile-toc"><summary>このページ</summary><ul><li><a href="#view">全体表示とパート表示</a></li><li><a href="#create">新しいパートへ分ける</a></li><li><a href="#move">既存のパートへ移す</a></li></ul></details>
+<section id="view"><h2>全体表示とパート表示</h2><p>「全体」はすべてのパートを確認する表示です。パートを選ぶと、そのパートを中心に編集できます。他パートの補助表示は設定で変えられます。</p><p>パートが多い曲では、楽器ごとの階層を開いてレイヤーを探します。元のMIDIのトラックやNBSのレイヤーを確認してから、必要なものに名前を付けると見失いにくくなります。同じ楽器だからという理由だけで元のパートが1つに統合されるわけではありません。</p></section>
+<section id="create"><h2>新しいパートへ分ける</h2><ol><li>分離したいノートを選択します。</li><li>ノートインスペクターの「選択音からパート作成」を押します。</li><li>新しいパートを確認し、「現在のパート名」を入力して「パート名を変更」を押します。</li></ol><p>例えばピアノの高音側を「主旋律」、残りを「伴奏」とすると、主旋律だけの音色変更や音量調整がしやすくなります。</p></section>
+<section id="move"><h2>既存のパートへ移す</h2><ol><li>移したいノートを選択します。</li><li>「選択音の移動先」で既存パートを選びます。</li><li>その上にある「既存パートへ移動」を押します。</li></ol><p>移動先のパートを開き、音数や配置を確認してください。パートの移動と楽器の変更は別の操作です。音色を揃える場合は、移動後に対象音を選んで<a href="sound.html">楽器を変更</a>します。</p></section></article><nav class="page-turn" aria-label="前後の記事"><a href="editing.html"><small>前のページ</small><span>ノートの選択と編集</span></a><a href="sound.html"><small>次のページ</small><span>楽器とサウンドを選ぶ</span></a></nav>
+<footer>おやさいサーバー専用 · Minecraft 26.2<a href="help.html#report">不具合を報告</a></footer></main>
+<aside class="toc"><nav aria-label="このページ"><p>このページ</p><ul><li><a href="#view">全体表示とパート表示</a></li><li><a href="#create">新しいパートへ分ける</a></li><li><a href="#move">既存のパートへ移す</a></li></ul></nav></aside></div>
+<dialog class="search-dialog" aria-labelledby="search-title"><div class="search-top"><h2 id="search-title">Wiki内を検索</h2><button data-search-close aria-label="閉じる">閉じる</button></div>
+<label class="sr-only" for="search-input">Wiki内を検索</label><input id="search-input" type="search" maxlength="120" autocomplete="off" placeholder="例：音が出ない、パート移動、リリース">
+<p class="search-status" role="status" aria-live="polite"></p><ul class="search-results"></ul></dialog>
+<noscript><p class="nojs">検索にはJavaScriptが必要です。ページ一覧からも記事を探せます。</p></noscript></body></html>
