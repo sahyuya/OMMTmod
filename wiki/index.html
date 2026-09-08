@@ -1,118 +1,25 @@
 <!doctype html>
-<html lang="ja">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="おやさいサーバー向けMIDI／NBS編集MOD、OMMTのユーザーWiki。読み込み・編集・保存・下書き送信の手順を説明します。">
-  <title>OMMTユーザーWiki</title>
-  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="assets/styles.css">
-  <script src="assets/theme.js" defer></script>
-</head>
-<body>
-  <a class="skip-link" href="#main">本文へ移動</a>
-  <header class="site-header">
-    <div class="header-inner">
-      <a class="brand" href="index.html"><span class="brand-mark">OM</span><span>OMMT User Wiki</span></a>
-      <nav aria-label="メインナビゲーション">
-        <ul class="nav-list">
-          <li><a aria-current="page" href="index.html">はじめに</a></li>
-          <li><a href="install.html">導入</a></li>
-          <li><a href="editing.html">編集</a></li>
-          <li><a href="sound.html">音・自動化</a></li>
-          <li><a href="save-upload.html">保存・送信</a></li>
-          <li><a href="settings.html">設定</a></li>
-          <li><a href="help.html">ヘルプ</a></li>
-        </ul>
-      </nav>
-      <div class="header-tools">
-        <a class="lang-switch" href="index-en.html" hreflang="en">English</a>
-        <button class="theme-toggle" id="theme-toggle" type="button">表示: 自動</button>
-      </div>
-    </div>
-  </header>
-
-  <main id="main" class="page-shell">
-    <section class="hero">
-      <div>
-        <p class="eyebrow">Oyasai Server MIDI / NBS workspace</p>
-        <h1>MIDIやNBSを、Minecraftの中で整える。</h1>
-        <p class="hero-copy">OMMT（OyasaiMusicMidiTranslator）は、おやさいサーバーで使うMIDI／Note Block Studio（NBS）の曲を読み込み、ピアノロールで編集し、OyasaiMusicの非公開下書きへ送るためのクライアント専用MODです。このWikiでは、導入から送信までを手順ごとに説明します。</p>
-        <div class="actions">
-          <a class="button primary" href="install.html">導入から始める</a>
-          <a class="button" href="editing.html">編集操作を見る</a>
-        </div>
-      </div>
-
-      <div class="editor-preview" aria-label="OMMTのピアノロールを模した図">
-        <div class="preview-title">OMMT · MIDIワークスペース</div>
-        <div class="preview-toolbar"><span></span><span></span><span></span></div>
-        <div class="preview-roll">
-          <div class="preview-keys"></div>
-          <span class="note" style="--x: 18%; --y: 35%; --w: 24%"></span>
-          <span class="note" style="--x: 46%; --y: 29%; --w: 15%"></span>
-          <span class="note green" style="--x: 64%; --y: 24%; --w: 24%"></span>
-          <span class="note gold" style="--x: 12%; --y: 49%; --w: 13%"></span>
-          <span class="note gold" style="--x: 30%; --y: 53%; --w: 17%"></span>
-          <span class="note gold" style="--x: 54%; --y: 46%; --w: 12%"></span>
-          <span class="note" style="--x: 18%; --y: 68%; --w: 29%"></span>
-          <span class="note" style="--x: 51%; --y: 72%; --w: 22%"></span>
-          <span class="note green" style="--x: 76%; --y: 64%; --w: 17%"></span>
-          <div class="playhead"></div>
-        </div>
-        <div class="preview-lane" aria-hidden="true">
-          <span style="--h: 30%"></span><span style="--h: 65%"></span><span style="--h: 48%"></span><span style="--h: 82%"></span><span style="--h: 43%"></span><span style="--h: 74%"></span><span style="--h: 57%"></span><span style="--h: 88%"></span><span style="--h: 50%"></span><span style="--h: 72%"></span><span style="--h: 41%"></span><span style="--h: 78%"></span>
-        </div>
-      </div>
-    </section>
-
-    <div class="notice">
-      <strong>おやさいサーバー専用です</strong>
-      <p>MIDI／NBSの編集とローカル試聴はどのワールドでも行えますが、「下書き送信」はおやさいサーバーでのみ使用します。</p>
-    </div>
-
-    <section aria-labelledby="flow-title">
-      <p class="eyebrow">Basic flow</p>
-      <h2 id="flow-title">曲を送るまでの5段階</h2>
-      <ol class="flow">
-        <li><strong>元ファイルを置く</strong><span>MIDIは<code>OMMT/midi</code>、NBSは<code>OMMT/nbs</code>へ入れます。</span></li>
-        <li><strong>読み込む</strong><span>ライブラリから選び、ピアノロールへ展開します。</span></li>
-        <li><strong>編集する</strong><span>ノート、パート、楽器、音量、テンポを整えます。</span></li>
-        <li><strong>試聴・保存</strong><span>音を確認し、<code>.ommt</code>で続きから再開できるようにします。</span></li>
-        <li><strong>下書き送信</strong><span>おやさいサーバーへ非公開下書きとして送ります。</span></li>
-      </ol>
-    </section>
-
-    <section aria-labelledby="guide-title">
-      <p class="eyebrow">Choose a guide</p>
-      <h2 id="guide-title">目的から読む</h2>
-      <div class="card-grid">
-        <a class="card" href="install.html"><span class="number">GUIDE 01</span><h3>OMMTを導入する</h3><p>対応JARと前提MODを確認し、最初の曲をライブラリへ追加します。</p></a>
-        <a class="card" href="editing.html"><span class="number">GUIDE 02</span><h3>曲を読み込み・編集する</h3><p>ノートの選択・移動、パート整理、スナップの使い方を覚えます。</p></a>
-        <a class="card" href="sound.html"><span class="number">GUIDE 03</span><h3>音と自動化を整える</h3><p>楽器、音量、定位、テンポ、疑似リリースを調整します。</p></a>
-        <a class="card" href="save-upload.html"><span class="number">GUIDE 04</span><h3>保存して送信する</h3><p><code>.ommt</code>保存と試聴を済ませ、下書きを送信します。</p></a>
-        <a class="card" href="settings.html"><span class="number">GUIDE 05</span><h3>画面と操作を合わせる</h3><p>表示倍率、配色、配置、キー、ホイールを自分向けに変えます。</p></a>
-        <a class="card" href="help.html"><span class="number">GUIDE 06</span><h3>困ったとき</h3><p>よくある問題の確認手順と報告先をまとめています。</p></a>
-      </div>
-    </section>
-
-    <section aria-labelledby="before-title">
-      <h2 id="before-title">始める前に知っておくこと</h2>
-      <ul class="checklist">
-        <li>Minecraftの言語が日本語なら日本語、それ以外なら英語で表示されます。</li>
-        <li>元のMIDI／NBSと、編集途中を保存する<code>.ommt</code>は別のファイルです。</li>
-        <li>「編集を保存」だけではサーバーへ送信されません。</li>
-        <li>「下書き送信」に成功しても自動公開はされず、非公開下書きとして作成されます。</li>
-        <li>他者が作ったMIDI／NBSは、利用・共有してよいものだけを使用してください。</li>
-      </ul>
-    </section>
-  </main>
-
-  <footer class="site-footer">
-    <div class="footer-inner">
-      <p>OMMT 3.0.0 · Minecraft 26.2 · Oyasai Server専用</p>
-      <p>不具合報告: <a href="https://discord.gg/rgKayZPW6X">Discordのshowcase内OMMTスレッド</a></p>
-    </div>
-  </footer>
-</body>
-</html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="MIDIやNBSを読み込み、Minecraftの音で確かめながら編集して、おやさいサーバーへ送るためのガイドです。"><meta name="color-scheme" content="light dark">
+<title>OMMTの使い方 · OMMT Wiki</title><link rel="icon" href="assets/favicon.svg"><link rel="stylesheet" href="assets/styles.css">
+<link rel="alternate" hreflang="en" href="index-en.html">
+<script src="assets/theme.js" defer></script><script src="assets/search-index.js" defer></script><script src="assets/wiki.js" defer></script></head>
+<body><a class="skip" href="#main">本文へ移動</a>
+<header class="topbar"><a class="brand" href="index.html">OMMT<span>Wiki</span></a>
+<button class="menu-button" aria-controls="sidebar" aria-expanded="false">ページ一覧</button>
+<button class="search-button" data-search-open aria-haspopup="dialog">Wiki内を検索<kbd>/</kbd></button>
+<a class="language" lang="en" href="index-en.html">English</a>
+<button class="theme-button" aria-label="配色" title="配色">配色</button></header>
+<div class="layout"><aside class="sidebar" id="sidebar"><nav aria-label="ページ一覧"><section class="nav-group"><h2>はじめる</h2><ul><li><a href="index.html" aria-current="page">OMMTの使い方</a></li><li><a href="install.html">導入と最初の起動</a></li><li><a href="first-song.html">最初の1曲を送る</a></li></ul></section><section class="nav-group"><h2>編集する</h2><ul><li><a href="editing.html">ノートの選択と編集</a></li><li><a href="parts.html">パートを整理する</a></li><li><a href="sound.html">楽器とサウンドを選ぶ</a></li><li><a href="volume-pan.html">音量と定位を整える</a></li><li><a href="tempo.html">曲の途中でテンポを変える</a></li><li><a href="release.html">長い音に疑似リリースを付ける</a></li></ul></section><section class="nav-group"><h2>調べる</h2><ul><li><a href="save-upload.html">保存・再開・下書き送信</a></li><li><a href="settings.html">画面と操作を自分に合わせる</a></li><li><a href="shortcuts.html">ショートカット一覧</a></li><li><a href="glossary.html">用語集</a></li><li><a href="help.html">困ったとき</a></li></ul></section></nav><div class="sidebar-footer">OMMT 3.0.1<br>Minecraft 26.2</div></aside>
+<main id="main" tabindex="-1"><nav class="breadcrumbs" aria-label="パンくず"><ol><li><a href="index.html">ホーム</a></li><li>はじめる</li><li aria-current="page">OMMTの使い方</li></ol></nav>
+<article><header class="article-header"><h1>OMMTの使い方</h1><p class="intro">MIDIやNBSを読み込み、Minecraftの音で確かめながら編集して、おやさいサーバーへ送るためのガイドです。</p></header>
+<details class="mobile-toc"><summary>このページ</summary><ul><li><a href="#start">初めて使う方へ</a></li><li><a href="#find">やりたいことから探す</a></li><li><a href="#about">このガイドについて</a></li></ul></details>
+<span id="flow-title" class="legacy-anchor"></span><span id="guide-title" class="legacy-anchor"></span><span id="before-title" class="legacy-anchor"></span><section id="start"><h2>初めて使う方へ</h2><p>OMMTは<strong>おやさいサーバー専用のクライアントMOD</strong>です。編集と試聴は手元で行い、「下書き送信」を押すとサーバーへ曲を送ります。</p><ol class="reading-list"><li><a href="install.html">OMMTを導入する</a><span>必要なMODを揃えて、編集画面を開く。</span></li><li><a href="first-song.html">最初の1曲を送る</a><span>ファイルを読み込み、1か所編集して、保存・送信する。</span></li><li><a href="editing.html">ノートを編集する</a><span>選ぶ、動かす、長さを変える。</span></li></ol></section>
+<section id="find"><h2>やりたいことから探す</h2><ul class="link-list"><li><a href="parts.html">主旋律と伴奏を分けたい</a></li><li><a href="sound.html">楽器やMinecraftサウンドを変えたい</a></li><li><a href="volume-pan.html">伴奏を小さくしたい・左右に音を振りたい</a></li><li><a href="tempo.html">曲の途中で速さを変えたい</a></li><li><a href="release.html">長い音に減衰を付けたい</a></li><li><a href="save-upload.html">編集の続きを再開したい</a></li></ul></section>
+<section id="about"><h2>このガイドについて</h2><p>Minecraft 26.2向けの現在のOMMTを説明しています。操作キーは初期設定です。変更している場合は、OMMTの「設定 → キーマップ」を優先してください。</p><p>分からない言葉は<a href="glossary.html">用語集</a>、操作がうまくいかない場合は<a href="help.html">困ったとき</a>へ。上部の検索では「音が出ない」「パート移動」のような言葉でも探せます。</p></section></article><nav class="page-turn" aria-label="前後の記事"><span></span><a href="install.html"><small>次のページ</small><span>導入と最初の起動</span></a></nav>
+<footer>おやさいサーバー専用 · Minecraft 26.2<a href="help.html#report">不具合を報告</a></footer></main>
+<aside class="toc"><nav aria-label="このページ"><p>このページ</p><ul><li><a href="#start">初めて使う方へ</a></li><li><a href="#find">やりたいことから探す</a></li><li><a href="#about">このガイドについて</a></li></ul></nav></aside></div>
+<dialog class="search-dialog" aria-labelledby="search-title"><div class="search-top"><h2 id="search-title">Wiki内を検索</h2><button data-search-close aria-label="閉じる">閉じる</button></div>
+<label class="sr-only" for="search-input">Wiki内を検索</label><input id="search-input" type="search" maxlength="120" autocomplete="off" placeholder="例：音が出ない、パート移動、リリース">
+<p class="search-status" role="status" aria-live="polite"></p><ul class="search-results"></ul></dialog>
+<noscript><p class="nojs">検索にはJavaScriptが必要です。ページ一覧からも記事を探せます。</p></noscript></body></html>

@@ -1,34 +1,40 @@
-# OMMT user wiki source
+# OMMT user wiki
 
-このディレクトリは、OMMT利用者向けGitHub Pagesの公開元です。ビルドツールや外部ライブラリを使わない静的HTML/CSSと少量のバニラJSで構成し、`master`へ変更が入ると `.github/workflows/pages.yml` がこのディレクトリだけを公開します。
+おやさいサーバー向けOMMTの利用者向けガイド。日本語14記事・英語14記事で、導入、最初の1曲、目的別の編集、設定・用語・問題解決を扱います。
 
-公開URL: https://sahyuya.github.io/OMMTmod/
+## 記事を編集する
 
-## ページ構成
-
-日本語ページと英語ページ（`-en`）の対訳構成です。各ページのヘッダーから言語を切り替えられます。
-
-- `index.html` / `index-en.html`: Wikiトップと利用の流れ
-- `install.html` / `install-en.html`: 導入、対応バージョン、MIDI／NBSフォルダー
-- `editing.html` / `editing-en.html`: 読み込み、ノート・パート編集、スナップ、ショートカット
-- `sound.html` / `sound-en.html`: 楽器・サウンド、音量・定位・テンポ・疑似リリース
-- `save-upload.html` / `save-upload-en.html`: `.ommt`保存、試聴、下書き送信
-- `settings.html` / `settings-en.html`: 設定リファレンス（一般・配色・レイアウト・キーマップ・共有）
-- `help.html` / `help-en.html`: トラブルシューティングと報告先
-- `404.html`: 日英併記のNot Found
-- `assets/styles.css`: 全ページ共通の表示（ライト／ダーク自動切替＋手動切替対応）
-- `assets/theme.js`: テーマ切替ボタンと目次の現在位置ハイライト
-
-## ローカル確認
-
-`wiki`をルートにした静的Webサーバーで表示します。Pythonが利用できる場合は、`OMMT`ディレクトリから次を実行し、ブラウザーで `http://localhost:8000/` を開きます。
+本文の編集元は `tools/wiki/content.mjs` です。生成されたHTMLを直接編集せず、OMMTディレクトリで次を実行してください。
 
 ```powershell
-python -m http.server 8000 --directory wiki
+node tools/wiki/build.mjs
+node tools/wiki/verify.mjs
 ```
 
-HTMLファイルを直接開いても閲覧できますが、公開時と同じ相対リンク確認にはローカルWebサーバーを推奨します。
+生成先は `wiki/`。見出し・本文から検索インデックスも生成します。Node.js以外のビルド依存は不要です。通常のverifyはHTML、内部リンク、画像、見出しIDを確認します。
 
-## GitHub Pagesを初めて有効にする場合
+ブラウザー検証はPlaywrightのあるnode_modulesを環境変数 `WIKI_NODE_MODULES` に指定して同じverifyを実行します。Microsoft Edgeが必要です。これは公開ワークフローの必須依存ではありません。
 
-GitHubのリポジトリで **Settings → Pages → Build and deployment → Source** を **GitHub Actions** に設定します。その後、`master`へWikiを含む変更をpushすると公開ワークフローが実行されます。以後は `wiki/**` の変更ごとに更新されます。
+## 構成
+
+- `tools/wiki/content.mjs`: 対訳記事とページ順序
+- `tools/wiki/build.mjs`: HTMLと全文検索インデックスの生成
+- `tools/wiki/verify.mjs`: 静的検証と任意のブラウザー検証
+- `wiki/assets/styles.css`: 共通デザイン、モバイル、印刷
+- `wiki/assets/wiki.js`: 検索、目次、モバイルメニュー
+- `wiki/assets/theme.js`: 自動・ライト・ダーク配色
+- `wiki/IMAGE_REQUESTS.md`: 実画面の撮影依頼と記事内配置先
+
+検索はブラウザー内で完結し、検索語を外部サービスへ送信しません。JavaScriptが無効でも記事とページ一覧は読めます。既存の記事URLと主な旧見出しIDを残しています。旧見出しの一部は、その記事の先頭へ移動します。
+
+## 確認と公開
+
+`wiki/index.html` は直接ブラウザーで開けます。公開前には静的HTTPサーバーでも確認してください。
+
+GitHub PagesのSourceは **GitHub Actions** を使用します。`master` へwiki、tools/wiki、gradle.propertiesの変更をpushすると、記事生成・静的検証後に公開します。編集しただけでは公開されません。
+
+公開先: https://sahyuya.github.io/OMMTmod/
+
+## 編集方針
+
+1ページに1つの目的を置き、操作手順と結果を先に説明します。機能名の羅列や更新履歴の追記で本文を増やさず、対応する記事を更新します。画面画像は実際の現行MODから用意し、内部実装の説明や架空のUI画像は利用者向け手順へ混ぜません。

@@ -1,170 +1,26 @@
 <!doctype html>
-<html lang="ja">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="OMMTのピアノロールで曲を読み込み、ノートとパートを編集する方法。選択・移動・スナップ・ショートカット付き。">
-  <title>曲の読み込みと編集 · OMMTユーザーWiki</title>
-  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="assets/styles.css">
-  <script src="assets/theme.js" defer></script>
-</head>
-<body>
-  <a class="skip-link" href="#main">本文へ移動</a>
-  <header class="site-header">
-    <div class="header-inner">
-      <a class="brand" href="index.html"><span class="brand-mark">OM</span><span>OMMT User Wiki</span></a>
-      <nav aria-label="メインナビゲーション">
-        <ul class="nav-list">
-          <li><a href="index.html">はじめに</a></li>
-          <li><a href="install.html">導入</a></li>
-          <li><a aria-current="page" href="editing.html">編集</a></li>
-          <li><a href="sound.html">音・自動化</a></li>
-          <li><a href="save-upload.html">保存・送信</a></li>
-          <li><a href="settings.html">設定</a></li>
-          <li><a href="help.html">ヘルプ</a></li>
-        </ul>
-      </nav>
-      <div class="header-tools">
-        <a class="lang-switch" href="editing-en.html" hreflang="en">English</a>
-        <button class="theme-toggle" id="theme-toggle" type="button">表示: 自動</button>
-      </div>
-    </div>
-  </header>
-
-  <main id="main" class="page-shell">
-    <header class="page-heading">
-      <p class="eyebrow">Guide 02 · Editing</p>
-      <h1>曲の読み込みと編集</h1>
-      <p>曲全体を見渡し、必要な音を選び、パート・音高・長さを整えます。楽器や音量の調整は<a href="sound.html">音・自動化</a>で説明します。</p>
-    </header>
-
-    <div class="content-layout">
-      <aside class="toc" aria-label="このページの目次"><strong>このページ</strong><ul>
-        <li><a href="#load">読み込み後の確認</a></li>
-        <li><a href="#view">全体／パート表示</a></li>
-        <li><a href="#notes">ノートの選択と編集</a></li>
-        <li><a href="#snap">スナップの選び方</a></li>
-        <li><a href="#parts">パートの整理</a></li>
-        <li><a href="#shortcuts">ショートカット一覧</a></li>
-      </ul></aside>
-
-      <article class="article">
-        <section id="load">
-          <h2>読み込み後に最初に確認する</h2>
-          <p>MIDIを読み込むと、元のトラックとチャンネルをもとにパートが分けられます。NBSでは元のレイヤーと音源をもとに分けます。同じ楽器でも元ファイルで別パートなら統合されません。</p>
-          <ol class="step-list">
-            <li><strong>曲名とBPMを見る。</strong><br>上部に曲名と現在のBPMが表示されます。想定した曲か確認します。</li>
-            <li><strong>「全体表示／FIT」を押す。</strong><br>時間方向と音高方向を画面へ収め、ノートの分布を見渡します。</li>
-            <li><strong>「全体」タブでパート構成を見る。</strong><br>色分けされたノートとパートタブから、主旋律・伴奏・ベース・ドラムなどの役割をつかみます。</li>
-            <li><strong>再生して大まかに確認する。</strong><br><kbd>Space</kbd>でローカル試聴し、楽器や音量が極端でないか確認します。</li>
-          </ol>
-          <p>MIDIの初期楽器はGeneral MIDI番号だけでなく、トラック名・楽器名も参考に推定されます。サステインペダルのある曲では、鍵盤を離した位置ではなくペダルを戻した位置までノートが伸びます（延長された音数は表示されます）。密なテンポ変化は編集しやすい点の並びに整理されます。</p>
-          <p>NBSは形式v0～v6に対応し、レイヤー音量・定位を保持します。「Tempo Changer」「Sound Stopper」のような非音声の制御ノートは除外されます。</p>
-          <div class="tip"><strong>ノートがバニラ音域の外にある場合</strong><p>ピアノロールでは元の音高のまま表示され、音域外の背景色で区別されます。試聴と送信時には、Minecraftで鳴らせる音域へ収められます。</p></div>
-        </section>
-
-        <section id="view">
-          <h2>全体表示とパート編集を使い分ける</h2>
-          <div class="table-wrap"><table class="comparison">
-            <thead><tr><th>表示</th><th>向いている作業</th><th>見え方</th></tr></thead>
-            <tbody>
-              <tr><td><strong>全体／ALL</strong></td><td>構成確認、パート間の重なり確認、複数パートにまたがる選択</td><td>すべてのパートを色分けして表示</td></tr>
-              <tr><td><strong>各パート</strong></td><td>主旋律だけ調整、ベースだけ移動など</td><td>編集中パートを中心に表示し、他パートは半透明で補助表示</td></tr>
-            </tbody>
-          </table></div>
-          <p>パート帯の左右ボタンとページ番号でパートを探します。<kbd>[</kbd>／<kbd>]</kbd>で前後のパートへ移動、<kbd>\</kbd>で全体表示に戻れます。</p>
-        </section>
-
-        <section id="notes">
-          <h2>ノートを選択・移動・伸縮する</h2>
-          <p>次は初期設定の操作です。<a href="settings.html#keymap">設定 → キーマップ</a>で自分の操作へ変更できます。</p>
-          <div class="gesture-grid">
-            <div class="gesture"><strong>左クリック</strong><span>1音を選択します。</span></div>
-            <div class="gesture"><strong><kbd>Ctrl</kbd> + 左クリック</strong><span>選択へ追加します。空白上では新しいノートを追加します。</span></div>
-            <div class="gesture"><strong><kbd>Shift</kbd> + ドラッグ</strong><span>ボックス内のノートを範囲選択します。</span></div>
-            <div class="gesture"><strong>選択音をドラッグ</strong><span>少し動かすと移動を開始し、スナップに沿って配置します。</span></div>
-            <div class="gesture"><strong>ノート右端をドラッグ</strong><span>スナップに沿って長さを変更します。</span></div>
-            <div class="gesture"><strong>右ドラッグ</strong><span>ピアノロールをパンします。</span></div>
-          </div>
-
-          <h3>ノートインスペクターで数値を整える</h3>
-          <p>選択したノートは右側のノートインスペクターから編集できます。複数選択時は代表音を基準に相対編集できます。</p>
-          <ul>
-            <li><strong>開始・長さ:</strong> ミリ秒または1/1～1/64の音価から単位を選べます。</li>
-            <li><strong>音高:</strong> -1／+1で半音、-12／+12で1オクターブ移動します。</li>
-            <li><strong>楽器・音量・定位:</strong> 選択音をまとめて変更できます（詳しくは<a href="sound.html#instrument">楽器とサウンド</a>）。</li>
-            <li><strong>デチューン:</strong> 配置音からの差分をセント単位で付けられます。</li>
-          </ul>
-          <div class="example">
-            <div class="example-title">例: 主旋律だけを1オクターブ上げる</div>
-            <div class="example-body"><p>主旋律のパートを開き、上げたい範囲を<kbd>Shift</kbd>+ドラッグで選択します。ノートインスペクターの<strong>+12</strong>を押すと、選択音だけが1オクターブ上へ移動します。高すぎたら<strong>-12</strong>で戻せます。</p></div>
-          </div>
-        </section>
-
-        <section id="snap">
-          <h2>スナップの選び方</h2>
-          <p>「スナップ／SNAP」ボタンを押すたびに <code>1/4 → 1/8 → 1/16 → 1/32 → 1/64 → OFF → 1/4</code> の順で切り替わります（<kbd>S</kbd>でも切替）。大きな構成移動は1/4や1/8、細かい装飾音は1/16～1/64が便利です。OFFでは自由に動かせますが、リズムがずれやすいため試聴で確認してください。</p>
-        </section>
-
-        <section id="parts">
-          <h2>選択音をパートへ整理する</h2>
-          <p>パートは、音色や役割ごとにノートをまとめる単位です。元の分け方をそのまま使うことも、整理し直すこともできます。</p>
-          <h3>選択音から新しいパートを作る</h3>
-          <ol>
-            <li>分けたいノートを1音・追加選択・範囲選択で選びます。</li>
-            <li>ノートインスペクターの<strong>「選択音からパート作成／NEW PART FROM SELECTION」</strong>を押します。</li>
-            <li>作成されたパートを開き、楽器や名前を調整します。</li>
-          </ol>
-          <h3>既存パートへ移動する</h3>
-          <ol>
-            <li>移動したいノートを選びます。</li>
-            <li><strong>「選択音の移動先／Move selected to」</strong>から目的のパートを選びます。</li>
-            <li><strong>「既存パートへ移動／MOVE TO EXISTING PART」</strong>を押します。</li>
-          </ol>
-          <h3>パート名を変更する</h3>
-          <p>変更したいパートをアクティブにして「現在のパート名／Active part name」へ名前を入力し、<strong>「パート名を変更／RENAME ACTIVE PART」</strong>を押します。</p>
-          <div class="example">
-            <div class="example-title">例: ピアノパートを「主旋律」と「伴奏」に分ける</div>
-            <div class="example-body"><p>高音側を範囲選択し、「選択音からパート作成」で分離します。新しいパート名を「主旋律」、元を「伴奏」に変更します。主旋律だけ楽器や音量を変えると役割が分かりやすくなります。</p></div>
-          </div>
-        </section>
-
-        <section id="shortcuts">
-          <h2>ショートカット一覧（初期値）</h2>
-          <p>すべて<a href="settings.html#keymap">設定 → キーマップ</a>で変更できます。「—」は初期状態で未割当（ボタンを押して割り当て可能）です。</p>
-          <div class="table-wrap"><table class="comparison">
-            <thead><tr><th>操作</th><th>初期キー</th><th>用途</th></tr></thead>
-            <tbody>
-              <tr><td>再生／一時停止</td><td><kbd>Space</kbd></td><td>現在位置からローカル試聴</td></tr>
-              <tr><td>先頭へ戻る</td><td><kbd>Home</kbd></td><td>再生位置を先頭へ</td></tr>
-              <tr><td>曲全体を表示</td><td><kbd>F</kbd></td><td>時間と音高を画面へ収める</td></tr>
-              <tr><td>時間方向を拡大／縮小</td><td><kbd>Ctrl</kbd>+<kbd>=</kbd>／<kbd>Ctrl</kbd>+<kbd>-</kbd></td><td>タイムラインのズーム</td></tr>
-              <tr><td>コピー／切り取り／貼り付け／複製</td><td><kbd>Ctrl</kbd>+<kbd>C</kbd>／<kbd>X</kbd>／<kbd>V</kbd>／<kbd>D</kbd></td><td>選択音の編集</td></tr>
-              <tr><td>元に戻す／やり直し</td><td><kbd>Ctrl</kbd>+<kbd>Z</kbd>／<kbd>Y</kbd></td><td>編集の取消と再実行</td></tr>
-              <tr><td>削除</td><td><kbd>Delete</kbd></td><td>選択音を削除</td></tr>
-              <tr><td>表示中を全選択</td><td><kbd>Ctrl</kbd>+<kbd>A</kbd></td><td>現在の表示対象を全選択</td></tr>
-              <tr><td>スナップ切替</td><td><kbd>S</kbd></td><td>スナップ値を順番に切替</td></tr>
-              <tr><td>追従切替</td><td><kbd>L</kbd></td><td>再生位置の追従ON/OFF</td></tr>
-              <tr><td>前のパート／次のパート</td><td><kbd>[</kbd>／<kbd>]</kbd></td><td>編集パートの移動</td></tr>
-              <tr><td>全パート表示</td><td><kbd>\</kbd></td><td>全体表示に戻る</td></tr>
-              <tr><td>選択音の試聴</td><td><kbd>P</kbd></td><td>選択音だけを再生</td></tr>
-              <tr><td>エディター設定</td><td><kbd>Ctrl</kbd>+<kbd>,</kbd></td><td>OMMT設定を開く</td></tr>
-              <tr><td>パート作成／選択MIDI読込／下書き送信／ライブラリ更新／MIDIフォルダーを開く</td><td>—</td><td>必要なら割り当て可能</td></tr>
-            </tbody>
-          </table></div>
-          <p>ホイールの初期設定は、通常が音高方向の移動、<kbd>Shift</kbd>がタイムライン移動、<kbd>Ctrl</kbd>が時間方向ズーム、<kbd>Alt</kbd>が音高方向ズームです。</p>
-          <div class="actions"><a class="button primary" href="sound.html">次へ: 音と自動化を整える</a></div>
-        </section>
-      </article>
-    </div>
-  </main>
-
-  <footer class="site-footer">
-    <div class="footer-inner">
-      <p>OMMT 3.0.0 · Minecraft 26.2 · Oyasai Server専用</p>
-      <p>不具合報告: <a href="https://discord.gg/rgKayZPW6X">Discordのshowcase内OMMTスレッド</a></p>
-    </div>
-  </footer>
-</body>
-</html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="選んでから変更するのが基本です。複数音を扱う前に、選択音数を確認します。"><meta name="color-scheme" content="light dark">
+<title>ノートの選択と編集 · OMMT Wiki</title><link rel="icon" href="assets/favicon.svg"><link rel="stylesheet" href="assets/styles.css">
+<link rel="alternate" hreflang="en" href="editing-en.html">
+<script src="assets/theme.js" defer></script><script src="assets/search-index.js" defer></script><script src="assets/wiki.js" defer></script></head>
+<body><a class="skip" href="#main">本文へ移動</a>
+<header class="topbar"><a class="brand" href="index.html">OMMT<span>Wiki</span></a>
+<button class="menu-button" aria-controls="sidebar" aria-expanded="false">ページ一覧</button>
+<button class="search-button" data-search-open aria-haspopup="dialog">Wiki内を検索<kbd>/</kbd></button>
+<a class="language" lang="en" href="editing-en.html">English</a>
+<button class="theme-button" aria-label="配色" title="配色">配色</button></header>
+<div class="layout"><aside class="sidebar" id="sidebar"><nav aria-label="ページ一覧"><section class="nav-group"><h2>はじめる</h2><ul><li><a href="index.html">OMMTの使い方</a></li><li><a href="install.html">導入と最初の起動</a></li><li><a href="first-song.html">最初の1曲を送る</a></li></ul></section><section class="nav-group"><h2>編集する</h2><ul><li><a href="editing.html" aria-current="page">ノートの選択と編集</a></li><li><a href="parts.html">パートを整理する</a></li><li><a href="sound.html">楽器とサウンドを選ぶ</a></li><li><a href="volume-pan.html">音量と定位を整える</a></li><li><a href="tempo.html">曲の途中でテンポを変える</a></li><li><a href="release.html">長い音に疑似リリースを付ける</a></li></ul></section><section class="nav-group"><h2>調べる</h2><ul><li><a href="save-upload.html">保存・再開・下書き送信</a></li><li><a href="settings.html">画面と操作を自分に合わせる</a></li><li><a href="shortcuts.html">ショートカット一覧</a></li><li><a href="glossary.html">用語集</a></li><li><a href="help.html">困ったとき</a></li></ul></section></nav><div class="sidebar-footer">OMMT 3.0.1<br>Minecraft 26.2</div></aside>
+<main id="main" tabindex="-1"><nav class="breadcrumbs" aria-label="パンくず"><ol><li><a href="index.html">ホーム</a></li><li>編集する</li><li aria-current="page">ノートの選択と編集</li></ol></nav>
+<article><header class="article-header"><h1>ノートの選択と編集</h1><p class="intro">選んでから変更するのが基本です。複数音を扱う前に、選択音数を確認します。</p></header>
+<details class="mobile-toc"><summary>このページ</summary><ul><li><a href="#view">画面の見方と移動</a></li><li><a href="#notes">選択・移動・長さの変更</a></li><li><a href="#snap">スナップで位置を揃える</a></li><li><a href="#inspector">数値で編集する</a></li></ul></details>
+<span id="import" class="legacy-anchor"></span><span id="parts" class="legacy-anchor"></span><span id="shortcuts" class="legacy-anchor"></span><section id="view"><h2>画面の見方と移動</h2><p>ピアノロールは横が時間、縦が音高です。ノートの横幅が長さ、色が所属パートを表します。上の数字は小節の位置です。</p><table><thead><tr><th>したいこと</th><th>初期設定の操作</th></tr></thead><tbody><tr><td>上下へ移動</td><td>ホイール</td></tr><tr><td>左右へ移動</td><td>Shift + ホイール</td></tr><tr><td>時間方向を拡大・縮小</td><td>Ctrl + ホイール</td></tr><tr><td>音高方向を拡大・縮小</td><td>Alt + ホイール</td></tr><tr><td>画面をつかんで移動</td><td>右ドラッグ</td></tr><tr><td>曲全体を収める</td><td>F</td></tr></tbody></table></section>
+<section id="notes"><h2>選択・移動・長さの変更</h2><ul><li><strong>左クリック：</strong>1音を選択します。クリックしただけでは位置を変えません。</li><li><strong>Ctrl + ノートを左クリック：</strong>選択を追加・切り替えます。</li><li><strong>Shift + ドラッグ：</strong>範囲で選択します。</li><li><strong>選択音をドラッグ：</strong>時間と音高を動かします。</li><li><strong>ノート端をドラッグ：</strong>長さを変えます。</li><li><strong>Ctrl + 空白を左クリック：</strong>新しいノートを追加します。</li></ul><p>表示中の対象をまとめて選ぶには<kbd>Ctrl</kbd> + <kbd>A</kbd>。削除は<kbd>Delete</kbd>、取り消しは<kbd>Ctrl</kbd> + <kbd>Z</kbd>です。</p></section>
+<section id="snap"><h2>スナップで位置を揃える</h2><p>スナップは、移動や伸縮をリズムの目盛りに合わせる機能です。「スナップ」または<kbd>S</kbd>で<code>1/4 → 1/8 → 1/16 → 1/32 → 1/64 → OFF</code>と切り替えます。</p><p>まずは1/16で試し、細かい装飾音なら1/32や1/64へ変えてください。元の演奏のわずかなずれを残したい場合は、必要な部分だけOFFで調整します。画面を拡大しただけではスナップ設定は変わりません。</p></section>
+<section id="inspector"><h2>数値で編集する</h2><p>ノートインスペクターの開始はミリ秒です。長さはミリ秒と1/1〜1/64の音価を切り替えられます。音高の<code>-12 / -1 / +1 / +12</code>は、それぞれ1オクターブ・半音の移動です。</p><p>数値を入力したら「適用」で確定します。複数選択の音高・音量・定位は代表音からの変化量で編集するため、元の音同士の差を保った調整ができます。ただし上限・下限に達すると値は収まる範囲に制限されます。</p><h3>例：主旋律を1オクターブ上げる</h3><ol><li>主旋律のパートを表示します。</li><li>上げたい音を範囲選択します。</li><li>音高の「+12」で上げ、試聴します。</li></ol><p>音のまとまりを整理したいときは<a href="parts.html">パート編集</a>へ進んでください。</p></section></article><nav class="page-turn" aria-label="前後の記事"><a href="first-song.html"><small>前のページ</small><span>最初の1曲を送る</span></a><a href="parts.html"><small>次のページ</small><span>パートを整理する</span></a></nav>
+<footer>おやさいサーバー専用 · Minecraft 26.2<a href="help.html#report">不具合を報告</a></footer></main>
+<aside class="toc"><nav aria-label="このページ"><p>このページ</p><ul><li><a href="#view">画面の見方と移動</a></li><li><a href="#notes">選択・移動・長さの変更</a></li><li><a href="#snap">スナップで位置を揃える</a></li><li><a href="#inspector">数値で編集する</a></li></ul></nav></aside></div>
+<dialog class="search-dialog" aria-labelledby="search-title"><div class="search-top"><h2 id="search-title">Wiki内を検索</h2><button data-search-close aria-label="閉じる">閉じる</button></div>
+<label class="sr-only" for="search-input">Wiki内を検索</label><input id="search-input" type="search" maxlength="120" autocomplete="off" placeholder="例：音が出ない、パート移動、リリース">
+<p class="search-status" role="status" aria-live="polite"></p><ul class="search-results"></ul></dialog>
+<noscript><p class="nojs">検索にはJavaScriptが必要です。ページ一覧からも記事を探せます。</p></noscript></body></html>

@@ -1,131 +1,25 @@
 <!doctype html>
-<html lang="ja">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="OMMTの導入方法。前提MOD、対応バージョン、曲フォルダー、最初の起動まで。">
-  <title>導入と最初の起動 · OMMTユーザーWiki</title>
-  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="assets/styles.css">
-  <script src="assets/theme.js" defer></script>
-</head>
-<body>
-  <a class="skip-link" href="#main">本文へ移動</a>
-  <header class="site-header">
-    <div class="header-inner">
-      <a class="brand" href="index.html"><span class="brand-mark">OM</span><span>OMMT User Wiki</span></a>
-      <nav aria-label="メインナビゲーション">
-        <ul class="nav-list">
-          <li><a href="index.html">はじめに</a></li>
-          <li><a aria-current="page" href="install.html">導入</a></li>
-          <li><a href="editing.html">編集</a></li>
-          <li><a href="sound.html">音・自動化</a></li>
-          <li><a href="save-upload.html">保存・送信</a></li>
-          <li><a href="settings.html">設定</a></li>
-          <li><a href="help.html">ヘルプ</a></li>
-        </ul>
-      </nav>
-      <div class="header-tools">
-        <a class="lang-switch" href="install-en.html" hreflang="en">English</a>
-        <button class="theme-toggle" id="theme-toggle" type="button">表示: 自動</button>
-      </div>
-    </div>
-  </header>
-
-  <main id="main" class="page-shell">
-    <header class="page-heading">
-      <p class="eyebrow">Guide 01 · Install</p>
-      <h1>導入と最初の起動</h1>
-      <p>Minecraft版に合ったOMMTと前提MODを入れ、最初の曲がライブラリに表示されるところまで進めます。</p>
-    </header>
-
-    <div class="content-layout">
-      <aside class="toc" aria-label="このページの目次"><strong>このページ</strong><ul>
-        <li><a href="#requirements">必要なもの</a></li>
-        <li><a href="#versions">対応バージョン</a></li>
-        <li><a href="#install">導入手順</a></li>
-        <li><a href="#folders">曲ファイルのフォルダー</a></li>
-        <li><a href="#first-open">最初に開く</a></li>
-      </ul></aside>
-
-      <article class="article">
-        <section id="requirements">
-          <h2>必要なもの</h2>
-          <p>OMMTはクライアント専用のFabric MODです。本体のほかに、同じMinecraft版向けの次のMODを自分のクライアントへ導入します。</p>
-          <ul>
-            <li>Fabric Loader</li>
-            <li>Fabric API</li>
-            <li>Fabric Language Kotlin</li>
-            <li>Fabric GUI ImGui</li>
-          </ul>
-          <div class="warning"><strong>サーバーのmodsフォルダーには入れません</strong><p>OMMTは自分のMinecraftで動く編集画面です。Modrinth Appなどで使っているプロフィールの<code>mods</code>フォルダーへ入れてください。</p></div>
-        </section>
-
-        <section id="versions">
-          <h2>対応バージョン</h2>
-          <p>維持対象はMinecraft 26.2のみです。ファイル名の版がMinecraft版と一致するOMMTを選んでください。</p>
-          <div class="table-wrap"><table class="comparison">
-            <thead><tr><th>項目</th><th>版</th></tr></thead>
-            <tbody>
-              <tr><td>Minecraft</td><td>26.2</td></tr>
-              <tr><td>OMMT</td><td><code>OyasaiMusicMidiTranslator-3.0.0-fabric26.2.jar</code></td></tr>
-              <tr><td>Java</td><td>25</td></tr>
-              <tr><td>Fabric Loader</td><td>0.19.3</td></tr>
-              <tr><td>Fabric API</td><td>0.158.0+26.2</td></tr>
-            </tbody>
-          </table></div>
-          <div class="tip"><strong>前提MODの正確な版</strong><p>OMMTのJARには必要な前提MODの条件が記録されています。ランチャーに互換性エラーが出た場合は、エラー文に表示された版を確認してください。</p></div>
-        </section>
-
-        <section id="install">
-          <h2>導入手順</h2>
-          <ol class="step-list">
-            <li><strong>Fabricプロフィールを用意する。</strong><br>遊ぶMinecraft版（26.2）と一致するFabric Loaderのプロフィールを作成します。</li>
-            <li><strong>前提MODを入れる。</strong><br>Fabric API、Fabric Language Kotlin、Fabric GUI ImGuiをプロフィールの<code>mods</code>へ入れます。</li>
-            <li><strong>OMMT本体を入れる。</strong><br>Minecraft版と一致するOMMTのJARを同じ<code>mods</code>へ入れます。</li>
-            <li><strong>Minecraftを一度起動する。</strong><br>タイトル画面まで起動すると、OMMT用のフォルダーと設定ファイルが用意されます。</li>
-          </ol>
-        </section>
-
-        <section id="folders">
-          <h2>曲と編集データを置くフォルダー</h2>
-          <p>クライアント起動時に、ゲームディレクトリの中の<code>OMMT</code>へ次の3つが作られます。エディターを開く必要はありません。</p>
-          <div class="table-wrap"><table class="comparison">
-            <thead><tr><th>場所</th><th>入るもの</th><th>用途</th></tr></thead>
-            <tbody>
-              <tr><td><code>OMMT/midi</code></td><td><code>.mid</code>／<code>.midi</code></td><td>元のMIDIを読み込む</td></tr>
-              <tr><td><code>OMMT/nbs</code></td><td><code>.nbs</code></td><td>Note Block Studio形式（v0～v6）の曲を読み込む</td></tr>
-              <tr><td><code>OMMT/saves</code></td><td><code>.ommt</code></td><td>編集途中を保存・再開する</td></tr>
-            </tbody>
-          </table></div>
-          <p>パスを手で入力する必要はありません。ライブラリのMIDI・NBS・保存タブにある<strong>「フォルダーを開く／OPEN FOLDER」</strong>で直接開けます。ファイルを追加した後は<strong>「更新／REFRESH」</strong>を押してください。サブフォルダー内のファイルは一覧に出ません。</p>
-          <div class="example">
-            <div class="example-title">例: 「spring-concert.mid」を追加する</div>
-            <div class="example-body"><p>MIDIタブで「フォルダーを開く」→開いた場所へ<code>spring-concert.mid</code>をコピー→OMMTへ戻って「更新」の順に操作します。NBSならNBSタブから<code>OMMT/nbs</code>へ置きます。</p></div>
-          </div>
-        </section>
-
-        <section id="first-open">
-          <h2>OMMTを最初に開く</h2>
-          <ol class="step-list">
-            <li><strong>ワールドまたはサーバーへ入る。</strong></li>
-            <li><strong><kbd>O</kbd>を押してOMMTを開く。</strong><br>初期設定のキーです。Minecraftのキー設定から変更できます。</li>
-            <li><strong>左ライブラリで曲を選ぶ。</strong><br>MIDI・NBS・保存タブを切り替えて目的のファイルを選びます。</li>
-            <li><strong>読み込む。</strong><br>上部の「MIDI読込／LOAD MIDI」「NBS読込／LOAD NBS」「保存読込／LOAD SAVE」を押すか、ファイルをダブルクリックします。</li>
-          </ol>
-          <p>Minecraftの言語が日本語なら日本語、それ以外なら英語で表示されます。</p>
-          <div class="notice"><strong>読み込みだけでは送信されません</strong><p>選択・編集・ローカル試聴・<code>.ommt</code>保存はクライアント内の作業です。サーバーへ送られるのは「下書き送信」を押したときだけです。</p></div>
-          <div class="actions"><a class="button primary" href="editing.html">次へ: 曲を編集する</a></div>
-        </section>
-      </article>
-    </div>
-  </main>
-
-  <footer class="site-footer">
-    <div class="footer-inner">
-      <p>OMMT 3.0.0 · Minecraft 26.2 · Oyasai Server専用</p>
-      <p>不具合報告: <a href="https://discord.gg/rgKayZPW6X">Discordのshowcase内OMMTスレッド</a></p>
-    </div>
-  </footer>
-</body>
-</html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="MinecraftとMODの対応バージョンを揃えてから、編集画面を開きます。"><meta name="color-scheme" content="light dark">
+<title>導入と最初の起動 · OMMT Wiki</title><link rel="icon" href="assets/favicon.svg"><link rel="stylesheet" href="assets/styles.css">
+<link rel="alternate" hreflang="en" href="install-en.html">
+<script src="assets/theme.js" defer></script><script src="assets/search-index.js" defer></script><script src="assets/wiki.js" defer></script></head>
+<body><a class="skip" href="#main">本文へ移動</a>
+<header class="topbar"><a class="brand" href="index.html">OMMT<span>Wiki</span></a>
+<button class="menu-button" aria-controls="sidebar" aria-expanded="false">ページ一覧</button>
+<button class="search-button" data-search-open aria-haspopup="dialog">Wiki内を検索<kbd>/</kbd></button>
+<a class="language" lang="en" href="install-en.html">English</a>
+<button class="theme-button" aria-label="配色" title="配色">配色</button></header>
+<div class="layout"><aside class="sidebar" id="sidebar"><nav aria-label="ページ一覧"><section class="nav-group"><h2>はじめる</h2><ul><li><a href="index.html">OMMTの使い方</a></li><li><a href="install.html" aria-current="page">導入と最初の起動</a></li><li><a href="first-song.html">最初の1曲を送る</a></li></ul></section><section class="nav-group"><h2>編集する</h2><ul><li><a href="editing.html">ノートの選択と編集</a></li><li><a href="parts.html">パートを整理する</a></li><li><a href="sound.html">楽器とサウンドを選ぶ</a></li><li><a href="volume-pan.html">音量と定位を整える</a></li><li><a href="tempo.html">曲の途中でテンポを変える</a></li><li><a href="release.html">長い音に疑似リリースを付ける</a></li></ul></section><section class="nav-group"><h2>調べる</h2><ul><li><a href="save-upload.html">保存・再開・下書き送信</a></li><li><a href="settings.html">画面と操作を自分に合わせる</a></li><li><a href="shortcuts.html">ショートカット一覧</a></li><li><a href="glossary.html">用語集</a></li><li><a href="help.html">困ったとき</a></li></ul></section></nav><div class="sidebar-footer">OMMT 3.0.1<br>Minecraft 26.2</div></aside>
+<main id="main" tabindex="-1"><nav class="breadcrumbs" aria-label="パンくず"><ol><li><a href="index.html">ホーム</a></li><li>はじめる</li><li aria-current="page">導入と最初の起動</li></ol></nav>
+<article><header class="article-header"><h1>導入と最初の起動</h1><p class="intro">MinecraftとMODの対応バージョンを揃えてから、編集画面を開きます。</p></header>
+<details class="mobile-toc"><summary>このページ</summary><ul><li><a href="#requirements">必要なもの</a></li><li><a href="#open">編集画面を開く</a></li><li><a href="#folders">ファイルを置く場所</a></li></ul></details>
+<span id="versions" class="legacy-anchor"></span><span id="first-run" class="legacy-anchor"></span><span id="files" class="legacy-anchor"></span><section id="requirements"><h2>必要なもの</h2><p>現在の対象は<strong>Minecraft Java Edition 26.2 / Fabric</strong>です。統合版にOMMTを入れることはできません。</p><ul><li>OMMT（26.2用のJAR）</li><li>Fabric Loader</li><li>Fabric API</li><li>Fabric Language Kotlin</li><li>Fabric GUI ImGui</li></ul><p>配布ページの依存関係に合わせた版を使ってください。Minecraft 1.21.11・26.1.2向けの旧JARとは混在させません。Modrinth Appなどで入れる場合も、前提MODが揃っているか確認します。</p></section>
+<section id="open"><h2>編集画面を開く</h2><ol><li>使うランチャーの26.2プロファイルへMODを入れ、Minecraftを起動します。</li><li>ワールドへ入り、<kbd>O</kbd>を押します。</li><li>OMMTのライブラリとピアノロールが見えれば起動できています。</li></ol><p>開かない場合はMinecraftの「設定 → 操作設定 → キー割り当て」でOMMTを探してください。他のMODと同じキーなら、重ならないキーに変更します。</p></section>
+<section id="folders"><h2>ファイルを置く場所</h2><p>起動したプロファイルのゲームフォルダーに、次のフォルダーが作られます。ランチャーの別プロファイルへ入れないよう注意してください。</p><table><thead><tr><th>種類</th><th>場所</th></tr></thead><tbody><tr><td>MIDI（.mid / .midi）</td><td><code>OMMT/midi</code></td></tr><tr><td>Note Block Studio（.nbs）</td><td><code>OMMT/nbs</code></td></tr><tr><td>編集の保存（.ommt）</td><td><code>OMMT/saves</code></td></tr></tbody></table><p>ライブラリの「MIDI」「NBS」「保存」を切り替えると、対応する場所が表示されます。「フォルダーを開く」で場所を開き、ファイルを入れたら「更新」を押してください。</p></section></article><nav class="page-turn" aria-label="前後の記事"><a href="index.html"><small>前のページ</small><span>OMMTの使い方</span></a><a href="first-song.html"><small>次のページ</small><span>最初の1曲を送る</span></a></nav>
+<footer>おやさいサーバー専用 · Minecraft 26.2<a href="help.html#report">不具合を報告</a></footer></main>
+<aside class="toc"><nav aria-label="このページ"><p>このページ</p><ul><li><a href="#requirements">必要なもの</a></li><li><a href="#open">編集画面を開く</a></li><li><a href="#folders">ファイルを置く場所</a></li></ul></nav></aside></div>
+<dialog class="search-dialog" aria-labelledby="search-title"><div class="search-top"><h2 id="search-title">Wiki内を検索</h2><button data-search-close aria-label="閉じる">閉じる</button></div>
+<label class="sr-only" for="search-input">Wiki内を検索</label><input id="search-input" type="search" maxlength="120" autocomplete="off" placeholder="例：音が出ない、パート移動、リリース">
+<p class="search-status" role="status" aria-live="polite"></p><ul class="search-results"></ul></dialog>
+<noscript><p class="nojs">検索にはJavaScriptが必要です。ページ一覧からも記事を探せます。</p></noscript></body></html>

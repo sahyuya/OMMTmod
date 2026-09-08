@@ -187,24 +187,14 @@ object NbsFileCodec {
 
   /** OpenNBS indices 5..7 differ from OyasaiMusic's stable instrument order. */
   fun toOmmtInstrument(nbsInstrument: Int, defaultInstruments: Int): Int? {
-    if (nbsInstrument !in 0 until defaultInstruments || nbsInstrument !in 0..15) return null
+    if (nbsInstrument !in 0 until defaultInstruments || nbsInstrument !in 0..19) return null
     return when (nbsInstrument) {
       5 -> 7 // guitar
       6 -> 5 // flute
       7 -> 6 // bell
+      18 -> 19 // NBS weathered precedes oxidized; OMMT uses the opposite order.
+      19 -> 18 // oxidized
       else -> nbsInstrument
-    }
-  }
-
-  /** NBS v6 adds four copper-family trumpet instruments after the original 16. */
-  fun toMinecraftSound(nbsInstrument: Int, defaultInstruments: Int): String? {
-    if (nbsInstrument !in 0 until defaultInstruments) return null
-    return when (nbsInstrument) {
-      16 -> "minecraft:block.note_block.trumpet"
-      17 -> "minecraft:block.note_block.trumpet_exposed"
-      18 -> "minecraft:block.note_block.trumpet_weathered"
-      19 -> "minecraft:block.note_block.trumpet_oxidized"
-      else -> null
     }
   }
 

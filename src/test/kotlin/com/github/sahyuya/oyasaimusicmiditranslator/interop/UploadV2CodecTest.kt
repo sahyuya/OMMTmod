@@ -55,6 +55,28 @@ object UploadV2CodecVerification {
       "nbs" -> {
         val song = NbsFileCodec.decode(Files.readAllBytes(path))
         check(song.header.version in 0..6)
+        // Optional real-file regression: send the brass subset through the production compact
+        // codec. Generated files are test artifacts, never edits to the user's NBS originals.
+        val brass = song.notes.filter { it.instrument in 16..19 && it.instrument < song.header.defaultInstruments }
+        if (brass.isNotEmpty()) {
+          val converted = brass.map { note ->
+            val cents = NbsFileCodec.toOmmtPitchCents(note.key, note.detuneCents)
+            UploadV2Codec.Note((note.tick * 1000.0 / song.header.ticksPerSecond).roundToInt(),
+                NbsFileCodec.toOmmtInstrument(note.instrument, song.header.defaultInstruments)!!,
+                Math.floorDiv(cents, 100), (note.velocity * song.layers[note.layer].volume / 100.0).roundToInt(),
+                NbsFileCodec.effectivePanning(note.panning, song.layers[note.layer].panning), cents)
+          }
+          val version = UploadV2Codec.formatVersion(converted.any { it.pitchCents % 100 != 0 || it.pitchCents !in 0..2400 }, true, false)
+          val metadata = "{\"format\":\"oyasai-midi-import\",\"version\":$version,\"song\":{\"title\":\"NBS brass regression\"}}".toByteArray()
+          val compact = UploadV2Codec.compact(UploadV2Codec.Compact(metadata, converted.maxOf { it.time }, converted, version))
+          val canonical = UploadV2Codec.reconstructOymi(compact)
+          check(compact.contentEquals(UploadV2Codec.compactFromOymi(canonical)))
+          val key = java.security.MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(path)).joinToString("") { "%02x".format(it.toInt() and 255) }
+          val output = Files.createDirectories(Path.of("build", "verification", "nbs-brass"))
+          Files.write(output.resolve("$key.oymc"), compact)
+          Files.write(output.resolve("$key.oymi"), canonical)
+          println("  brass OYMC v$version PASS: ${brass.size} notes, IDs ${converted.map { it.instrument }.distinct()}, fixture $key")
+        }
         println("NBS file PASS: ${path.fileName} (v${song.header.version}, ${song.notes.size} notes, ${song.layers.size} layers, ${song.customInstrumentCount} custom, ${song.normalizedValueCount} normalized)")
         if (song.customInstruments.isNotEmpty()) {
           println("  custom samples: " + song.customInstruments.take(12).joinToString { "${it.id}:${it.name}=${it.soundFile}@${it.key}${if (it.pressKey) "+key" else ""}" })
@@ -223,6 +245,12 @@ object UploadV2CodecVerification {
     check(decoded.notes[0].retriggerOverride==release.normalized())
     check(decoded.notes[1].customSound==second.customSound && decoded.notes[1].customSoundPattern==1)
     check(decoded.selectedIds==setOf(decoded.notes[1].id) && decoded.selected==1)
+    val brass = (16..19).map { id -> first.copy(id=id.toLong(), instrument=id, sourceChannel=id, pitchCents=2_525) }
+    val brassSaved = EditorProjectCodec.decode(EditorProjectCodec.encode(snapshot.copy(notes=brass, selectedIds=emptySet(), selected=0)))
+    check(brassSaved.notes.map { it.instrument } == (16..19).toList())
+    check(brassSaved.notes.map { it.sourceChannel } == (16..19).toList())
+    check(brassSaved.notes.all { it.pitchCents == 2_525 })
+    rejects { EditorProjectCodec.encode(snapshot.copy(notes=listOf(first.copy(instrument=20)))) }
     rejects { EditorProjectCodec.decode(encoded.copyOf().also { it[0]=0 }) }
     rejects { EditorProjectCodec.decode(encoded + 0) }
 
@@ -291,10 +319,19 @@ object UploadV2CodecVerification {
     check(NbsFileCodec.toOmmtInstrument(5, song.header.defaultInstruments) == 7)
     check(NbsFileCodec.toOmmtInstrument(6, song.header.defaultInstruments) == 5)
     check(NbsFileCodec.toOmmtInstrument(7, song.header.defaultInstruments) == 6)
-    check(NbsFileCodec.toOmmtInstrument(16, song.header.defaultInstruments) == null)
-    check(NbsFileCodec.toMinecraftSound(16, song.header.defaultInstruments) == "minecraft:block.note_block.trumpet")
-    check(NbsFileCodec.toMinecraftSound(19, song.header.defaultInstruments) == "minecraft:block.note_block.trumpet_oxidized")
-    check(NbsFileCodec.toMinecraftSound(20, song.header.defaultInstruments) == null)
+    check((16..19).map { NbsFileCodec.toOmmtInstrument(it, 20) } == listOf(16, 17, 19, 18))
+    check(NbsFileCodec.toOmmtInstrument(16, 16) == null) // v5 custom ID is NOT brass.
+    check(NbsFileCodec.toOmmtInstrument(20, 20) == null)
+    check(NbsFileCodec.toOmmtInstrument(255, 256) == null)
+    check(UploadV2Codec.formatVersion(false, true, false) == 4)
+    check(UploadV2Codec.formatVersion(false, true, true) == 4)
+    check(UploadV2Codec.formatVersion(false, false, false) == 1)
+    check(UploadV2Codec.formatVersion(false, false, true) == 3)
+    check(UploadV2Codec.formatVersion(true, false, false) == 4)
+    val brassFixture = Base64.getDecoder().decode(Files.readString(Path.of("..", "docs", "interop", "fixtures", "nbs-20-instruments-oymi-v4.base64")).trim())
+    check(brassFixture.contentEquals(UploadV2Codec.reconstructOymi(UploadV2Codec.compactFromOymi(brassFixture))))
+    val expectedIds = listOf(0,1,2,3,4,7,5,6,8,9,10,11,12,13,14,15,16,17,19,18)
+    check((0..19).map { NbsFileCodec.toOmmtInstrument(it, 20) } == expectedIds)
     check(song.notes[1].panning == 20 && song.notes[1].detuneCents == 100)
     check(NbsFileCodec.normalizedSoundPath("assets/minecraft/sounds/ambient/cave/cave1.ogg") == "ambient/cave/cave1")
     rejects { NbsFileCodec.decode(modern.copyOf(modern.size - 1)) }

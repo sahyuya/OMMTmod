@@ -153,14 +153,14 @@ object EditorProjectCodec {
       val note = EditorNote(
           time = input.readInt().also { require(it >= 0) { "Invalid note time" } },
           duration = input.readInt().also { require(it in 1..60_000) { "Invalid note duration" } },
-          instrument = input.readInt().also { require(it in 0..15) { "Invalid note instrument" } },
+          instrument = input.readInt().also { require(it in 0..(if (version >= 2) 19 else 15)) { "Invalid note instrument" } },
           pitch = input.readInt().also { require(it in NoteBlockPitch.DISPLAY_MIN..NoteBlockPitch.DISPLAY_MAX) { "Invalid note pitch" } },
           pitchCents = if (version >= 2) input.readInt().also { require(it in -5400..7300) { "Invalid note pitch cents" } } else 0,
           volume = input.readInt().also { require(it in 0..100) { "Invalid note volume" } },
           pan = input.readInt().also { require(it in -100..100) { "Invalid note pan" } },
           part = input.readInt().also { require(it in parts.indices) { "Invalid note part" } },
           sourceTrack = input.readInt().also { require(it in -1..65_535) { "Invalid source track" } },
-          sourceChannel = input.readInt().also { require(it in -1..15) { "Invalid source channel" } },
+          sourceChannel = input.readInt().also { require(it in -1..255) { "Invalid source channel / NBS instrument" } },
           sourceTick = readOptionalTick(input),
           sourceDurationTicks = readOptionalTick(input),
       )
@@ -234,8 +234,8 @@ object EditorProjectCodec {
     require(value.snapDivisor in setOf(0, 4, 8, 16, 32, 64))
     require(value.part in value.parts.indices && value.notes.all { it.part in value.parts.indices })
     require(value.notes.all { note ->
-      note.time >= 0 && note.duration in 1..60_000 && note.instrument in 0..15 && note.pitch in NoteBlockPitch.DISPLAY_MIN..NoteBlockPitch.DISPLAY_MAX && note.pitchCents in -5400..7300 && note.volume in 0..100 && note.pan in -100..100 &&
-          note.sourceTrack in -1..65_535 && note.sourceChannel in -1..15 && (note.sourceTick == -1L || note.sourceTick in 0..MAX_TICK) && (note.sourceDurationTicks == -1L || note.sourceDurationTicks in 0..MAX_TICK) &&
+      note.time >= 0 && note.duration in 1..60_000 && note.instrument in 0..19 && note.pitch in NoteBlockPitch.DISPLAY_MIN..NoteBlockPitch.DISPLAY_MAX && note.pitchCents in -5400..7300 && note.volume in 0..100 && note.pan in -100..100 &&
+          note.sourceTrack in -1..65_535 && note.sourceChannel in -1..255 && (note.sourceTick == -1L || note.sourceTick in 0..MAX_TICK) && (note.sourceDurationTicks == -1L || note.sourceDurationTicks in 0..MAX_TICK) &&
           (note.retriggerOverride == null || note.retriggerOverride == note.retriggerOverride?.normalized()) &&
           (note.customSound == null && note.customSoundPattern == null || note.customSound?.matches(SOUND_ID) == true && (note.customSoundPattern ?: 0) in 1..65_535)
     })

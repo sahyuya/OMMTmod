@@ -1,5 +1,7 @@
 package com.github.sahyuya.oyasaimusicmiditranslator.client
 
+import com.github.sahyuya.oyasaimusicmiditranslator.interop.UploadV2Codec
+
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 import java.util.ArrayDeque
@@ -298,9 +300,6 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     }
   }
   private fun resolveNbsCustomSound(song: NbsFileCodec.Song, instrument: Int): CustomSoundSelection? {
-    NbsFileCodec.toMinecraftSound(instrument, song.header.defaultInstruments)?.let { id ->
-      return supportedCustomSound(id)?.let { CustomSoundSelection(it.id, 1) }
-    }
     val custom = NbsFileCodec.customInstrument(song, instrument) ?: return null
     val namedId = custom.name.trim().lowercase().let { if (':' in it) it else "minecraft:$it" }
     supportedCustomSound(namedId)?.let { return CustomSoundSelection(it.id, 1) }
@@ -1345,7 +1344,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     val ordered = orderedInput.sortedWith(compareBy<RenderedNoteEvent> { it.time }.thenBy { it.instrument }.thenBy { it.pitch }); val duration = ordered.maxOf { it.time }
     val custom = ordered.mapIndexedNotNull { index, note -> note.customSound?.let { sound -> Triple(index, sound, note.customSoundPattern ?: 1) } }
     val needsPitchCents = ordered.any { it.pitchCents % 100 != 0 || it.pitchCents !in 0..2400 }
-    val version = if (needsPitchCents) 4 else if (custom.isEmpty()) 1 else 3
+    val version = UploadV2Codec.formatVersion(needsPitchCents, ordered.any { it.instrument >= 16 }, custom.isNotEmpty())
     val customJson = if (custom.isEmpty()) "" else custom.joinToString(prefix = ",\"customSounds\":{", postfix = "}") { (index, sound, pattern) ->
       "\"$index\":{\"event\":${json(sound)},\"pattern\":$pattern}"
     }

@@ -1,170 +1,26 @@
 <!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Load songs and edit notes and parts on OMMT's piano roll. Selection, snap, and default shortcuts.">
-  <title>Loading &amp; Editing Songs · OMMT User Wiki</title>
-  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="assets/styles.css">
-  <script src="assets/theme.js" defer></script>
-</head>
-<body>
-  <a class="skip-link" href="#main">Skip to content</a>
-  <header class="site-header">
-    <div class="header-inner">
-      <a class="brand" href="index-en.html"><span class="brand-mark">OM</span><span>OMMT User Wiki</span></a>
-      <nav aria-label="Main navigation">
-        <ul class="nav-list">
-          <li><a href="index-en.html">Start</a></li>
-          <li><a href="install-en.html">Install</a></li>
-          <li><a aria-current="page" href="editing-en.html">Edit</a></li>
-          <li><a href="sound-en.html">Sound</a></li>
-          <li><a href="save-upload-en.html">Save &amp; Submit</a></li>
-          <li><a href="settings-en.html">Settings</a></li>
-          <li><a href="help-en.html">Help</a></li>
-        </ul>
-      </nav>
-      <div class="header-tools">
-        <a class="lang-switch" href="editing.html" hreflang="ja">日本語</a>
-        <button class="theme-toggle" id="theme-toggle" type="button">Theme: Auto</button>
-      </div>
-    </div>
-  </header>
-
-  <main id="main" class="page-shell">
-    <header class="page-heading">
-      <p class="eyebrow">Guide 02 · Editing</p>
-      <h1>Loading &amp; Editing Songs</h1>
-      <p>Survey the song, pick the notes you need, and arrange parts, pitch, and length. Instruments and volume are covered in <a href="sound-en.html">Sound &amp; automation</a>.</p>
-    </header>
-
-    <div class="content-layout">
-      <aside class="toc" aria-label="On this page"><strong>On this page</strong><ul>
-        <li><a href="#load">First checks after loading</a></li>
-        <li><a href="#view">All-parts vs part view</a></li>
-        <li><a href="#notes">Select &amp; edit notes</a></li>
-        <li><a href="#snap">Choosing snap</a></li>
-        <li><a href="#parts">Organize parts</a></li>
-        <li><a href="#shortcuts">Shortcut list</a></li>
-      </ul></aside>
-
-      <article class="article">
-        <section id="load">
-          <h2>First checks after loading</h2>
-          <p>Loading MIDI splits parts from the original tracks and channels. NBS splits by original layers and instruments. Parts from different source tracks are never merged, even on the same instrument.</p>
-          <ol class="step-list">
-            <li><strong>Check title and BPM.</strong><br>The header shows the song title and current BPM. Confirm it is the song you meant.</li>
-            <li><strong>Press FIT.</strong><br>Fit time and pitch on screen to survey where the notes are.</li>
-            <li><strong>See the part structure on the ALL tab.</strong><br>Use the color-coded notes and part tabs to grasp melody, backing, bass, and drums.</li>
-            <li><strong>Play it roughly.</strong><br>Press <kbd>Space</kbd> for a local preview and check nothing sounds extreme.</li>
-          </ol>
-          <p>MIDI instruments are guessed from General MIDI numbers plus track and instrument names. In songs with a sustain pedal, notes extend to where the pedal lifts, not where the key lifts (extended counts are shown). Dense tempo changes are simplified into editable points.</p>
-          <p>NBS supports format v0–v6 and keeps layer volume and pan. Non-audio control notes such as “Tempo Changer” and “Sound Stopper” are excluded.</p>
-          <div class="tip"><strong>Notes outside the vanilla range</strong><p>The piano roll keeps original pitches and marks out-of-range areas with a distinct background. Preview and submission fold them into Minecraft's playable range.</p></div>
-        </section>
-
-        <section id="view">
-          <h2>All-parts vs part editing</h2>
-          <div class="table-wrap"><table class="comparison">
-            <thead><tr><th>View</th><th>Good for</th><th>Appearance</th></tr></thead>
-            <tbody>
-              <tr><td><strong>ALL</strong></td><td>Checking structure, overlaps, cross-part selection</td><td>All parts color-coded</td></tr>
-              <tr><td><strong>Single part</strong></td><td>Adjusting one melody, moving one bass line</td><td>Active part in focus, others ghosted</td></tr>
-            </tbody>
-          </table></div>
-          <p>Find parts with the strip's arrow buttons and page numbers. <kbd>[</kbd> / <kbd>]</kbd> move between parts, <kbd>\</kbd> returns to the all-parts view.</p>
-        </section>
-
-        <section id="notes">
-          <h2>Select, move, and resize notes</h2>
-          <p>These are the defaults. Remap them in <a href="settings-en.html#keymap">Settings → Keymap</a>.</p>
-          <div class="gesture-grid">
-            <div class="gesture"><strong>Left click</strong><span>Select one note.</span></div>
-            <div class="gesture"><strong><kbd>Ctrl</kbd> + left click</strong><span>Add to selection. Adds a new note on empty space.</span></div>
-            <div class="gesture"><strong><kbd>Shift</kbd> + drag</strong><span>Box-select notes in range.</span></div>
-            <div class="gesture"><strong>Drag selected notes</strong><span>Starts moving after a small drag, snapped to grid.</span></div>
-            <div class="gesture"><strong>Drag a note's right edge</strong><span>Resize length along the snap grid.</span></div>
-            <div class="gesture"><strong>Right-drag</strong><span>Pan the piano roll.</span></div>
-          </div>
-
-          <h3>Fine-tune with the Note Inspector</h3>
-          <p>Edit selected notes from the inspector on the right. With multiple notes selected, edits apply relative to the primary note.</p>
-          <ul>
-            <li><strong>Start &amp; length:</strong> choose milliseconds or note values from 1/1 to 1/64.</li>
-            <li><strong>Pitch:</strong> −1/+1 moves a semitone, −12/+12 moves an octave.</li>
-            <li><strong>Instrument, volume, pan:</strong> change the selection together (see <a href="sound-en.html#instrument">instruments &amp; sounds</a>).</li>
-            <li><strong>Detune:</strong> offsets pitch in cents from the placed note.</li>
-          </ul>
-          <div class="example">
-            <div class="example-title">Example: raise only the melody by one octave</div>
-            <div class="example-body"><p>Open the melody part, box-select the passage with <kbd>Shift</kbd>+drag, and press <strong>+12</strong> in the inspector. Only the selection moves up an octave; press <strong>−12</strong> to undo if it sounds too high.</p></div>
-          </div>
-        </section>
-
-        <section id="snap">
-          <h2>Choosing snap</h2>
-          <p>Each press of the SNAP button cycles <code>1/4 → 1/8 → 1/16 → 1/32 → 1/64 → OFF → 1/4</code> (<kbd>S</kbd> does the same). Use 1/4 or 1/8 for large structural moves and 1/16–1/64 for ornaments. OFF allows free placement but drifts easily, so verify by listening.</p>
-        </section>
-
-        <section id="parts">
-          <h2>Organize notes into parts</h2>
-          <p>Parts group notes by tone or role. Keep the original split or reorganize it in OMMT.</p>
-          <h3>Create a part from the selection</h3>
-          <ol>
-            <li>Select the notes to split off.</li>
-            <li>Press <strong>NEW PART FROM SELECTION</strong> in the Note Inspector.</li>
-            <li>Open the new part and adjust its instrument and name.</li>
-          </ol>
-          <h3>Move to an existing part</h3>
-          <ol>
-            <li>Select the notes to move.</li>
-            <li>Pick the destination in <strong>Move selected to</strong>.</li>
-            <li>Press <strong>MOVE TO EXISTING PART</strong>.</li>
-          </ol>
-          <h3>Rename a part</h3>
-          <p>Activate the part, type a name into “Active part name”, and press <strong>RENAME ACTIVE PART</strong>.</p>
-          <div class="example">
-            <div class="example-title">Example: split one piano part into “Melody” and “Backing”</div>
-            <div class="example-body"><p>Box-select the upper melody and split it with “New part from selection”. Rename the new part “Melody” and the original “Backing”. Changing only the melody's instrument and volume clarifies each role.</p></div>
-          </div>
-        </section>
-
-        <section id="shortcuts">
-          <h2>Shortcut list (defaults)</h2>
-          <p>Everything here can change in <a href="settings-en.html#keymap">Settings → Keymap</a>. “—” means unbound by default (press the row's button to bind it).</p>
-          <div class="table-wrap"><table class="comparison">
-            <thead><tr><th>Action</th><th>Default key</th><th>Use</th></tr></thead>
-            <tbody>
-              <tr><td>Play / Pause</td><td><kbd>Space</kbd></td><td>Local preview from the current position</td></tr>
-              <tr><td>Return to start</td><td><kbd>Home</kbd></td><td>Move playback to the start</td></tr>
-              <tr><td>Fit song</td><td><kbd>F</kbd></td><td>Fit time and pitch on screen</td></tr>
-              <tr><td>Time zoom in / out</td><td><kbd>Ctrl</kbd>+<kbd>=</kbd> / <kbd>Ctrl</kbd>+<kbd>-</kbd></td><td>Timeline zoom</td></tr>
-              <tr><td>Copy / Cut / Paste / Duplicate</td><td><kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>X</kbd> / <kbd>V</kbd> / <kbd>D</kbd></td><td>Edit the selection</td></tr>
-              <tr><td>Undo / Redo</td><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Y</kbd></td><td>Revert and re-apply edits</td></tr>
-              <tr><td>Delete</td><td><kbd>Delete</kbd></td><td>Delete the selection</td></tr>
-              <tr><td>Select all in view</td><td><kbd>Ctrl</kbd>+<kbd>A</kbd></td><td>Select the current view target</td></tr>
-              <tr><td>Cycle snap</td><td><kbd>S</kbd></td><td>Step through snap values</td></tr>
-              <tr><td>Toggle follow</td><td><kbd>L</kbd></td><td>Follow playback position on/off</td></tr>
-              <tr><td>Previous / Next part</td><td><kbd>[</kbd> / <kbd>]</kbd></td><td>Move the edited part</td></tr>
-              <tr><td>All-parts view</td><td><kbd>\</kbd></td><td>Back to the overview</td></tr>
-              <tr><td>Preview selected</td><td><kbd>P</kbd></td><td>Play only the selection</td></tr>
-              <tr><td>Editor settings</td><td><kbd>Ctrl</kbd>+<kbd>,</kbd></td><td>Open OMMT settings</td></tr>
-              <tr><td>Create part / Load selected MIDI / Upload draft / Refresh library / Open MIDI folder</td><td>—</td><td>Bind as needed</td></tr>
-            </tbody>
-          </table></div>
-          <p>Wheel defaults: plain wheel moves pitch, <kbd>Shift</kbd> moves the timeline, <kbd>Ctrl</kbd> zooms time, <kbd>Alt</kbd> zooms pitch.</p>
-          <div class="actions"><a class="button primary" href="sound-en.html">Next: shape sound &amp; automation</a></div>
-        </section>
-      </article>
-    </div>
-  </main>
-
-  <footer class="site-footer">
-    <div class="footer-inner">
-      <p>OMMT 3.0.0 · Minecraft 26.2 · Oyasai Server only</p>
-      <p>Bug reports: <a href="https://discord.gg/rgKayZPW6X">OMMT thread in the showcase channel on Discord</a></p>
-    </div>
-  </footer>
-</body>
-</html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Select first, then edit. Check the selection count before changing several notes."><meta name="color-scheme" content="light dark">
+<title>Select and edit notes · OMMT Wiki</title><link rel="icon" href="assets/favicon.svg"><link rel="stylesheet" href="assets/styles.css">
+<link rel="alternate" hreflang="ja" href="editing.html">
+<script src="assets/theme.js" defer></script><script src="assets/search-index.js" defer></script><script src="assets/wiki.js" defer></script></head>
+<body><a class="skip" href="#main">Skip to content</a>
+<header class="topbar"><a class="brand" href="index-en.html">OMMT<span>Wiki</span></a>
+<button class="menu-button" aria-controls="sidebar" aria-expanded="false">Contents</button>
+<button class="search-button" data-search-open aria-haspopup="dialog">Search the handbook<kbd>/</kbd></button>
+<a class="language" lang="ja" href="editing.html">日本語</a>
+<button class="theme-button" aria-label="Theme" title="Theme">Theme</button></header>
+<div class="layout"><aside class="sidebar" id="sidebar"><nav aria-label="Contents"><section class="nav-group"><h2>Getting started</h2><ul><li><a href="index-en.html">OMMT handbook</a></li><li><a href="install-en.html">Install and open OMMT</a></li><li><a href="first-song-en.html">Send your first song</a></li></ul></section><section class="nav-group"><h2>Editing</h2><ul><li><a href="editing-en.html" aria-current="page">Select and edit notes</a></li><li><a href="parts-en.html">Organize parts</a></li><li><a href="sound-en.html">Choose instruments and sounds</a></li><li><a href="volume-pan-en.html">Balance volume and pan</a></li><li><a href="tempo-en.html">Change tempo during a song</a></li><li><a href="release-en.html">Add pseudo-release to long notes</a></li></ul></section><section class="nav-group"><h2>Reference</h2><ul><li><a href="save-upload-en.html">Save, resume, and upload</a></li><li><a href="settings-en.html">Customize the editor</a></li><li><a href="shortcuts-en.html">Keyboard and mouse reference</a></li><li><a href="glossary-en.html">Glossary</a></li><li><a href="help-en.html">Troubleshooting</a></li></ul></section></nav><div class="sidebar-footer">OMMT 3.0.1<br>Minecraft 26.2</div></aside>
+<main id="main" tabindex="-1"><nav class="breadcrumbs" aria-label="Breadcrumb"><ol><li><a href="index-en.html">Home</a></li><li>Editing</li><li aria-current="page">Select and edit notes</li></ol></nav>
+<article><header class="article-header"><h1>Select and edit notes</h1><p class="intro">Select first, then edit. Check the selection count before changing several notes.</p></header>
+<details class="mobile-toc"><summary>On this page</summary><ul><li><a href="#view">Read and move around the piano roll</a></li><li><a href="#notes">Select, move, and resize</a></li><li><a href="#snap">Align notes with snap</a></li><li><a href="#inspector">Edit precise values</a></li></ul></details>
+<span id="import" class="legacy-anchor"></span><span id="parts" class="legacy-anchor"></span><span id="shortcuts" class="legacy-anchor"></span><section id="view"><h2>Read and move around the piano roll</h2><p>Horizontal position is time; vertical position is pitch. A note’s width shows its duration, and its color identifies its part. Numbers above the roll mark bars.</p><table><thead><tr><th>Action</th><th>Default input</th></tr></thead><tbody><tr><td>Move vertically</td><td>Wheel</td></tr><tr><td>Move along the timeline</td><td>Shift + wheel</td></tr><tr><td>Zoom time</td><td>Ctrl + wheel</td></tr><tr><td>Zoom pitch</td><td>Alt + wheel</td></tr><tr><td>Pan the view</td><td>Right drag</td></tr><tr><td>Fit the song</td><td>F</td></tr></tbody></table></section>
+<section id="notes"><h2>Select, move, and resize</h2><ul><li><strong>Click:</strong> select a note without moving it.</li><li><strong>Ctrl + click a note:</strong> add to or toggle the selection.</li><li><strong>Shift + drag:</strong> select a rectangular region.</li><li><strong>Drag selected notes:</strong> change their time and pitch.</li><li><strong>Drag a note edge:</strong> change its duration.</li><li><strong>Ctrl + click empty space:</strong> add a note.</li></ul><p><kbd>Ctrl</kbd> + <kbd>A</kbd> selects notes in the current view. <kbd>Delete</kbd> removes the selection; <kbd>Ctrl</kbd> + <kbd>Z</kbd> undoes an edit.</p></section>
+<section id="snap"><h2>Align notes with snap</h2><p>Snap aligns moves and resizes to a rhythmic grid. The SNAP button or <kbd>S</kbd> cycles through <code>1/4 → 1/8 → 1/16 → 1/32 → 1/64 → OFF</code>.</p><p>Try 1/16 first, and use 1/32 or 1/64 for finer ornaments. Turn snap off only where you want free timing. Zooming the view does not change the snap setting.</p></section>
+<section id="inspector"><h2>Edit precise values</h2><p>Start time uses milliseconds. Duration can use milliseconds or note lengths from 1/1 to 1/64. Pitch buttons <code>-12 / -1 / +1 / +12</code> move by an octave or a semitone.</p><p>Confirm typed values with APPLY. Pitch, volume, and pan changes across a selection are relative to the representative note, preserving differences until a value reaches its allowed limit.</p><h3>Example: raise the melody by an octave</h3><ol><li>Open the melody part.</li><li>Select the phrase to change.</li><li>Use +12 and listen to the result.</li></ol><p>To reorganize groups of notes, see <a href="parts-en.html">parts</a>.</p></section></article><nav class="page-turn" aria-label="Adjacent articles"><a href="first-song-en.html"><small>Previous</small><span>Send your first song</span></a><a href="parts-en.html"><small>Next</small><span>Organize parts</span></a></nav>
+<footer>For the Oyasai Server · Minecraft 26.2<a href="help-en.html#report">Report an issue</a></footer></main>
+<aside class="toc"><nav aria-label="On this page"><p>On this page</p><ul><li><a href="#view">Read and move around the piano roll</a></li><li><a href="#notes">Select, move, and resize</a></li><li><a href="#snap">Align notes with snap</a></li><li><a href="#inspector">Edit precise values</a></li></ul></nav></aside></div>
+<dialog class="search-dialog" aria-labelledby="search-title"><div class="search-top"><h2 id="search-title">Search the handbook</h2><button data-search-close aria-label="Close">Close</button></div>
+<label class="sr-only" for="search-input">Search the handbook</label><input id="search-input" type="search" maxlength="120" autocomplete="off" placeholder="Try: no sound, move parts, release">
+<p class="search-status" role="status" aria-live="polite"></p><ul class="search-results"></ul></dialog>
+<noscript><p class="nojs">Search needs JavaScript. All articles are available in the contents menu.</p></noscript></body></html>

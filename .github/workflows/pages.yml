@@ -6,6 +6,8 @@ on:
       - master
     paths:
       - "wiki/**"
+      - "tools/wiki/**"
+      - "gradle.properties"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -29,6 +31,10 @@ jobs:
         uses: actions/checkout@v6
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
+      - name: Generate and verify wiki
+        run: |
+          node tools/wiki/build.mjs
+          node tools/wiki/verify.mjs
       - name: Upload wiki
         uses: actions/upload-pages-artifact@v4
         with:

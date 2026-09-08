@@ -9,6 +9,9 @@ import java.io.DataOutputStream
 object UploadV2Codec {
   const val MAX_BYTES = 1_048_576
   const val MAX_NOTES = 100_000
+  /** Legacy compact records have four instrument bits; brass always requires v4. */
+  fun formatVersion(needsPitchCents: Boolean, hasBrass: Boolean, hasCustomSounds: Boolean): Int =
+      if (needsPitchCents || hasBrass) 4 else if (hasCustomSounds) 3 else 1
   data class Note(val time: Int, val instrument: Int, val pitch: Int, val volume: Int, val pan: Int, val pitchCents: Int = pitch * 100)
   data class Compact(val metadata: ByteArray, val duration: Int, val notes: List<Note>, val oymiVersion: Int = 1)
 

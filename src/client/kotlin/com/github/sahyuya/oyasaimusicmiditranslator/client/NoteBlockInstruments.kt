@@ -1,11 +1,11 @@
 package com.github.sahyuya.oyasaimusicmiditranslator.client
 
 /**
- * 音ブロック16楽器の一覧（サーバー側 InstrumentMapper や web/src/instruments.js と同じ0〜15の並び）。
+ * 音ブロック20楽器の安定したOMMT ID一覧（サーバーのruntime IDとは別の並び）。
  *
  * ノートインスペクターの楽器欄を、生の数値入力ではなく選択式(コンボボックス)にするために使う。
  * 配列のインデックスがそのまま [com.github.sahyuya.oyasaimusicmiditranslator.client.EditorNote.instrument]
- * の値(0〜15)と一致するため、ImGuiのコンボボックスへ [ImInt] をそのまま束縛できる。
+ * の値(0〜19)と一致するため、ImGuiのコンボボックスへそのまま束縛できる。
  */
 object NoteBlockInstruments {
     const val OTHER_INDEX = 20
@@ -46,7 +46,7 @@ object NoteBlockInstruments {
     private val LABELS_JA: Array<String> = (ENTRIES.map { "${it.japanese}  |  ${it.blockJapanese}" } + "その他のMinecraftサウンド").toTypedArray()
     private val LABELS_EN: Array<String> = (ENTRIES.map { "${it.english}  |  ${it.blockEnglish}" } + "Other Minecraft sound").toTypedArray()
 
-    /** コンボボックス表示用の配列。インデックスがそのまま楽器ID(0〜15)と一致する。 */
+    /** コンボボックス表示用の配列。0〜19は楽器ID、20はその他サウンド。 */
     fun labels(japanese: Boolean): Array<String> = if (japanese) LABELS_JA else LABELS_EN
 
     /** パート名など短い表示用。ブロック素材名は含めない。 */
