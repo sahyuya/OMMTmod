@@ -61,6 +61,7 @@ data class RenderedNoteEvent(
     val customSound: String? = null,
     val customSoundPattern: Int? = null,
     val pitchCents: Int = pitch * 100,
+    val part: Int = 0,
 )
 
 object EditorAutomation {
@@ -176,6 +177,7 @@ object EditorAutomation {
             note.customSound,
             note.customSoundPattern,
             note.pitchCents,
+            note.part,
         )
       }
     }

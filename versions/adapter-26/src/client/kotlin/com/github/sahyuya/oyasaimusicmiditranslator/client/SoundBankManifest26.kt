@@ -38,7 +38,22 @@ object SoundBankManifest {
           "minecraft:block.note_block.trumpet_weathered",
       )
 
-  fun activeHash(): ByteArray? = readManifest()?.second
+  private var manifestCached = false
+  private var cachedHash: ByteArray? = null
+
+  @Synchronized fun invalidateCache() {
+    manifestCached = false
+    cachedHash = null
+  }
+
+  /** Cache even missing manifests; invalidated after each resource reload. */
+  @Synchronized fun activeHash(): ByteArray? {
+    if (!manifestCached) {
+      cachedHash = readManifest()?.second
+      manifestCached = true
+    }
+    return cachedHash?.copyOf()
+  }
 
   fun matchesActiveHash(expected: ByteArray): Boolean =
       expected.size == 32 && activeHash()?.let { MessageDigest.isEqual(it, expected) } == true

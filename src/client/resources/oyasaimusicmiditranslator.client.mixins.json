@@ -2,8 +2,11 @@
   "required": true,
   "minVersion": "0.8",
   "package": "com.github.sahyuya.oyasaimusicmiditranslator.mixin.client",
-  "compatibilityLevel": "JAVA_21",
+  "compatibilityLevel": "JAVA_25",
   "client": [
+    "MusicPriorityMixin",
+    "PlaybackFrameMixin",
+    "SoundReloadMixin"
   ],
   "injectors": {
     "defaultRequire": 1

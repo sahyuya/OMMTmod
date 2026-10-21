@@ -19,6 +19,9 @@ import com.github.sahyuya.oyasaimusicmiditranslator.client.EditorHistory
 import com.github.sahyuya.oyasaimusicmiditranslator.client.EditorWorkspace
 import com.github.sahyuya.oyasaimusicmiditranslator.client.EditorKeyStroke
 import com.github.sahyuya.oyasaimusicmiditranslator.client.EditorKeymap
+import com.github.sahyuya.oyasaimusicmiditranslator.client.EditorKeyboard
+import com.github.sahyuya.oyasaimusicmiditranslator.client.EditorPresetStore
+import com.github.sahyuya.oyasaimusicmiditranslator.client.MusicVoicePolicy
 import com.github.sahyuya.oyasaimusicmiditranslator.client.EditorNote
 import com.github.sahyuya.oyasaimusicmiditranslator.client.EditorProjectCodec
 import com.github.sahyuya.oyasaimusicmiditranslator.client.EditorSelection
@@ -42,6 +45,10 @@ import javax.sound.midi.ShortMessage
 
 object UploadV2CodecVerification {
   @JvmStatic fun main(args: Array<String>) {
+    editor304CompatibilityAndSearch()
+    verifyMuteSolo()
+    editorKeyboardPresetsAndVoices()
+    densePlaybackBatchDrainage()
     unicode15RoundTripAndThreeByteAlphabet(); compactCanonicalRoundTripAndMalformedRejection(); packetBoundaryUsesRawBytes(); playbackWireGoldenAndState(); editorTempoAndRetriggerModel(); editorHistoryTempoIsolation(); editorProjectAndSettingsRoundTrip(); selectionAndMusicalLength(); nbsAndMidiImport(); midiTempoAndSustainImport(); japaneseTitleRoundTrip(); bufferedPlaybackDoesNotStartEarly(); editorPlaybackClockAdvancesAndClamps()
     args.forEach { rawPath ->
       val path = Path.of(rawPath)
@@ -50,11 +57,176 @@ object UploadV2CodecVerification {
     }
     println("UploadV2CodecVerification: PASS")
   }
+  private fun editor304CompatibilityAndSearch() {
+    val bytes = checkNotNull(javaClass.getResourceAsStream("/project-v2.ommt")).use { it.readBytes() }
+    val old = EditorProjectCodec.decode(bytes)
+    check(old.title == "Legacy v2 日本語" && old.notes.single().pitchCents == 1225)
+    check(old.partDisplayMode == com.github.sahyuya.oyasaimusicmiditranslator.client.PartDisplayMode.AUTO && old.importedPartGroups.isEmpty())
+    val group = com.github.sahyuya.oyasaimusicmiditranslator.client.NbsPartGroup(2, "Harp 日本語", listOf(com.github.sahyuya.oyasaimusicmiditranslator.client.NbsPartLeaf(0, 1)))
+    for (mode in com.github.sahyuya.oyasaimusicmiditranslator.client.PartDisplayMode.entries) {
+      val value = old.copy(partDisplayMode = mode, importedPartGroups = listOf(group))
+      val encoded = EditorProjectCodec.encode(value)
+      check(encoded[5].toInt() == 3)
+      val decoded = EditorProjectCodec.decode(encoded)
+      check(decoded.partDisplayMode == mode && decoded.importedPartGroups == listOf(group))
+      check(decoded.notes.single().copy(id = old.notes.single().id) == old.notes.single())
+      com.github.sahyuya.oyasaimusicmiditranslator.client.EditorSession.save(decoded)
+      val restored = checkNotNull(com.github.sahyuya.oyasaimusicmiditranslator.client.EditorSession.restore())
+      check(restored.partDisplayMode == mode && restored.importedPartGroups == decoded.importedPartGroups)
+      rejects { EditorProjectCodec.decode(encoded.copyOf(encoded.size - 1)) }
+      rejects { EditorProjectCodec.decode(encoded.copyOf().also { it[5] = 99 }) }
+    }
+    com.github.sahyuya.oyasaimusicmiditranslator.client.EditorSession.replace()
+    rejects { EditorProjectCodec.encode(old.copy(importedPartGroups = listOf(group, group))) }
+    rejects { EditorProjectCodec.encode(old.copy(importedPartGroups = listOf(group.copy(leaves = listOf(com.github.sahyuya.oyasaimusicmiditranslator.client.NbsPartLeaf(1, 0)))))) }
+    val ids = listOf("minecraft:zombie", "minecraft:entity.zombie.ambient", "minecraft:zombie_villager", "minecraft:music.menu")
+    val search = com.github.sahyuya.oyasaimusicmiditranslator.client.SoundBrowserSearch
+    check(search.rank(ids, "") == ids.sorted())
+    check(search.rank(ids, " ZOMBIE ").take(2) == listOf("minecraft:zombie", "minecraft:zombie_villager"))
+    check(search.rank(ids, "zombie ambient") == listOf("minecraft:entity.zombie.ambient"))
+    check(search.rank(ids, "unknown").isEmpty())
+    check(search.rank((0..5000).map { "minecraft:test.$it" }, "").size == 5001)
+    // Recompute gzip/CRC so invalid v3 fields reach structural validation, not checksum rejection.
+    fun withExtension(edit: (java.nio.ByteBuffer, Int) -> Unit): ByteArray {
+      val encoded = EditorProjectCodec.encode(old.copy(importedPartGroups = listOf(group)))
+      val raw = java.util.zip.GZIPInputStream(java.io.ByteArrayInputStream(encoded, 20, encoded.size - 20)).use { it.readBytes() }
+      val oldSize = java.nio.ByteBuffer.wrap(bytes).getInt(8)
+      edit(java.nio.ByteBuffer.wrap(raw), oldSize)
+      val compressed = ByteArrayOutputStream().also { output -> GZIPOutputStream(output).use { it.write(raw) } }.toByteArray()
+      return ByteArrayOutputStream().also { output -> DataOutputStream(output).use { out ->
+        out.writeInt(0x4f4d4d54); out.writeShort(3); out.writeShort(1); out.writeInt(raw.size); out.writeInt(compressed.size)
+        out.writeInt(java.util.zip.CRC32().apply { update(raw) }.value.toInt()); out.write(compressed)
+      } }.toByteArray()
+    }
+    rejects { EditorProjectCodec.decode(withExtension { raw, at -> raw.put(at, 127.toByte()) }) }
+    rejects { EditorProjectCodec.decode(withExtension { raw, at -> raw.putInt(at + 1, 4097) }) }
+    rejects { EditorProjectCodec.decode(withExtension { raw, at -> raw.putInt(at + 5, 256) }) }
+    rejects { EditorProjectCodec.decode(withExtension { raw, _ -> raw.putInt(raw.capacity() - 8, 99) }) }
+    println("Editor304: PASS (v2 golden, all display modes, groups/session, invalid extension, ranked/full sound search)")
+  }
+
+  private fun densePlaybackBatchDrainage() {
+    val times = IntArray(1025) { if (it < 513) 0 else 1000 }
+    var cursor = 0
+    val counts = IntArray(times.size)
+    repeat(3) {
+      val end = com.github.sahyuya.oyasaimusicmiditranslator.client.playbackBatchEnd(cursor, times.size, 0) { times[it] }
+      check(end - cursor <= 256)
+      while (cursor < end) counts[cursor++]++
+    }
+    check(cursor == 513) // No early dispatch of the final chord.
+    check(com.github.sahyuya.oyasaimusicmiditranslator.client.playbackBatchEnd(cursor, times.size, 999) { times[it] } == cursor)
+    repeat(3) {
+      val end = com.github.sahyuya.oyasaimusicmiditranslator.client.playbackBatchEnd(cursor, times.size, 1000) { times[it] }
+      while (cursor < end) counts[cursor++]++
+    }
+    check(cursor == times.size && counts.all { it == 1 })
+    check(com.github.sahyuya.oyasaimusicmiditranslator.client.playbackBatchEnd(cursor, times.size, Int.MAX_VALUE) { times[it] } == cursor)
+  }
+  private fun verifyMuteSolo() {
+    val state = com.github.sahyuya.oyasaimusicmiditranslator.client.PartAuditionState()
+    fun audible() = (0..3).filter(state::audible)
+    check(audible() == listOf(0, 1, 2, 3))
+    state.toggleMute(listOf(0)); state.toggleSolo(listOf(1))
+    check(audible() == listOf(1))
+    state.toggleSolo(listOf(1)); check(audible() == listOf(1, 2, 3))
+    state.reset(); state.toggleSolo(listOf(1, 2, 3)); check(audible() == listOf(1, 2, 3))
+    state.toggleSolo(listOf(1)); state.toggleMute(listOf(2)); check(audible() == listOf(3))
+    state.toggleMute(listOf(3)); check(audible().isEmpty()) // Muted solos still gate non-solos.
+    state.reset(); state.toggleMute(listOf(0, 1, 2)); state.toggleMute(listOf(1))
+    check(audible() == listOf(1, 3)) // Individual operation overrides group.
+    state.toggleMute(listOf(0, 1, 2)); check(audible() == listOf(3)) // Mixed -> all enabled.
+    state.toggleMute(listOf(0, 1, 2)); check(audible().size == 4)
+    state.toggleSolo(listOf(0, 1)); state.toggleSolo(listOf(1))
+    check(audible() == listOf(0))
+    state.toggleSolo(listOf(0, 1)); check(audible() == listOf(0, 1))
+    state.toggleSolo(listOf(0, 1)); check(audible().size == 4)
+    state.toggleMute(listOf(22)); state.toggleSolo(listOf(100)); state.reset()
+    check(state.audible(22) && state.audible(100))
+    state.toggleSolo(listOf(100)); state.retainParts(4); check(audible().size == 4)
+    state.toggleMute(listOf(0))
+    check(state.noteColor(0xFF123456.toInt(), 0) == 0x3F123456)
+    check(state.noteColor(0xFF123456.toInt(), 0, 100) == 0xFF123456.toInt())
+    check(state.noteColor(0xFF123456.toInt(), 0, 5) == 0x0C123456)
+    check(state.noteColor(0xFF123456.toInt(), 0, 0) ushr 24 == 0)
+    check(!state.visible(0, 0) && state.visible(1, 0) && state.visible(0, 1))
+    val viewState = com.github.sahyuya.oyasaimusicmiditranslator.client.PartAuditionState()
+    check(viewState.previewAudible(1, false, false, 0))
+    check(!viewState.previewAudible(1, true, false, 0))
+    check(viewState.previewAudible(0, true, false, 0))
+    check(viewState.previewAudible(1, true, true, 0))
+    check(viewState.previewAudible(1, true, false, 1)) // Follow the selected part.
+    check(!viewState.soloed(0) && !viewState.soloed(1))
+    viewState.toggleMute(listOf(1))
+    check(!viewState.previewAudible(1, true, false, 1))
+    viewState.toggleSolo(listOf(2))
+    check(!viewState.previewAudible(0, true, false, 0))
+    check(viewState.previewAudible(2, true, true, 0))
+    check(viewState.soloed(2) && viewState.muted(1)) // View changes never rewrite M/S.
+    val overlaps = listOf(1, 0, 2, 0)
+    check(state.drawOrder(overlaps) { it } == listOf(0, 0, 1, 2))
+    check(state.hit(listOf(0, 1), { it }, { if (it == 0) 0.0 else 3.0 }) == 1)
+    check(state.hit(listOf(0), { it }, { 0.0 }) == 0)
+    check(state.hit(emptyList<Int>(), { it }, { 0.0 }) == null)
+    check(state.noteColor(0xFF123456.toInt(), 0, 50) == 0x7F123456)
+    check(state.noteColor(0x48123456, 0, 50) == 0x24123456)
+    check(state.noteColor(0xFF123456.toInt(), 1) == 0xFF123456.toInt())
+    val notes = listOf(EditorNote(0, 200, 0, 12, 80, 0, part = 0), EditorNote(10, 200, 1, 14, 90, 0, part = 1))
+    val expanded = EditorAutomation.expand(notes, RetriggerProfile(), emptyMap())
+    check(expanded.map { it.part }.toSet() == setOf(0, 1))
+    state.toggleSolo(listOf(1))
+    check(expanded.filter { state.audible(it.part) }.all { it.part == 1 })
+    check(EditorAutomation.expand(notes, RetriggerProfile(), emptyMap()) == expanded)
+    check(notes[0].volume == 80 && notes[1].volume == 90)
+    val golden = UploadV2CodecVerification::class.java.getResourceAsStream("/settings-v6.txt")!!.bufferedReader().use { it.readText().trim() }
+    val old = EditorSettingsBundleCodec.decode(golden)
+    val v7 = UploadV2CodecVerification::class.java.getResourceAsStream("/settings-v7.txt")!!.bufferedReader().use { it.readText().trim() }
+    check(EditorSettingsBundleCodec.decode(v7).settings.style.mutedOpacityPercent == 25)
+    val v8 = UploadV2CodecVerification::class.java.getResourceAsStream("/settings-v8.txt")!!.bufferedReader().use { it.readText().trim() }
+    check(!EditorSettingsBundleCodec.decode(v8).settings.auditionVisiblePartOnly)
+    check(!EditorSettingsBundleCodec.decode(v7).settings.auditionVisiblePartOnly)
+    check(old.settings.style.mutedOpacityPercent == 25)
+    check(old.settings.version == 9 && old.layout == "[Window][V6 fixture]\nPos=10,20\n")
+    check(old.settings.style.muteColor == 0xFFDC4545.toInt() && old.settings.style.soloColor == 0xFF45C86A.toInt())
+    val custom = old.settings.copy(auditionVisiblePartOnly = true, style = old.settings.style.copy(muteColor = 0xFF112233.toInt(), soloColor = 0xFFABCDEF.toInt(), mutedOpacityPercent = 15))
+    check(EditorSettingsBundleCodec.decode(EditorSettingsBundleCodec.encode(custom, old.layout)).settings == custom)
+    val invisible = custom.copy(style = custom.style.copy(mutedOpacityPercent = 0))
+    check(EditorSettingsBundleCodec.decode(EditorSettingsBundleCodec.encode(invisible, old.layout)).settings == invisible)
+    val settingsStore = com.github.sahyuya.oyasaimusicmiditranslator.client.EditorSettingsStore
+    val writer = settingsStore.javaClass.getDeclaredMethod("toJson", EditorSettings::class.java).apply { isAccessible = true }
+    val reader = settingsStore.javaClass.getDeclaredMethod("parse", String::class.java).apply { isAccessible = true }
+    val json = writer.invoke(settingsStore, custom) as String
+    check((reader.invoke(settingsStore, json) as EditorSettings).style == custom.style)
+    check((reader.invoke(settingsStore, json) as EditorSettings).auditionVisiblePartOnly)
+    check(!(reader.invoke(settingsStore, json.replace(",\"auditionVisiblePartOnly\":true", "")) as EditorSettings).auditionVisiblePartOnly)
+    check((reader.invoke(settingsStore, writer.invoke(settingsStore, invisible)) as EditorSettings).style.mutedOpacityPercent == 0)
+    val oldJson = json.replace(Regex(",\"style(?:Mute|Solo)\":\"[^\"]*\""), "").replace("\"version\":7", "\"version\":6")
+    val migrated = reader.invoke(settingsStore, oldJson) as EditorSettings
+    check(migrated.style.muteColor == old.settings.style.muteColor && migrated.style.soloColor == old.settings.style.soloColor)
+    val noOpacity = json.replace(Regex(",\"styleMutedOpacityPercent\":\\d+"), "")
+    check((reader.invoke(settingsStore, noOpacity) as EditorSettings).style.mutedOpacityPercent == 25)
+    val dir = Files.createTempDirectory("ommt-audition-preset-")
+    try {
+      val store = EditorPresetStore(dir)
+      val preset = store.create("Mute solo colors", custom, old.layout)
+      check(EditorSettingsBundleCodec.decode(store.read(preset.id).bundle).settings.style == custom.style)
+    } finally { Files.list(dir).use { it.forEach { path -> Files.delete(path) } }; Files.delete(dir) }
+    println("MuteSoloVerification: PASS (both examples, group/leaf latest edit, reset, alpha, part propagation, unchanged notes, draw/hit ordering, v6/v7/v8 golden/v9 view-audition preset)")
+  }
   private fun verifyImportFile(path: Path) {
     when (path.fileName.toString().substringAfterLast('.', "").lowercase()) {
       "nbs" -> {
         val song = NbsFileCodec.decode(Files.readAllBytes(path))
         check(song.header.version in 0..6)
+        val ordered = MusicVoicePolicy.onsetOrder(song.notes, { it.tick }, { it.velocity * song.layers[it.layer].volume })
+        check(ordered.groupingBy { it }.eachCount() == song.notes.groupingBy { it }.eachCount())
+        check(ordered.zipWithNext().all { (a, b) -> a.tick < b.tick ||
+            a.tick == b.tick && a.velocity * song.layers[a.layer].volume >= b.velocity * song.layers[b.layer].volume })
+        val maxChord = song.notes.groupingBy { it.tick }.eachCount().values.maxOrNull() ?: 0
+        println("  onset priority PASS: all original note values preserved, maximum chord $maxChord")
+        if (path.fileName.toString() == "Field of Hopes and Dreams.nbs") {
+          check(song.notes.size == 82989 && song.layers.size == 238 && maxChord == 73)
+        }
         // Optional real-file regression: send the brass subset through the production compact
         // codec. Generated files are test artifacts, never edits to the user's NBS originals.
         val brass = song.notes.filter { it.instrument in 16..19 && it.instrument < song.header.defaultInstruments }
@@ -97,6 +269,59 @@ object UploadV2CodecVerification {
     }
   }
   private inline fun rejects(block: () -> Unit) { try { block(); error("expected rejection") } catch (_: IllegalArgumentException) { } }
+  private fun editorKeyboardPresetsAndVoices() {
+    check(EditorKeyboard.imguiKey(32) == imgui.flag.ImGuiKey.Space)
+    check(EditorKeyboard.imguiKey(257) == imgui.flag.ImGuiKey.Enter)
+    check(EditorKeyboard.imguiKey(335) == imgui.flag.ImGuiKey.KeypadEnter)
+    check(EditorKeyboard.imguiKey(290) == imgui.flag.ImGuiKey.F1)
+    check(EditorKeyboard.imguiKey(340) == null) // Modifier alone must not finish capture.
+    check(EditorKeyboard.ownsShortcut(true, true, true))
+    check(!EditorKeyboard.ownsShortcut(false, true, false))
+    check(!EditorKeyboard.ownsShortcut(false, false, true))
+    check(EditorKeyboard.ownsShortcut(false, false, false))
+    for (key in listOf(32, 257, 335, 65, 90, 48, 57, 290, 313, 262, 39)) {
+      val stroke = EditorKeyStroke(key, control = true, shift = true)
+      check(EditorKeyStroke.parse(stroke.encode(), EditorKeyStroke.UNBOUND) == stroke)
+    }
+    val directory = Files.createTempDirectory("ommt-personal-presets-")
+    try {
+      val settings = EditorSettings().copy(keymap = EditorKeymap().with(EditorAction.PLAY_PAUSE, EditorKeyStroke(290)))
+      val layout = "[Window][日本語]\nPos=120,80\nSize=640,480\n"
+      val store = EditorPresetStore(directory)
+      val first = store.create("夜の編集用", settings, layout)
+      val reopened = EditorPresetStore(directory)
+      check(reopened.list().single() == first)
+      val decoded = EditorSettingsBundleCodec.decode(reopened.read(first.id).bundle)
+      check(decoded.layout == layout && decoded.settings.keymap[EditorAction.PLAY_PAUSE] == EditorKeyStroke(290))
+      check(decoded.settings == EditorSettingsBundleCodec.decode(EditorSettingsBundleCodec.encode(settings, layout)).settings)
+      rejects { store.create("夜の編集用", settings, layout) }
+      check(store.read(first.id) == first)
+      val renamed = store.rename(first.id, "演奏用")
+      check(renamed.bundle == first.bundle && renamed.id == first.id)
+      val updated = store.update(first.id, settings, "[Window][Other]\nPos=0,0\n")
+      check(updated.name == "演奏用" && updated.bundle != first.bundle)
+      rejects { store.rename(first.id, "\n") }
+      rejects { store.rename(first.id, "a".repeat(65)) }
+      val pathName = store.create("../display name", settings, layout)
+      check(Files.isRegularFile(directory.resolve("${pathName.id}.json")))
+      val badId = UUID.randomUUID()
+      Files.writeString(directory.resolve("$badId.json"), "{\"schemaVersion\":99}")
+      rejects { store.read(badId) }
+      check(store.list().size == 2)
+    } finally {
+      Files.list(directory).use { paths -> paths.forEach { Files.delete(it) } }
+      Files.delete(directory)
+    }
+    check(MusicVoicePolicy.shouldReplace(0.8f, MusicVoicePolicy.priority(0.2f, 0)))
+    check(!MusicVoicePolicy.shouldReplace(0.2f, MusicVoicePolicy.priority(0.8f, 0)))
+    check(!MusicVoicePolicy.shouldReplace(0.8f, MusicVoicePolicy.priority(0.8f, 0)))
+    check(MusicVoicePolicy.shouldReplace(0.2f, MusicVoicePolicy.priority(0.8f, 2000)))
+    val original = listOf(Triple(20, 90, "later"), Triple(0, 20, "quiet"), Triple(0, 80, "lead"), Triple(0, 80, "equal"))
+    val sorted = MusicVoicePolicy.onsetOrder(original, { it.first }, { it.second })
+    check(sorted.map { it.third } == listOf("lead", "equal", "quiet", "later"))
+    check(original.first().third == "later" && sorted.toSet() == original.toSet())
+    println("Editor keyboard / personal preset persistence / voice priority: PASS")
+  }
   private fun oymi(): ByteArray = ByteArrayOutputStream().use { bytes -> DataOutputStream(bytes).use { out ->
     val metadata = "{}".toByteArray(); out.writeInt(0x4f594d49); out.writeShort(1); out.writeShort(0); out.writeInt(metadata.size); out.writeInt(1); out.writeInt(120); out.write(metadata)
     out.writeInt(120); out.writeByte(0); out.writeByte(12); out.writeByte(100); out.writeByte(0)
@@ -265,7 +490,7 @@ object UploadV2CodecVerification {
     check(bundle.settings.style==customStyle)
     check(bundle.layout.contains("PIANO ROLL"))
     val legacy = EditorSettingsBundleCodec.decode(legacyEditorSettingsV1(settings, "[Window][LEGACY]\n"))
-    check(legacy.settings.version==6 && legacy.settings.theme==EditorTheme.MIDNIGHT_BLUE)
+    check(legacy.settings.version==9 && legacy.settings.theme==EditorTheme.MIDNIGHT_BLUE)
     check(legacy.settings.style==EditorStylePresets.forTheme(EditorTheme.MIDNIGHT_BLUE))
     check(legacy.layout.contains("LEGACY"))
     rejects { EditorSettingsBundleCodec.decode("not-an-ommt-setting") }

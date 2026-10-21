@@ -15,7 +15,7 @@ data class EditorSettingsBundle(val settings: EditorSettings, val layout: String
 object EditorSettingsBundleCodec {
   private const val PREFIX = "OMMTCFG1:"
   private const val MAGIC = 0x4f4d4346 // OMCF
-  private const val VERSION = 6
+  private const val VERSION = 9
   private const val MAX_LAYOUT_BYTES = 512 * 1024
   private const val MAX_BINARY_BYTES = 1024 * 1024
 
@@ -50,6 +50,7 @@ object EditorSettingsBundleCodec {
     out.writeInt(EditorAction.entries.size)
     EditorAction.entries.forEach { action -> writeString(out, settings.keymap[action].encode(), 64) }
     writeString(out, layout, MAX_LAYOUT_BYTES)
+    out.writeBoolean(settings.auditionVisiblePartOnly)
   }
 
   private fun read(input: DataInputStream): EditorSettingsBundle {
@@ -72,7 +73,7 @@ object EditorSettingsBundleCodec {
       else EditorKeyStroke.parse(readString(input, 64), defaults[action])
     })
     val settings = EditorSettings(
-        version = 6, compactToolbar = compact, showLibrary = library, showInspector = inspector,
+        version = 9, compactToolbar = compact, showLibrary = library, showInspector = inspector,
         showAutomation = automation, gridDensity = density, showOtherParts = otherParts,
         followLead = followLead, lastTool = tool, uiScalePercent = scale, theme = theme,
         style = style, keymap = keymap, wheelPlain = wheelPlain, wheelShift = wheelShift,
@@ -80,11 +81,13 @@ object EditorSettingsBundleCodec {
         additiveSelectionModifier = additive, panMouseButton = pan,
     )
     validate(settings)
-    return EditorSettingsBundle(settings, readString(input, MAX_LAYOUT_BYTES))
+    val layout = readString(input, MAX_LAYOUT_BYTES)
+    val visibleOnly = binaryVersion >= 9 && input.readBoolean()
+    return EditorSettingsBundle(settings.copy(auditionVisiblePartOnly = visibleOnly), layout)
   }
 
   private fun validate(value: EditorSettings) {
-    require(value.version == 6 && value.gridDensity in setOf("AUTO", "SPARSE", "NORMAL", "DENSE"))
+    require(value.version == 9 && value.gridDensity in setOf("AUTO", "SPARSE", "NORMAL", "DENSE"))
     require(value.followLead in 20..70 && value.uiScalePercent in 75..150)
     require(value.style == value.style.normalized()) { "Invalid OMMT style metrics" }
   }
@@ -101,11 +104,12 @@ object EditorSettingsBundleCodec {
         style.dockedTabColor, style.dockedTabHoveredColor, style.dockedTabActiveColor,
         style.dockedTabUnfocusedColor, style.dockedTabSelectedOverlineColor,
         style.dockedTabDimmedSelectedColor, style.dockedTabDimmedSelectedOverlineColor,
+        style.muteColor, style.soloColor,
     ).forEach(out::writeInt)
     listOf(
         style.windowPaddingX, style.windowPaddingY, style.framePaddingX, style.framePaddingY,
         style.itemSpacingX, style.itemSpacingY, style.rounding, style.scrollbarSize,
-        style.borderSize,
+        style.borderSize, style.mutedOpacityPercent,
     ).forEach(out::writeInt)
   }
 
@@ -133,11 +137,14 @@ object EditorSettingsBundleCodec {
       dockedTabSelectedOverlineColor = readHeaderColor(input, binaryVersion, theme, 6) { it.dockedTabSelectedOverlineColor },
       dockedTabDimmedSelectedColor = readHeaderColor(input, binaryVersion, theme, 6) { it.dockedTabDimmedSelectedColor },
       dockedTabDimmedSelectedOverlineColor = readHeaderColor(input, binaryVersion, theme, 6) { it.dockedTabDimmedSelectedOverlineColor },
+      muteColor = readHeaderColor(input, binaryVersion, theme, 7) { it.muteColor },
+      soloColor = readHeaderColor(input, binaryVersion, theme, 7) { it.soloColor },
       windowPaddingX = input.readInt(),
       windowPaddingY = input.readInt(), framePaddingX = input.readInt(),
       framePaddingY = input.readInt(), itemSpacingX = input.readInt(),
       itemSpacingY = input.readInt(), rounding = input.readInt(),
       scrollbarSize = input.readInt(), borderSize = input.readInt(),
+      mutedOpacityPercent = if (binaryVersion >= 8) input.readInt() else 25,
   )
 
   /** Appended colors fall back to the theme preset when the bundle predates them. */

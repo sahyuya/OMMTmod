@@ -43,7 +43,8 @@ data class EditorKeyStroke(
       GLFW.GLFW_KEY_BACKSLASH -> "BACKSLASH"
       GLFW.GLFW_KEY_COMMA -> "COMMA"
       GLFW.GLFW_KEY_PERIOD -> "PERIOD"
-      else -> GLFW.glfwGetKeyName(key, 0)?.uppercase() ?: "KEY_$key"
+      in GLFW.GLFW_KEY_A..GLFW.GLFW_KEY_Z, in GLFW.GLFW_KEY_0..GLFW.GLFW_KEY_9 -> key.toChar().toString()
+      else -> "KEY_$key"
     }
 
     private fun keyCode(name: String): Int? = when (name) {
@@ -61,7 +62,7 @@ data class EditorKeyStroke(
       "BACKSLASH" -> GLFW.GLFW_KEY_BACKSLASH
       "COMMA" -> GLFW.GLFW_KEY_COMMA
       "PERIOD" -> GLFW.GLFW_KEY_PERIOD
-      else -> if (name.length == 1) GLFW.glfwGetKeyScancode(name[0].code).takeIf { it >= 0 }?.let { name[0].uppercaseChar().code } else name.removePrefix("KEY_").toIntOrNull()
+      else -> if (name.length == 1 && name[0] in 'A'..'Z' || name.length == 1 && name[0] in '0'..'9') name[0].code else name.removePrefix("KEY_").toIntOrNull()
     }
   }
 }

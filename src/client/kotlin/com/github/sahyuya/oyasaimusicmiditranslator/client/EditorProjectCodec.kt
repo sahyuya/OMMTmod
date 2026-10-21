@@ -13,8 +13,8 @@ import java.util.zip.GZIPOutputStream
 /** Versioned, bounded local project format used by the `.ommt` files in `OMMT/saves`. */
 object EditorProjectCodec {
   private const val MAGIC = 0x4f4d4d54 // OMMT
-  /** v2 adds a signed, absolute pitch-in-cents field after the legacy display pitch. */
-  private const val VERSION = 2
+  /** v2 adds pitch cents; v3 appends per-song display mode and imported group provenance. */
+  private const val VERSION = 3
   private const val FLAG_GZIP = 1
   private const val HEADER_BYTES = 20
   private const val MAX_COMPRESSED_BYTES = 64 * 1024 * 1024
@@ -116,6 +116,13 @@ object EditorProjectCodec {
     val selectedIndices = value.notes.indices.filter { value.notes[it].id in value.selectedIds }
     out.writeInt(selectedIndices.size); selectedIndices.forEach(out::writeInt)
     out.writeInt(value.selected.coerceIn(0, (value.notes.size - 1).coerceAtLeast(0)))
+    out.writeByte(value.partDisplayMode.ordinal)
+    out.writeInt(value.importedPartGroups.size)
+    value.importedPartGroups.forEach { group ->
+      out.writeInt(group.sourceInstrument); writeString(out, group.label, 512)
+      out.writeInt(group.leaves.size)
+      group.leaves.forEach { out.writeInt(it.partIndex); out.writeInt(it.sourceLayer) }
+    }
   }
 
   private fun readBody(input: DataInputStream, version: Int): EditorSnapshot {
@@ -177,6 +184,18 @@ object EditorProjectCodec {
     repeat(selectedCount) { selectedIndices += input.readInt().also { require(it in notes.indices) { "Invalid selected-note index" } } }
     require(selectedIndices.size == selectedCount) { "Duplicate selected-note index" }
     val primary = input.readInt().also { require(noteCount == 0 && it == 0 || it in notes.indices) { "Invalid primary note" } }
+    val mode = if (version >= 3) PartDisplayMode.entries.getOrNull(input.readUnsignedByte())
+        ?: throw IllegalArgumentException("Invalid part display mode") else PartDisplayMode.AUTO
+    var totalLeaves = 0
+    val groups = if (version >= 3) List(readCount(input, 0, MAX_PARTS, "instrument groups")) {
+      val instrument = input.readInt().also { require(it in 0..255) }
+      val label = readString(input, 512)
+      val count = readCount(input, 1, MAX_PARTS, "group parts")
+      totalLeaves += count; require(totalLeaves <= partCount) { "Too many grouped parts" }
+      NbsPartGroup(instrument, label, List(count) {
+        NbsPartLeaf(input.readInt().also { require(it in parts.indices) }, input.readInt().also { require(it in -1..65_535) })
+      })
+    } else emptyList()
     return EditorSnapshot(
         notes = notes,
         selectedIds = selectedIndices.mapTo(linkedSetOf()) { notes[it].id },
@@ -200,6 +219,8 @@ object EditorProjectCodec {
         signatures = signatures,
         grid = grid,
         tempoControls = tempoControls,
+        partDisplayMode = mode,
+        importedPartGroups = groups,
     ).also(::validateSnapshot)
   }
 
@@ -223,6 +244,14 @@ object EditorProjectCodec {
   ).also { require(it == it.normalized()) { "Invalid pseudo-release profile" } }
 
   private fun validateSnapshot(value: EditorSnapshot) {
+    require(value.importedPartGroups.size <= MAX_PARTS)
+    val leaves = value.importedPartGroups.flatMap { group ->
+      require(group.sourceInstrument in 0..255 && group.label.toByteArray(StandardCharsets.UTF_8).size <= 512)
+      require(group.leaves.size in 1..MAX_PARTS)
+      group.leaves
+    }
+    require(leaves.size <= value.parts.size && leaves.map { it.partIndex }.distinct().size == leaves.size)
+    require(leaves.all { it.partIndex in value.parts.indices && it.sourceLayer in -1..65_535 })
     require(value.notes.size <= MAX_NOTES && value.parts.size in 1..MAX_PARTS)
     require(value.tempoControls.size in 1..MAX_TEMPO_POINTS && value.tempos.size in 1..MAX_TIMING_MARKS)
     require(value.signatures.size in 1..MAX_SIGNATURES && value.grid.size in 1..MAX_GRID_MARKS)

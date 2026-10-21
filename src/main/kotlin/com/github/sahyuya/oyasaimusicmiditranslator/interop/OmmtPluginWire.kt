@@ -50,6 +50,12 @@ object OmmtPluginWire {
   const val PLAYBACK_STARTED_ACK = 12
   const val PLAYBACK_CLIENT_PLAYBACK_FAILED = 13
   const val PLAYBACK_BANK_CONSENT = 14
+  const val PLAYBACK_CLIENT_BANK_MANIFEST = 15
+
+  fun playbackClientBankManifest(nonce: String, hash: ByteArray): ByteArray {
+    require(nonce.matches(Regex("[A-Za-z0-9_-]{22}")) && hash.size == 32)
+    return envelope(PLAYBACK_CLIENT_BANK_MANIFEST, UUID(0L, 0L)) { writeUTF(nonce); write(hash) }
+  }
   const val CAP_BRASS_NOTE_BLOCK = 1
   const val CAP_OYPB_V2 = 1 shl 1
   const val CAP_BANK_MANIFEST_V1 = 1 shl 2

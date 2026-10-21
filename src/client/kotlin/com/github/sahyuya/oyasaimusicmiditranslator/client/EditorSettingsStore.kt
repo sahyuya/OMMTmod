@@ -54,6 +54,9 @@ data class EditorStyle(
   val rounding: Int = 4,
   val scrollbarSize: Int = 14,
   val borderSize: Int = 1,
+  val mutedOpacityPercent: Int = 25,
+  val muteColor: Int = 0xFFDC4545.toInt(),
+  val soloColor: Int = 0xFF45C86A.toInt(),
 ) {
   fun normalized() = copy(
     windowPaddingX = windowPaddingX.coerceIn(2, 24),
@@ -64,6 +67,7 @@ data class EditorStyle(
     itemSpacingY = itemSpacingY.coerceIn(1, 20),
     rounding = rounding.coerceIn(0, 12),
     scrollbarSize = scrollbarSize.coerceIn(8, 24),
+    mutedOpacityPercent = mutedOpacityPercent.coerceIn(0, 100),
     borderSize = borderSize.coerceIn(0, 2),
   )
 }
@@ -142,13 +146,14 @@ object EditorStylePresets {
 }
 
 data class EditorSettings(
-  val version: Int = 6,
+  val version: Int = 9,
   val compactToolbar: Boolean = true,
   val showLibrary: Boolean = true,
   val showInspector: Boolean = true,
   val showAutomation: Boolean = true,
   val gridDensity: String = "AUTO",
   val showOtherParts: Boolean = true,
+  val auditionVisiblePartOnly: Boolean = false,
   val followLead: Int = 45,
   val lastTool: EditorTool = EditorTool.SELECT,
   val uiScalePercent: Int = 100,
@@ -168,7 +173,7 @@ data class EditorSettings(
 )
 
 object EditorSettingsStore {
-  private const val SETTINGS_VERSION = 6
+  private const val SETTINGS_VERSION = 9
   private val path get() = FabricLoader.getInstance().configDir.resolve("ommt-editor.json")
   val layoutPath get() = FabricLoader.getInstance().configDir.resolve("ommt-imgui-layout.ini")
 
@@ -200,6 +205,9 @@ object EditorSettingsStore {
     val theme = enum(text, "theme", EditorTheme.DAW_GRAPHITE)
     val preset = EditorStylePresets.forTheme(theme)
     val style = EditorStyle(
+      mutedOpacityPercent = int(text, "styleMutedOpacityPercent", 25).coerceIn(0, 100),
+      muteColor = color(text, "styleMute", preset.muteColor),
+      soloColor = color(text, "styleSolo", preset.soloColor),
       textColor = color(text, "styleText", preset.textColor),
       disabledTextColor = color(text, "styleDisabledText", preset.disabledTextColor),
       windowBackgroundColor = color(text, "styleWindowBackground", preset.windowBackgroundColor),
@@ -242,6 +250,7 @@ object EditorSettingsStore {
     ).normalized()
     return EditorSettings(
       version = SETTINGS_VERSION,
+      auditionVisiblePartOnly = bool(text, "auditionVisiblePartOnly", false),
       compactToolbar = bool(text, "compactToolbar", true),
       showLibrary = bool(text, "showLibrary", true),
       showInspector = bool(text, "showInspector", true),
@@ -271,10 +280,12 @@ object EditorSettingsStore {
       ",\"key_${action.name}\":\"${stroke.encode()}\""
     }
     return buildString {
-      append("{\"version\":$SETTINGS_VERSION")
+      append("{\"version\":$SETTINGS_VERSION,\"auditionVisiblePartOnly\":${value.auditionVisiblePartOnly}")
       append(",\"compactToolbar\":${value.compactToolbar},\"showLibrary\":${value.showLibrary},\"showInspector\":${value.showInspector},\"showAutomation\":${value.showAutomation}")
       append(",\"gridDensity\":\"${value.gridDensity}\",\"showOtherParts\":${value.showOtherParts},\"followLead\":${value.followLead},\"lastTool\":\"${value.lastTool}\",\"uiScalePercent\":${value.uiScalePercent},\"textScalePercent\":${value.textScalePercent}")
       append(",\"theme\":\"${value.theme}\"")
+      append(",\"styleMutedOpacityPercent\":${style.mutedOpacityPercent}")
+      append(",\"styleMute\":\"${hex(style.muteColor)}\",\"styleSolo\":\"${hex(style.soloColor)}\"")
       append(",\"styleText\":\"${hex(style.textColor)}\",\"styleDisabledText\":\"${hex(style.disabledTextColor)}\",\"styleWindowBackground\":\"${hex(style.windowBackgroundColor)}\"")
       append(",\"stylePanelBackground\":\"${hex(style.panelBackgroundColor)}\",\"stylePopupBackground\":\"${hex(style.popupBackgroundColor)}\",\"styleTitleBackground\":\"${hex(style.titleBackgroundColor)}\"")
       append(",\"styleLibraryHeader\":\"${hex(style.libraryHeaderColor)}\",\"styleWorkspaceHeader\":\"${hex(style.workspaceHeaderColor)}\",\"styleInspectorHeader\":\"${hex(style.inspectorHeaderColor)}\"")

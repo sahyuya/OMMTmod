@@ -82,7 +82,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
   private data class ChannelState(var program: Int = 0, var volume: Int = 127, var expression: Int = 127, var pan: Int = 64)
   private data class TimedEvent(val tick: Long, val track: Int, val order: Int, val event: MidiEvent)
   private enum class AutomationLane { VOLUME, PAN, TEMPO, RELEASE }
-  private enum class SettingsPage { GENERAL, STYLE, LAYOUT, KEYMAP, SHARE }
+  private enum class SettingsPage { GENERAL, STYLE, LAYOUT, KEYMAP, SHARE, PRESETS }
 
   private val notes = mutableListOf<EditorNote>()
   private var selected = 0
@@ -157,6 +157,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
   private var visualPlayheadMs = 0f
   private var lastVisualRenderNanos = 0L
   private var nextPlaybackIndex = 0
+  private val audition = EditorSession.audition
   private var playbackEvents = emptyList<RenderedNoteEvent>()
   private var playing = false
   private var followPlayback = true
@@ -166,6 +167,11 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
   private var settingsOpen = false
   private var settingsPage = SettingsPage.GENERAL
   private var capturingBinding: EditorAction? = null
+  private val presetStore by lazy { EditorPresetStore(FabricLoader.getInstance().configDir.resolve("ommt-presets")) }
+  private var personalPresets: List<EditorPreset>? = null
+  private var selectedPreset: java.util.UUID? = null
+  private val imPresetName = ImString(256)
+  private var pendingPreset: String? = null
   private var imeComposing = false
   private var automationLane = AutomationLane.VOLUME
   private var automationDockInitialized = false
@@ -247,9 +253,15 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     val patterns get() = patternNames.size
   }
   private data class CustomSoundSelection(val id: String, val pattern: Int)
-  private data class NbsPartLeaf(val partIndex: Int, val sourceLayer: Int)
-  private data class NbsPartGroup(val sourceInstrument: Int, val label: String, val leaves: List<NbsPartLeaf>)
   private var nbsPartHierarchy: List<NbsPartGroup> = emptyList()
+  private var partDisplayMode = PartDisplayMode.AUTO
+  private var displayPartGroups: List<NbsPartGroup> = emptyList()
+  private var partGroupsDirty = true
+  private val soundBrowserVisible = ImBoolean(false)
+  private val soundSearch = ImString(257)
+  private var lastSoundSearch: String? = null
+  private var soundSearchResults: List<String> = emptyList()
+  private val browserPatterns = mutableMapOf<String, Int>()
   private val deterministicPatternSeeds = mutableMapOf<Pair<String, Int>, Long>()
   private val allCustomSounds: List<CustomSoundDefinition> by lazy {
     val runtimeIds = Registries.SOUND_EVENT.ids.map { it.toString() }.toHashSet()
@@ -327,6 +339,8 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     if (state == "Select a MIDI or NBS file from the library") state = t("Select a MIDI or NBS file from the library", "ライブラリからMIDIまたはNBSファイルを選択してください")
     val restored = editorSession.restore()
     restored?.let { saved ->
+      partGroupsDirty = true
+      partDisplayMode = saved.partDisplayMode; nbsPartHierarchy = saved.importedPartGroups
       notes.clear(); notes += saved.notes.map { it.copy() }; selectedIds.clear(); selectedIds += saved.selectedIds
       selected = saved.selected; songTitle = saved.title; bpm = saved.bpm; horizontalOffset = saved.offset; viewSpanMs = saved.span
       activePart = saved.part; allPartsView = saved.allPartsView; parts.clear(); parts += saved.parts.mapIndexed(::normalizePartLabel); ppq = saved.ppq; beatsPerBar = saved.beats; beatUnit = saved.unit; pitchMin = saved.pitchMin; visiblePitchCount = saved.visiblePitches; snapDivisor = saved.snapDivisor; followPlayback = saved.followPlayback; playheadMs = saved.playheadMs; visualPlayheadMs = playheadMs.toFloat(); tempoMarks = saved.tempos; signatureMarks = saved.signatures; gridMarks = saved.grid
@@ -400,6 +414,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
   }
 
   private fun syncPartControls() {
+    rebuildDisplayPartGroups()
     if (parts.isEmpty()) return
     activePart = activePart.coerceIn(0, parts.lastIndex)
     imMovePart.set(activePart)
@@ -485,14 +500,18 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     val instrumentChoice = imInstrument.get().coerceIn(0, NoteBlockInstruments.OTHER_INDEX)
     val newCustomSound = if (instrumentChoice == NoteBlockInstruments.OTHER_INDEX) {
       imCustomSound.get().trim().lowercase().also { sound ->
-        require(supportedCustomSound(sound) != null) { t("Select a supported Minecraft sound", "対応するMinecraftサウンドを選択してください") }
+        if (supportedCustomSound(sound) == null) {
+          state = t("Select a supported Minecraft sound", "対応するMinecraftサウンドを選択してください")
+          return
+        }
       }
     } else null
     val newCustomSoundPattern = newCustomSound?.let { sound ->
       val maximum = supportedCustomSound(sound)!!.patterns
       imCustomSoundPattern.get().also { pattern ->
-        require(pattern in 1..maximum) {
-          t("Sound pattern must be between 1 and $maximum", "サウンドのパターンは1～${maximum}で指定してください")
+        if (pattern !in 1..maximum) {
+          state = t("Sound pattern must be between 1 and $maximum", "サウンドのパターンは1～${maximum}で指定してください")
+          return
         }
       }
     }
@@ -556,6 +575,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
 
   /** Keep playback's lowerBound invariant after every edit that changes note times. */
   private fun sortNotesAndResolvePrimary(preferredId: Long? = notes.getOrNull(selected)?.id) {
+    partGroupsDirty = true
     notes.sortWith(compareBy<EditorNote> { it.time }.thenBy { it.id })
     selectedIds.retainAll(notes.asSequence().map { it.id }.toSet())
     val primaryId = preferredId?.takeIf { id -> notes.any { it.id == id } }
@@ -567,6 +587,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     if (notes.isEmpty()) return
     val deleting = if (selectedIds.isNotEmpty()) selectedIds.toSet() else setOf(notes[selected.coerceIn(0, notes.lastIndex)].id)
     rememberHistory(); notes.removeIf { it.id in deleting }; selectedIds.removeAll(deleting)
+    partGroupsDirty = true
     choose(selected.coerceAtMost(notes.lastIndex)); state = t("Deleted note", "ノートを削除しました")
   }
 
@@ -579,7 +600,10 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
       pausePlayback(); EditorSession.replace(); history.clear()
       notes.clear(); notes += imported.notes
       assignPartsByMidiSource(imported.trackHints)
+      resetAudition()
       nbsPartHierarchy = emptyList()
+      partDisplayMode = PartDisplayMode.AUTO
+      partGroupsDirty = true
       activePart = 0; allPartsView = true; contextPartOffset = 0; partStripPage = 0; selectedIds.clear(); fitPitchRange(); bpm = 120; beatsPerBar = 4; beatUnit = 4; snapDivisor = 4; playheadMs = 0; visualPlayheadMs = 0f; horizontalOffset = 0
       ppq = imported.ppq
       tempoMarks = imported.tempoMarks; signatureMarks = imported.signatureMarks; gridMarks = imported.gridMarks
@@ -717,6 +741,8 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
   }
 
   private fun assignPartsByNbsSource(song: NbsFileCodec.Song) {
+    partGroupsDirty = true
+    partDisplayMode = PartDisplayMode.AUTO
     data class PartKey(val layer: Int, val sourceInstrument: Int, val instrument: Int, val customSound: String?)
     val keys = notes.map { PartKey(it.sourceTrack, it.sourceChannel, it.instrument, it.customSound) }
         .distinct()
@@ -735,6 +761,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     }
     val indexByKey = keys.withIndex().associate { (index, key) -> key to index }
     notes.forEach { note -> note.part = indexByKey.getValue(PartKey(note.sourceTrack, note.sourceChannel, note.instrument, note.customSound)) }
+    resetAudition()
     nbsPartHierarchy = keys.withIndex().groupBy { it.value.sourceInstrument }.map { (sourceInstrument, entries) ->
       val first = entries.first().value
       NbsPartGroup(
@@ -969,7 +996,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
   private fun preview() { notes.getOrNull(selected)?.let(::previewNote) }
 
   private fun previewNote(note: EditorNote) {
-    previewEvent(RenderedNoteEvent(note.time, note.instrument, note.pitch, note.volume, note.pan, note.customSound, note.customSoundPattern, note.pitchCents))
+    previewEvent(RenderedNoteEvent(note.time, note.instrument, note.pitch, note.volume, note.pan, note.customSound, note.customSoundPattern, note.pitchCents, note.part))
   }
 
   // Per-tick cache for bank state and isAvailable to avoid per-note hash/digest/registry lookup
@@ -997,7 +1024,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
 
   private fun previewEvent(note: RenderedNoteEvent) {
     // Volume 0 is display-only: no sound dispatch
-    if (note.volume == 0) return
+    if (note.volume == 0 || !isPreviewPartAudible(note.part)) return
     val seed = note.customSound?.let(::supportedCustomSound)?.let { definition ->
       deterministicPatternSeed(definition, note.customSoundPattern ?: 1)
     } ?: 0L
@@ -1042,6 +1069,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
           it.pitch,
           it.seed,
           note.pan,
+          editorPart = note.part,
       )
     }
   }
@@ -1084,7 +1112,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
   private fun togglePlayback() {
     if (playing) { pausePlayback(); return }
     if (notes.isEmpty()) { state = t("Load a MIDI file before playback", "再生前にMIDIファイルを読み込んでください"); return }
-    try { playbackEvents = expandedEvents() } catch (error: IllegalArgumentException) { state = t("Playback preparation failed: ${error.message}", "再生準備に失敗しました: ${error.message}"); return }
+    try { playbackEvents = MusicVoicePolicy.onsetOrder(expandedEvents(), { it.time }, { it.volume }) } catch (error: IllegalArgumentException) { state = t("Playback preparation failed: ${error.message}", "再生準備に失敗しました: ${error.message}"); return }
     if (playheadMs >= durationMs()) playheadMs = 0
     playbackStartMs = playheadMs; visualPlayheadMs = playheadMs.toFloat(); playbackStartedAtNanos = System.nanoTime(); nextPlaybackIndex = lowerBound(playbackEvents, playheadMs); playing = true
     state = t("Playing from ${formatTime(playheadMs)}", "${formatTime(playheadMs)}から再生中")
@@ -1100,18 +1128,22 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
   override fun tick() {
     super.tick()
     pollFontRebuild()
+    pumpPlayback()
+  }
+
+  /** Called on the client thread from ticks and frames. */
+  fun pumpPlayback() {
+    syncViewAudition()
     if (!playing) return
     updatePlaybackPosition()
-    var played = 0
-    while (nextPlaybackIndex < playbackEvents.size && playbackEvents[nextPlaybackIndex].time <= playheadMs) {
-      if (played >= 64) break
+    val batchEnd = playbackBatchEnd(nextPlaybackIndex, playbackEvents.size, playheadMs) { playbackEvents[it].time }
+    while (nextPlaybackIndex < batchEnd) {
       val event = playbackEvents[nextPlaybackIndex]
       nextPlaybackIndex += 1
       if (event.volume == 0) continue
       previewEvent(event)
-      played += 1
     }
-    if (playheadMs >= durationMs()) { playing = false; state = t("Playback finished", "再生が完了しました") }
+    if (playheadMs >= durationMs() && nextPlaybackIndex >= playbackEvents.size) { playing = false; state = t("Playback finished", "再生が完了しました") }
   }
 
   /**
@@ -1121,13 +1153,15 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
   private val imeToggleScancodes = setOf(0x29, 0x70, 0x79, 0x7B, 0x3A) // Zenkaku/Hankaku, Kana, Henkan, Muhenkan, EISU
 
   override fun keyPressed(input: KeyInput): Boolean {
-    if (imeComposing && imguiConfigured && ImGui.getIO().wantTextInput) return true
+    // The visible editor consumes ImGui key edges in-frame. Do not dispatch the same
+    // GLFW press again through the hidden legacy Screen widgets.
     if (imguiConfigured && ImGui.getIO().wantTextInput &&
         input.key() == GLFW.GLFW_KEY_UNKNOWN && input.scancode() in imeToggleScancodes) {
       // OS-level IME toggles must reach the game/OS. Swallowing them here leaves IME permanently
       // off, so only half-width input ever works.
       return super.keyPressed(input)
     }
+    if (imguiConfigured) return true
     val modifiers = currentKeyModifiers()
     capturingBinding?.let { action ->
       when (input.key()) {
@@ -1204,8 +1238,8 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     if (!ImGui.isItemFocused() || imeComposing) return false
     val stroke = settings.keymap[EditorAction.CONFIRM]
     if (stroke.key < 0) return false
-    val modifiers = currentKeyModifiers()
-    if (modifiers.control != stroke.control || modifiers.shift != stroke.shift || modifiers.alt != stroke.alt) return false
+    val io = ImGui.getIO()
+    if (io.keyCtrl != stroke.control || io.keyShift != stroke.shift || io.keyAlt != stroke.alt) return false
     // An ENTER binding covers both main and keypad Enter, matching the old behavior.
     if (stroke.key == GLFW.GLFW_KEY_ENTER) {
       return ImGui.isKeyPressed(ImGuiKey.Enter) || ImGui.isKeyPressed(ImGuiKey.KeypadEnter)
@@ -1214,20 +1248,39 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
   }
 
   /** Minimal GLFW → ImGuiKey translation for the confirm stroke. Unmapped keys never match. */
-  private fun glfwToImGuiKey(key: Int): Int? = when (key) {
-    GLFW.GLFW_KEY_TAB -> ImGuiKey.Tab
-    GLFW.GLFW_KEY_SPACE -> ImGuiKey.Space
-    GLFW.GLFW_KEY_ENTER -> ImGuiKey.Enter
-    GLFW.GLFW_KEY_KP_ENTER -> ImGuiKey.KeypadEnter
-    GLFW.GLFW_KEY_ESCAPE -> ImGuiKey.Escape
-    GLFW.GLFW_KEY_BACKSPACE -> ImGuiKey.Backspace
-    GLFW.GLFW_KEY_DELETE -> ImGuiKey.Delete
-    GLFW.GLFW_KEY_HOME -> ImGuiKey.Home
-    GLFW.GLFW_KEY_END -> ImGuiKey.End
-    in GLFW.GLFW_KEY_A..GLFW.GLFW_KEY_Z -> ImGuiKey.A + (key - GLFW.GLFW_KEY_A)
-    in GLFW.GLFW_KEY_0..GLFW.GLFW_KEY_9 -> ImGuiKey._0 + (key - GLFW.GLFW_KEY_0)
-    in GLFW.GLFW_KEY_F1..GLFW.GLFW_KEY_F12 -> ImGuiKey.F1 + (key - GLFW.GLFW_KEY_F1)
-    else -> null
+  private fun glfwToImGuiKey(key: Int): Int? = EditorKeyboard.imguiKey(key)
+
+  private fun processImGuiKeyboard(io: ImGuiIO) {
+    // A cancelled composition must not lock shortcuts after its text field loses focus.
+    if (!io.wantTextInput) { imeComposing = false; imePreeditText = "" }
+    if (!EditorKeyboard.ownsShortcut(capturingBinding != null, io.wantTextInput, imeComposing)) return
+    for (key in GLFW.GLFW_KEY_SPACE..GLFW.GLFW_KEY_LAST) {
+      val imguiKey = EditorKeyboard.imguiKey(key) ?: continue
+      if (!ImGui.isKeyPressed(imguiKey, false)) continue
+      val action = capturingBinding
+      if (action != null) {
+        when (key) {
+          GLFW.GLFW_KEY_ESCAPE -> state = t("Key binding cancelled", "キー設定をキャンセルしました")
+          GLFW.GLFW_KEY_BACKSPACE, GLFW.GLFW_KEY_DELETE -> {
+            settings = settings.copy(keymap = settings.keymap.with(action, EditorKeyStroke.UNBOUND))
+            saveSettings(); state = t("Binding cleared", "割り当てを解除しました")
+          }
+          else -> {
+            settings = settings.copy(keymap = settings.keymap.with(action, EditorKeyStroke(key, io.keyCtrl, io.keyShift, io.keyAlt)))
+            saveSettings(); state = t("Key binding saved", "キー割り当てを保存しました")
+          }
+        }
+        capturingBinding = null
+        return
+      }
+      val bound = settings.keymap.matching(key, io.keyCtrl, io.keyShift, io.keyAlt)
+      if (bound != null) {
+        if (bound != EditorAction.CONFIRM) executeAction(bound)
+      } else if (key == GLFW.GLFW_KEY_ESCAPE) {
+        if (playing) pausePlayback() else if (settingsOpen) settingsOpen = false else onClose()
+        return
+      }
+    }
   }
 
   /** Applies the frame classification to the OS IME. State-change only, never per-frame spam. */
@@ -1322,6 +1375,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     val tempoLayoutChanged = !EditorHistory.hasSameTempoLayout(tempoControls, value.tempos)
     notes.clear(); notes += value.notes.map { it.copy() }; selectedIds.clear(); selectedIds += value.selected
     songTitle=value.title; bpm=value.bpm; parts.clear(); parts += value.parts.mapIndexed(::normalizePartLabel)
+    audition.retainParts(parts.size); PreviewSoundPlayer.stopInaudibleEditorParts(::isPreviewPartAudible)
     activePart=value.activePart.coerceIn(0,parts.lastIndex.coerceAtLeast(0)); tempoControls.clear(); tempoControls += value.tempos
     selectedTempoPointId = tempoControls.firstOrNull()?.id; selectedTempoPointIds.clear(); selectedTempoPointId?.let { selectedTempoPointIds += it }
     migrateLegacyReleaseScopes(value.globalRetrigger, value.partRetriggers)
@@ -1366,6 +1420,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
       activePart, parts.toList(), ppq, beatsPerBar, beatUnit, pitchMin, visiblePitchCount, snapDivisor,
       followPlayback, playheadMs, allPartsView, tempoMarks.toList(), signatureMarks.toList(), gridMarks.toList(),
       tempoControls.map { it.copy() }, RetriggerProfile(), emptyMap(),
+      partDisplayMode, nbsPartHierarchy,
   )
 
   private fun ensureDirectories() = EditorWorkspace.requireDirectories()
@@ -1403,6 +1458,15 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
       applySelected(); require(notes.isNotEmpty()) { t("Add at least one note before saving", "保存前に1音以上追加してください") }
       val bytes = EditorProjectCodec.encode(currentSnapshot())
       val target = currentProjectFile ?: uniqueProjectPath(songTitle)
+      if (Files.isRegularFile(target)) {
+        val oldVersion = Files.newInputStream(target).use { stream ->
+          java.io.DataInputStream(stream).use { input -> if (input.readInt() == 0x4f4d4d54) input.readUnsignedShort() else -1 }
+        }
+        if (oldVersion in 1..2) {
+          val backup = target.resolveSibling("${target.fileName}.v$oldVersion.bak")
+          if (!Files.exists(backup)) Files.copy(target, backup)
+        }
+      }
       atomicWrite(target, bytes)
       currentProjectFile = target; selectedSave = target; refreshLibraries()
       state = t("Saved ${target.fileName} (${notes.size} notes)", "${target.fileName}に${notes.size}音を保存しました")
@@ -1424,7 +1488,9 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
       notes.clear(); notes += saved.notes.map { it.copy() }; selectedIds.clear(); selectedIds += saved.selectedIds
       selected=saved.selected; songTitle=saved.title; bpm=saved.bpm; horizontalOffset=saved.offset; viewSpanMs=saved.span
       activePart=saved.part; allPartsView=saved.allPartsView; parts.clear(); parts += saved.parts.mapIndexed(::normalizePartLabel)
-      nbsPartHierarchy = emptyList()
+      resetAudition()
+      nbsPartHierarchy = saved.importedPartGroups
+      partDisplayMode = saved.partDisplayMode
       ppq=saved.ppq; beatsPerBar=saved.beats; beatUnit=saved.unit; pitchMin=saved.pitchMin; visiblePitchCount=saved.visiblePitches
       snapDivisor=saved.snapDivisor; followPlayback=saved.followPlayback; playheadMs=saved.playheadMs; visualPlayheadMs=playheadMs.toFloat()
       tempoMarks=saved.tempos; signatureMarks=saved.signatures; gridMarks=saved.grid; tempoControls.clear(); tempoControls += saved.tempoControls
@@ -1617,7 +1683,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     var index = low
     while (index < notes.size && notes[index].time <= latestStart) {
       val note = notes[index]
-      if (note.time + note.duration >= horizontalOffset && (allPartsView || note.part == activePart)) visible += IndexedValue(index, note)
+      if (audition.visible(note.part, settings.style.mutedOpacityPercent) && note.time + note.duration >= horizontalOffset && (allPartsView || note.part == activePart)) visible += IndexedValue(index, note)
       index++
     }
     return visible
@@ -1635,6 +1701,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     }
     if (recordHistory) rememberHistory()
     targets.forEach { it.part = part }
+    partGroupsDirty = true
     activePart = part; allPartsView = false; syncPartControls()
     state = t("Moved ${targets.size} notes to ${parts[part]}", "${targets.size}音を${parts[part]}へ移動しました")
   }
@@ -1775,7 +1842,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
         return true
       }
       if (y in rollTop() until noteTop() && x >= plotLeft()) { seek(xToTime(click.x())); followPlayback = false; state = t("Seek ${formatTime(playheadMs)}", "${formatTime(playheadMs)}へ移動しました"); return true }
-      if (x in keyboardLeft() until plotLeft() && y in noteTop() until rollBottom()) { previewNote(EditorNote(0, 200, notes.getOrNull(selected)?.instrument ?: 0, pitchAt(click.y()), 100, 0)); return true }
+      if (x in keyboardLeft() until plotLeft() && y in noteTop() until rollBottom()) { previewNote(EditorNote(0, 200, notes.getOrNull(selected)?.instrument ?: 0, pitchAt(click.y()), 100, 0, part = activePart)); return true }
     }
     if (click.button() == 1 && click.x() >= plotLeft() && click.y() >= noteTop() && click.y() <= rollBottom()) {
       val target = notes.firstOrNull { note -> note.pitch in pitchMin..(pitchMin + visiblePitchCount - 1).coerceAtMost(24) && click.x() in timeToX(note.time).toDouble()..timeToX(note.time + note.duration).coerceAtLeast(timeToX(note.time) + 5).toDouble() && kotlin.math.abs(pitchToY(note.pitch) - click.y()) <= rowHeight() }
@@ -1904,10 +1971,12 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     // Advance the visual clock here so the playhead is refreshed every rendered frame.
     updateVisualPlayback()
     configureImGui(io)
+    applyPendingPreset()
     if (imguiAppliedStyle != settings.style) applyImGuiTheme()
     if (clearImGuiInputOnFirstFrame) {
       io.clearEventsQueue(); io.clearInputKeys(); io.clearInputMouse(); clearImGuiInputOnFirstFrame = false
     }
+    processImGuiKeyboard(io)
     updateImGuiScale(io)
     frameImeSeen = false
     frameImeAllowed = false
@@ -1918,6 +1987,8 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     renderImGuiPianoRoll(io)
     if (settings.showAutomation) renderImGuiAutomationWindows(io)
     if (settingsOpen) renderImGuiSettings(io)
+    if (soundBrowserVisible.get()) renderSoundBrowser()
+    syncViewAudition()
     updateImeCandidateRect()
     syncOsIme()
   }
@@ -2073,6 +2144,14 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
         selectedSave?.takeIf { selectedMidi == null && selectedNbs == null }?.let(::loadProject) ?: loadSelectedSource()
       }
       ImGui.sameLine(); if (ImGui.button("${t("SETTINGS", "設定")}###SETTINGS")) settingsOpen = !settingsOpen
+      ImGui.sameLine(); ImGui.setNextItemWidth(160f)
+      val partMode = ImInt(partDisplayMode.ordinal)
+      if (ImGui.combo("${t("Parts", "パート表示")}###PART_DISPLAY_MODE", partMode,
+              arrayOf(t("Automatic", "自動"), t("All parts", "個別"), t("By instrument", "楽器ごと")))) {
+        partDisplayMode = PartDisplayMode.entries[partMode.get()]
+        partGroupsDirty = true
+        rebuildDisplayPartGroups()
+      }
       ImGui.textDisabled(t("TRANSPORT", "再生")); ImGui.sameLine()
       if (ImGui.button("|◀###HOME")) rewind(); ImGui.sameLine()
       if (ImGui.button("${if (playing) "⏹" else "▶"}###PLAY")) togglePlayback(); ImGui.sameLine()
@@ -2150,7 +2229,103 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     ImGui.popStyleColor(3)
   }
 
+  private fun renderSoundBrowser() {
+    ImGui.setNextWindowSize(640f, 520f, ImGuiCond.FirstUseEver)
+    if (ImGui.begin(windowTitle("MINECRAFT SOUNDS", "Minecraftサウンド"), soundBrowserVisible, ImGuiWindowFlags.NoDocking)) {
+      ImGui.text(t("Search", "検索")); ImGui.sameLine(); ImGui.setNextItemWidth(-1f)
+      ImGui.inputText("##SOUND_BROWSER_QUERY", soundSearch)
+      renderImePreeditOverlay()
+      val changed = lastSoundSearch != soundSearch.get()
+      if (changed) {
+        lastSoundSearch = soundSearch.get()
+        soundSearchResults = SoundBrowserSearch.rank(supportedCustomSounds.map { it.id }, soundSearch.get())
+      }
+      ImGui.textDisabled(t("${soundSearchResults.size} sounds · select a name, then Apply", "${soundSearchResults.size}件 · 名前を選択してインスペクターで適用"))
+      ImGui.sameLine()
+      if (ImGui.smallButton("${t("Stop", "停止")}###STOP_SOUND_BROWSER")) PreviewSoundPlayer.stopBrowserPreview()
+      if (ImGui.beginChild("##SOUND_BROWSER_LIST", 0f, 0f, true, ImGuiWindowFlags.AlwaysVerticalScrollbar)) {
+        if (changed) ImGui.setScrollY(0f)
+        val clipper = imgui.ImGuiListClipper()
+        try {
+          clipper.begin(soundSearchResults.size, ImGui.getFrameHeightWithSpacing())
+          while (clipper.step()) for (index in clipper.displayStart until clipper.displayEnd) {
+            val id = soundSearchResults[index]
+            val definition = supportedCustomSound(id)!!
+            var pattern = (if (id == imCustomSound.get()) imCustomSoundPattern.get() else browserPatterns[id] ?: 1)
+                .coerceIn(1, definition.patterns)
+            ImGui.pushID(id)
+            if (ImGui.button("▶##PREVIEW")) {
+              if (!PreviewSoundPlayer.previewBrowserSound(id, deterministicPatternSeed(definition, pattern)))
+                state = t("Could not preview $id", "$id を試聴できませんでした")
+            }
+            ImGui.sameLine()
+            // Reserve the same width even for 1/1, keeping every sound name aligned.
+            ImGui.setNextItemWidth(ImGui.calcTextSizeX("99/99") + ImGui.getFrameHeight() + ImGui.getStyle().framePaddingX * 2f)
+            ImGui.beginDisabled(definition.patterns == 1)
+            if (ImGui.beginCombo("##BROWSER_PATTERN", "$pattern/${definition.patterns}")) {
+              val patterns = imgui.ImGuiListClipper()
+              try {
+                patterns.begin(definition.patterns)
+                while (patterns.step()) for (choice in patterns.displayStart until patterns.displayEnd) {
+                  if (ImGui.selectable("${choice + 1}/${definition.patterns}", pattern == choice + 1)) {
+                    pattern = choice + 1
+                    browserPatterns[id] = pattern
+                    if (id == imCustomSound.get()) imCustomSoundPattern.set(pattern)
+                  }
+                }
+                patterns.end()
+              } finally { patterns.destroy() }
+              ImGui.endCombo()
+            }
+            ImGui.endDisabled()
+            ImGui.sameLine()
+            if (ImGui.selectable(id, id == imCustomSound.get(), 0, 0f, ImGui.getFrameHeight())) {
+              imInstrument.set(NoteBlockInstruments.OTHER_INDEX)
+              imCustomSound.set(id); imCustomSoundPattern.set(pattern)
+              browserPatterns[id] = pattern
+            }
+            ImGui.popID()
+          }
+          clipper.end()
+        } finally { clipper.destroy() }
+        if (soundSearchResults.isEmpty()) ImGui.textDisabled(t("No matching sound", "一致するサウンドはありません"))
+      }
+      ImGui.endChild()
+    }
+    ImGui.end()
+    if (!soundBrowserVisible.get()) PreviewSoundPlayer.stopBrowserPreview()
+  }
+
+  private fun rebuildDisplayPartGroups() {
+    if (!partGroupsDirty) return
+    partGroupsDirty = false
+    if (partDisplayMode == PartDisplayMode.FLAT ||
+        (partDisplayMode == PartDisplayMode.AUTO && nbsPartHierarchy.isEmpty() && parts.size <= PART_TABS_PER_PAGE)) {
+      displayPartGroups = emptyList(); return
+    }
+    // Preserve NBS source hierarchy in automatic mode, including renamed and empty layers.
+    if (partDisplayMode == PartDisplayMode.AUTO && nbsPartHierarchy.isNotEmpty()) {
+      val retained = nbsPartHierarchy.map { it.copy(leaves = it.leaves.filter { leaf -> leaf.partIndex in parts.indices }) }
+          .filter { it.leaves.isNotEmpty() }
+      val present = retained.flatMap { it.leaves }.mapTo(hashSetOf()) { it.partIndex }
+      val extra = parts.indices.filter { it !in present }.map { NbsPartLeaf(it, -1) }
+      displayPartGroups = retained + if (extra.isEmpty()) emptyList() else listOf(NbsPartGroup(-1, t("Other parts", "その他のパート"), extra))
+      return
+    }
+    // Calculate only when controls change, never scan the song in the render loop.
+    val counts = notes.groupBy { it.part }.mapValues { (_, partNotes) ->
+      partNotes.groupingBy { it.instrument to it.customSound }.eachCount()
+          .entries.sortedWith(compareByDescending<Map.Entry<Pair<Int, String?>, Int>> { it.value }
+              .thenBy { it.key.first }.thenBy { it.key.second.orEmpty() }).first().key
+    }
+    displayPartGroups = parts.indices.groupBy { counts[it] }.entries.mapIndexed { index, (sound, indices) ->
+      val label = sound?.let { it.second ?: NoteBlockInstruments.displayName(it.first, japanese) } ?: t("Empty parts", "空のパート")
+      NbsPartGroup(index, label, indices.map { NbsPartLeaf(it, -1) })
+    }
+  }
+
   private fun renderImGuiInspector(io: ImGuiIO) {
+    rebuildDisplayPartGroups()
     ImGui.setNextWindowPos(max(0f, io.displaySizeX - 330f), 118f, ImGuiCond.FirstUseEver)
     ImGui.setNextWindowSize(350f, 520f, ImGuiCond.FirstUseEver)
     pushHeaderColors(settings.style.inspectorHeaderColor)
@@ -2164,32 +2339,20 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
         ImGui.sameLine(); ImGui.setNextItemWidth(-1f); ImGui.inputInt("##Length", imDuration); if (confirmPressed()) applySelected(); markAsciiField()
       }
       ImGui.text(t("Instrument", "楽器")); ImGui.sameLine(); ImGui.setNextItemWidth(-1f)
-      if (ImGui.combo("##Instrument", imInstrument, NoteBlockInstruments.labels(japanese)) && imInstrument.get() != NoteBlockInstruments.OTHER_INDEX) {
-        imCustomSound.set("")
-        imCustomSoundPattern.set(1)
+      if (ImGui.combo("##Instrument", imInstrument, NoteBlockInstruments.labels(japanese))) {
+        if (imInstrument.get() == NoteBlockInstruments.OTHER_INDEX) soundBrowserVisible.set(true)
+        else { imCustomSound.set(""); imCustomSoundPattern.set(1) }
       }
       if (imInstrument.get() == NoteBlockInstruments.OTHER_INDEX) {
-        ImGui.text(t("Sound search", "サウンド検索")); ImGui.sameLine(); ImGui.setNextItemWidth(-1f)
-        // Sound IDs are lowercase ASCII (minecraft:...); drop CJK at input so search never breaks.
-        if (ImGui.inputText("##CustomSoundSearch", imCustomSound, ImGuiInputTextFlags.CallbackCharFilter, asciiCharFilter)) Unit; if (confirmPressed()) applySelected(); markAsciiField()
-        val search = imCustomSound.get().trim().lowercase()
-        val matches = supportedCustomSounds.asSequence().filter { search.isBlank() || it.id.contains(search) }.take(200).toList()
-        ImGui.text(t("Minecraft sound", "Minecraftサウンド")); ImGui.sameLine(); ImGui.setNextItemWidth(-1f)
-        val selectedDefinition = supportedCustomSound(search)
-        val preview = selectedDefinition?.id ?: t("Choose from ${supportedCustomSounds.size} server-compatible sounds", "サーバー互換の${supportedCustomSounds.size}音から選択")
-        if (ImGui.beginCombo("##CustomSoundPicker", preview)) {
-          matches.forEach { definition ->
-            if (ImGui.selectable("${definition.id} (${definition.patterns})", definition.id == search)) {
-              imCustomSound.set(definition.id)
-              imCustomSoundPattern.set(1)
-            }
-          }
-          if (matches.isEmpty()) ImGui.textDisabled(t("No matching sound", "一致するサウンドはありません"))
-          ImGui.endCombo()
-        }
+        val selectedDefinition = supportedCustomSound(imCustomSound.get())
+        if (ImGui.button("${t("Choose Minecraft sound", "Minecraftサウンドを選択")}###OPEN_SOUND_BROWSER")) soundBrowserVisible.set(true)
+        ImGui.textWrapped(selectedDefinition?.id ?: t("No sound selected", "サウンド未選択"))
         selectedDefinition?.let { definition ->
           imCustomSoundPattern.set(imCustomSoundPattern.get().coerceIn(1, definition.patterns))
-          ImGui.text(t("Fixed pattern", "固定パターン")); ImGui.sameLine(); ImGui.setNextItemWidth(-1f)
+          if (ImGui.button("▶##INSPECTOR_SOUND_PREVIEW")) {
+            PreviewSoundPlayer.previewBrowserSound(definition.id, deterministicPatternSeed(definition, imCustomSoundPattern.get()))
+          }
+          ImGui.sameLine(); ImGui.text(t("Fixed pattern", "固定パターン")); ImGui.sameLine(); ImGui.setNextItemWidth(-1f)
           val patternIndex = ImInt(imCustomSoundPattern.get() - 1)
           if (ImGui.combo(
                   "##CustomSoundPattern",
@@ -2229,16 +2392,21 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
       ImGui.text(t("Active part name", "現在のパート名")); ImGui.sameLine(); ImGui.setNextItemWidth(-1f); ImGui.inputText("##PART_NAME", imPartName); renderImePreeditOverlay()
       if (ImGui.button("${t("RENAME ACTIVE PART", "パート名を変更")}###RENAME_PART")) renameActivePart()
       ImGui.spacing()
-      if (nbsPartHierarchy.isNotEmpty()) {
-        ImGui.textDisabled(t("NBS instruments and layers", "NBSの楽器とレイヤー"))
-        nbsPartHierarchy.forEach { group ->
+      if (displayPartGroups.isNotEmpty()) {
+        ImGui.textDisabled(t("Instruments and parts", "楽器とパート"))
+        renderAuditionReset("NBS")
+        displayPartGroups.forEach { group ->
+          renderAuditionButtons(group.leaves.map { it.partIndex }, "group_${group.sourceInstrument}")
+          ImGui.sameLine()
           if (ImGui.collapsingHeader("${group.label} (${group.leaves.size})###NBS_GROUP_${group.sourceInstrument}")) {
             group.leaves.forEach { leaf ->
               val index = leaf.partIndex
+              renderAuditionButtons(listOf(index), "leaf_$index")
+              ImGui.sameLine()
               val partColorRgba = partColorFloats(index)
               ImGui.textColored(partColorRgba[0], partColorRgba[1], partColorRgba[2], 1f, "#")
               ImGui.sameLine()
-              val layerLabel = "${t("Layer", "レイヤー")} ${leaf.sourceLayer + 1}: ${parts.getOrElse(index) { "" }}"
+              val layerLabel = parts.getOrElse(index) { "" }
               if (ImGui.selectable("$layerLabel###NBS_PART_$index", !allPartsView && index == activePart)) {
                 activePart=index; partStripPage=index/PART_TABS_PER_PAGE; allPartsView=false; syncPartControls()
               }
@@ -2251,9 +2419,12 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
         if (ImGui.smallButton("<###INSPECTOR_PART_PREV") && partStripPage > 0) partStripPage--
         ImGui.sameLine(); ImGui.textDisabled("${partStripPage + 1} / $inspectorPageCount")
         ImGui.sameLine(); if (ImGui.smallButton(">###INSPECTOR_PART_NEXT") && partStripPage + 1 < inspectorPageCount) partStripPage++
+        ImGui.sameLine(); renderAuditionReset("INSPECTOR")
         val inspectorStart = partStripPage * PART_TABS_PER_PAGE
         val inspectorEnd = min(parts.size, inspectorStart + PART_TABS_PER_PAGE)
         for (index in inspectorStart until inspectorEnd) {
+          renderAuditionButtons(listOf(index), "inspector_$index")
+          ImGui.sameLine()
           val name = parts[index]
           val partColorRgba = partColorFloats(index)
           ImGui.textColored(partColorRgba[0], partColorRgba[1], partColorRgba[2], 1f, "#")
@@ -2264,6 +2435,45 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     }
     ImGui.end()
     ImGui.popStyleColor(3)
+  }
+
+  private fun resetAudition() {
+    audition.reset()
+    PreviewSoundPlayer.stopInaudibleEditorParts { false }
+  }
+
+  private fun isPreviewPartAudible(part: Int) =
+      audition.previewAudible(part, settings.auditionVisiblePartOnly, allPartsView, activePart)
+
+  private var lastViewAuditionGate = Int.MIN_VALUE
+  private fun syncViewAudition() {
+    val gate = if (settings.auditionVisiblePartOnly && !allPartsView) activePart else -1
+    if (gate == lastViewAuditionGate) return
+    lastViewAuditionGate = gate
+    PreviewSoundPlayer.stopInaudibleEditorParts(::isPreviewPartAudible)
+  }
+
+  private fun renderAuditionReset(id: String) {
+    if (ImGui.smallButton("${t("RESET M/S", "M/S全解除")}###AUDITION_RESET_$id")) audition.reset()
+    if (ImGui.isItemHovered()) ImGui.setTooltip(t("Clear mute and solo on every part", "全ページのミュート・ソロを解除"))
+  }
+
+  private fun renderAuditionButtons(indices: List<Int>, id: String) {
+    fun button(solo: Boolean) {
+      val enabled = indices.isNotEmpty() && indices.all { if (solo) audition.soloed(it) else audition.muted(it) }
+      val any = indices.any { if (solo) audition.soloed(it) else audition.muted(it) }
+      val color = colorFloats(if (solo) settings.style.soloColor else settings.style.muteColor)
+      ImGui.pushStyleColor(ImGuiCol.Button, color[0], color[1], color[2], if (enabled) 1f else if (any) .5f else .18f)
+      ImGui.pushStyleColor(ImGuiCol.ButtonHovered, color[0], color[1], color[2], .8f)
+      ImGui.pushStyleColor(ImGuiCol.ButtonActive, color[0], color[1], color[2], 1f)
+      if (ImGui.smallButton("${if (solo) "S" else "M"}###AUDITION_${id}_${if (solo) "SOLO" else "MUTE"}")) {
+        if (solo) audition.toggleSolo(indices) else audition.toggleMute(indices)
+        PreviewSoundPlayer.stopInaudibleEditorParts(::isPreviewPartAudible)
+      }
+      ImGui.popStyleColor(3)
+      if (ImGui.isItemHovered()) ImGui.setTooltip(if (solo) t("Solo (preview only)", "ソロ（試聴のみ）") else t("Mute (preview only)", "ミュート（試聴のみ）"))
+    }
+    button(false); ImGui.sameLine(); button(true)
   }
 
   private fun wheelAction(io: ImGuiIO) = when {
@@ -2312,28 +2522,31 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     ImGui.setNextWindowSize(max(420f, io.displaySizeX - defaultLeft - defaultRight), max(260f, io.displaySizeY - 118f - defaultBottom), ImGuiCond.FirstUseEver)
     if (!ImGui.begin(windowTitle("PIANO ROLL", "ピアノロール"))) { ImGui.end(); return }
 
-    // Keep the potentially very wide part list inside its own scrolling region. If these
-    // buttons contribute to the piano-roll window's content width, ImGui treats Shift+wheel as
-    // horizontal scrolling of the whole editor and moves the canvas itself off-screen.
-    // One button row plus a dedicated 6px+padding scrollbar; neither dimension is allowed to
-    // contribute to the piano-roll canvas window's own horizontal content extent.
+    // Navigation belongs to the parent; only part names are inside the scrolling child.
     val partStyle = ImGui.getStyle()
-    val partStripHeight = ImGui.getFrameHeight() + partStyle.windowPaddingY * 2f + partStyle.scrollbarSize + 4f
+    // This single-row strip needs only minimal padding, independent of window settings.
+    val partStripPaddingY = 1f
+    val partStripHeight = ImGui.getFrameHeight() + partStripPaddingY * 2f + partStyle.scrollbarSize + 2f
+    val partCounts = IntArray(parts.size)
+    notes.forEach { note -> if (note.part in partCounts.indices) partCounts[note.part]++ }
+    val pageCount = ((parts.size + PART_TABS_PER_PAGE - 1) / PART_TABS_PER_PAGE).coerceAtLeast(1)
+    partStripPage = partStripPage.coerceIn(0, pageCount - 1)
+    ImGui.beginGroup()
+    if (ImGui.button("${t("ALL", "全体")} (${notes.size})###ALL_PARTS")) allPartsView = true
+    ImGui.sameLine(); if (ImGui.smallButton("<###PART_PAGE_PREV") && partStripPage > 0) partStripPage--
+    ImGui.sameLine(); ImGui.textDisabled("${partStripPage + 1}/$pageCount")
+    ImGui.sameLine(); if (ImGui.smallButton(">###PART_PAGE_NEXT") && partStripPage + 1 < pageCount) partStripPage++
+    ImGui.endGroup()
+    ImGui.sameLine()
     ImGui.setNextWindowContentSize(0f, ImGui.getFrameHeight())
+    ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.WindowPadding, partStyle.windowPaddingX, partStripPaddingY)
     if (ImGui.beginChild("##ommt-part-strip", 0f, partStripHeight, true, ImGuiWindowFlags.HorizontalScrollbar or ImGuiWindowFlags.AlwaysHorizontalScrollbar)) {
-      val partCounts = IntArray(parts.size)
-      notes.forEach { note -> if (note.part in partCounts.indices) partCounts[note.part]++ }
-      val pageCount = ((parts.size + PART_TABS_PER_PAGE - 1) / PART_TABS_PER_PAGE).coerceAtLeast(1)
-      partStripPage = partStripPage.coerceIn(0, pageCount - 1)
-      if(ImGui.button("${t("ALL", "全体")} (${notes.size})###ALL_PARTS")) allPartsView=true
-      ImGui.sameLine(); if (ImGui.smallButton("<###PART_PAGE_PREV") && partStripPage > 0) partStripPage--
-      ImGui.sameLine(); ImGui.textDisabled("${partStripPage + 1}/$pageCount")
-      ImGui.sameLine(); if (ImGui.smallButton(">###PART_PAGE_NEXT") && partStripPage + 1 < pageCount) partStripPage++
       val partStart = partStripPage * PART_TABS_PER_PAGE
       val partEnd = min(parts.size, partStart + PART_TABS_PER_PAGE)
       for (index in partStart until partEnd) {
         val name = parts[index]
-        ImGui.sameLine()
+        if (index > partStart) ImGui.sameLine()
+
         val partColorRgba = partColorFloats(index)
         val isActivePart = !allPartsView && index == activePart
         ImGui.pushStyleColor(ImGuiCol.Button, partColorRgba[0], partColorRgba[1], partColorRgba[2], if (isActivePart) 0.85f else 0.30f)
@@ -2344,6 +2557,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
       }
     }
     ImGui.endChild()
+    ImGui.popStyleVar()
     ImGui.textDisabled("${if(allPartsView)t("All-parts overview", "全パート表示") else t("Editing ${parts.getOrElse(activePart){"Part"}}", "${parts.getOrElse(activePart){"パート"}}を編集中")} | ${selectedIds.size} ${t("selected", "選択")} | ${t("Gestures are configurable in Settings > Keymap", "操作は設定 > キーマップで変更できます")}")
     val canvasX = ImGui.getCursorScreenPosX(); val canvasY = ImGui.getCursorScreenPosY()
     val canvasWidth = ImGui.getContentRegionAvailX().coerceAtLeast(240f)
@@ -2373,13 +2587,11 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
         val bucket = ((xAt(note.time) - plotLeft) / bucketWidth).roundToInt()
         val key = ((note.pitch - NoteBlockPitch.DISPLAY_MIN).toLong() shl 32) or (bucket.toLong() and 0xffffffffL)
         val previous = representatives[key]
-        if (previous == null || note.id in selectedIds || note.duration > previous.value.duration) representatives[key] = indexed
+        if (previous == null || (audition.audible(note.part) && !audition.audible(previous.value.part)) || (audition.audible(note.part) == audition.audible(previous.value.part) && (note.id in selectedIds || note.duration > previous.value.duration))) representatives[key] = indexed
       }
-      val collapsed = representatives.values.toList()
+      val collapsed = representatives.values.sortedByDescending { audition.audible(it.value.part) }
       if (collapsed.size <= MAX_VISIBLE_NOTE_COMMANDS) collapsed else {
-        val selectedRepresentatives = collapsed.filter { it.value.id in selectedIds }
-        selectedRepresentatives + collapsed.asSequence().filter { it.value.id !in selectedIds }
-            .take((MAX_VISIBLE_NOTE_COMMANDS - selectedRepresentatives.size).coerceAtLeast(0)).toList()
+        collapsed.sortedWith(compareByDescending<IndexedValue<EditorNote>> { audition.audible(it.value.part) }.thenByDescending { it.value.id in selectedIds }).take(MAX_VISIBLE_NOTE_COMMANDS)
       }
     }
 
@@ -2414,18 +2626,21 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
       }
 
       val visibleRange = pitchMin until pitchMin + visiblePitchCount
-      val edgeHit = if(mouseX in plotLeft..plotRight && mouseY in notesTop..notesBottom) interactiveTimelineNotes.filter { indexed ->
+      val edgeCandidates = if(mouseX in plotLeft..plotRight && mouseY in notesTop..notesBottom) interactiveTimelineNotes.filter { indexed ->
         val note=indexed.value
-        (allPartsView||note.part==activePart)&&note.pitch in visibleRange&&abs((yAt(note.pitch)+rowHeight/2f)-mouseY)<=rowHeight/2f+3f
-      }.minByOrNull { indexed -> abs(max(xAt(indexed.value.time + indexed.value.duration),xAt(indexed.value.time)+6f)-mouseX) }?.takeIf { indexed ->
+        (allPartsView||note.part==activePart||settings.showOtherParts)&&note.pitch in visibleRange&&abs((yAt(note.pitch)+rowHeight/2f)-mouseY)<=rowHeight/2f+3f
+      }.filter { indexed ->
         abs(max(xAt(indexed.value.time + indexed.value.duration),xAt(indexed.value.time)+6f)-mouseX)<=7f
-      } else null
-      if(edgeHit!=null)ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW)
+      } else emptyList()
+      val edgeHit = audition.hit(edgeCandidates, { it.value.part }) { abs(max(xAt(it.value.time + it.value.duration), xAt(it.value.time) + 6f) - mouseX).toDouble() }
 
-      val noteHit = if(mouseX in plotLeft..plotRight && mouseY in notesTop..notesBottom) edgeHit ?: interactiveTimelineNotes.filter { indexed ->
+      val bodyCandidates = if(mouseX in plotLeft..plotRight && mouseY in notesTop..notesBottom) interactiveTimelineNotes.filter { indexed ->
         val note = indexed.value
-        (allPartsView || note.part == activePart) && note.pitch in visibleRange && mouseX >= xAt(note.time) - 3f && mouseX <= max(xAt(note.time + note.duration), xAt(note.time) + 6f) + 3f && abs((yAt(note.pitch) + rowHeight / 2f) - mouseY) <= rowHeight / 2f + 3f
-      }.minByOrNull { abs(xAt(it.value.time) - mouseX) } else null
+        (allPartsView || note.part == activePart || settings.showOtherParts) && note.pitch in visibleRange && mouseX >= xAt(note.time) - 3f && mouseX <= max(xAt(note.time + note.duration), xAt(note.time) + 6f) + 3f && abs((yAt(note.pitch) + rowHeight / 2f) - mouseY) <= rowHeight / 2f + 3f
+      } else emptyList()
+      val bodyHit = audition.hit(bodyCandidates, { it.value.part }) { abs(xAt(it.value.time) - mouseX).toDouble() }
+      val noteHit = if (bodyHit != null && audition.audible(bodyHit.value.part) && edgeHit != null && !audition.audible(edgeHit.value.part)) bodyHit else edgeHit ?: bodyHit
+      if (noteHit != null && noteHit == edgeHit) ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW)
       // Ctrl+left adds only on empty roll space. Clicking an existing note retains the normal
       // selection/additive-selection behavior, so creation can never hide an accidental overlap.
       val ctrlLeftAdd = io.keyCtrl && ImGui.isMouseClicked(ImGuiMouseButton.Left) && noteHit == null && mouseX in plotLeft..plotRight && mouseY in notesTop..notesBottom
@@ -2456,7 +2671,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
             horizontalOffset = (maximum * fraction).roundToInt().coerceAtLeast(0)
           }
           mouseY in canvasY..notesTop && mouseX in plotLeft..plotRight -> { seek(timeAt(mouseX)); followPlayback = false }
-          mouseX in canvasX..plotLeft && mouseY in notesTop..notesBottom -> previewNote(EditorNote(0, 200, notes.getOrNull(selected)?.instrument ?: 0, pitchAtCanvas(mouseY), 100, 0))
+          mouseX in canvasX..plotLeft && mouseY in notesTop..notesBottom -> previewNote(EditorNote(0, 200, notes.getOrNull(selected)?.instrument ?: 0, pitchAtCanvas(mouseY), 100, 0, part = activePart))
           mouseX in plotLeft..plotRight && mouseY in notesTop..notesBottom -> {
             val hit = noteHit
             val rangeModifier=modifierActive(settings.rangeSelectionModifier,io)
@@ -2609,17 +2824,18 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     }
 
     val visibleRange = pitchMin until pitchMin + visiblePitchCount
-    interactiveTimelineNotes.forEach { indexed ->
+    audition.drawOrder(interactiveTimelineNotes) { it.value.part }.forEach { indexed ->
       val note = indexed.value
       if (note.pitch in visibleRange && note.time + note.duration >= horizontalOffset && note.time <= horizontalOffset + visibleSpan()) {
         val start = xAt(note.time).coerceAtLeast(plotLeft); val end = max(start + 5f, xAt(note.time + note.duration).coerceAtMost(plotRight))
         val y = yAt(note.pitch) + 2f; val selectedNote = note.id in selectedIds
-        val base = if (selectedNote) ImColor.rgb(185, 231, 105) else if (allPartsView || note.part == activePart) partColor(note.part, 255) else partColor(note.part, if (settings.showOtherParts) 72 else 0)
+        val rawBase = if (selectedNote) ImColor.rgb(185, 231, 105) else if (allPartsView || note.part == activePart) partColor(note.part, 255) else partColor(note.part, if (settings.showOtherParts) 72 else 0)
+        val base = audition.noteColor(rawBase, note.part, settings.style.mutedOpacityPercent)
         if (allPartsView || (base ushr 24) != 0 || note.part == activePart || selectedNote) {
           val noteBottom = max(y + 3f, y + rowHeight - 3f)
           draw.addRectFilled(start, y, end, noteBottom, base, 2f)
           if(selectedNote){
-            val outline=drawColor(settings.style.textColor)
+            val outline=audition.noteColor(drawColor(settings.style.textColor), note.part, settings.style.mutedOpacityPercent)
             draw.addLine(start,y,end,y,outline,1.5f);draw.addLine(start,noteBottom,end,noteBottom,outline,1.5f)
             draw.addLine(start,y,start,noteBottom,outline,1.5f);draw.addLine(end,y,end,noteBottom,outline,2f)
           }
@@ -3017,20 +3233,21 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
       // the minimum, maximum and selected values for each 2px column instead of issuing tens of
       // thousands of overlapping draw commands.
       val visible=if(visibleCandidates.size<=MAX_VISIBLE_NOTE_COMMANDS)visibleCandidates else visibleCandidates
-        .groupBy{((xAt(it.time)-graphLeft)/2f).roundToInt()}
+        .groupBy{((xAt(it.time)-graphLeft)/2f).roundToInt() to audition.audible(it.part)}
         .values.flatMap{column->
           val valueOf:(EditorNote)->Int=if(automationLane==AutomationLane.VOLUME)({it.volume})else({it.pan})
           buildList{column.minByOrNull(valueOf)?.let(::add);column.maxByOrNull(valueOf)?.let(::add);column.filter{it.id in selectedIds}.forEach(::add)}
         }.distinctBy{it.id}
       val displayX=mutableMapOf<Long,Float>();visible.groupBy{(xAt(it.time)/5f).roundToInt()}.values.forEach{group->val sorted=group.sortedBy{it.id};val step=if(sorted.size<=1)0f else min(4f,12f/(sorted.size-1));sorted.forEachIndexed{index,note->displayX[note.id]=xAt(note.time)+(index-(sorted.size-1)/2f)*step}}
-      var lastLabelX=Float.NEGATIVE_INFINITY
-      visible.sortedBy{it.time}.forEach { note ->
-        val x=displayX[note.id]?:xAt(note.time); val y=valueY(note); val color=if(note.id in selectedIds)ImColor.rgb(185,231,105)else partColor(note.part,210)
+      val lastLabelX=floatArrayOf(Float.NEGATIVE_INFINITY, Float.NEGATIVE_INFINITY)
+      audition.drawOrder(visible.sortedBy{it.time}) { it.part }.forEach { note ->
+        val x=displayX[note.id]?:xAt(note.time); val y=valueY(note); val color=audition.noteColor(if(note.id in selectedIds)ImColor.rgb(185,231,105)else partColor(note.part,210), note.part, settings.style.mutedOpacityPercent)
         draw.addLine(x,bottom,x,y,color,3f); draw.addRectFilled(x-3f,y-3f,x+3f,y+3f,color)
-        if(note.id in selectedIds||x-lastLabelX>=34f){
+        val labelLayer = if (audition.audible(note.part)) 1 else 0
+        if(note.id in selectedIds||x-lastLabelX[labelLayer]>=34f){
           val value=if(automationLane==AutomationLane.VOLUME)note.volume else note.pan
           draw.addText((x+5f).coerceAtMost(graphRight-32f),(y-17f).coerceAtLeast(top),color,value.toString())
-          if(note.id !in selectedIds)lastLabelX=x
+          if(note.id !in selectedIds)lastLabelX[labelLayer]=x
         }
       }
       // Marquee helpers share the lane's coerced mappers, so the rect is inherently window-clamped.
@@ -3039,7 +3256,8 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
       fun laneValueOf(note:EditorNote)=if(automationLane==AutomationLane.VOLUME)note.volume else note.pan
       fun laneY(value:Int)=if(automationLane==AutomationLane.VOLUME)bottom-(value/100f)*(bottom-top) else bottom-((value+100)/200f)*(bottom-top)
       if(hovered&&ImGui.isMouseClicked(ImGuiMouseButton.Left)){
-        val hit=visible.minByOrNull{kotlin.math.hypot(((displayX[it.id]?:xAt(it.time))-io.mousePosX).toDouble(),(valueY(it)-io.mousePosY).toDouble())}?.takeIf{kotlin.math.hypot(((displayX[it.id]?:xAt(it.time))-io.mousePosX).toDouble(),(valueY(it)-io.mousePosY).toDouble())<=10}
+        fun hitDistance(note: EditorNote) = kotlin.math.hypot(((displayX[note.id] ?: xAt(note.time)) - io.mousePosX).toDouble(), (valueY(note) - io.mousePosY).toDouble())
+        val hit = audition.hit(visible.filter { hitDistance(it) <= 10 }, { it.part }, ::hitDistance)
         if(hit!=null){rememberHistory();automationDragId=hit.id;if(!modifierActive(settings.additiveSelectionModifier,io)&&hit.id !in selectedIds){selectedIds.clear()};selectedIds+=hit.id;selected=notes.indexOf(hit);automationDragBase=selectedNotes().associate{it.id to if(automationLane==AutomationLane.VOLUME)it.volume else it.pan};automationDragStartValue=if(automationLane==AutomationLane.VOLUME)hit.volume else hit.pan;syncImGuiInspector()}
         else{laneMarqueeStart=snap(laneTimeAt(io.mousePosX)) to laneValueAt(io.mousePosY);laneMarqueeEnd=laneMarqueeStart}
       }
@@ -3076,6 +3294,57 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     ImGui.end()
   }
 
+  private fun applyPendingPreset() {
+    val bundle = pendingPreset ?: return
+    pendingPreset = null
+    runCatching {
+      val decoded = EditorSettingsBundleCodec.decode(bundle)
+      val imported = EditorSettingsStore.importText(bundle)
+      settings = imported; tool = imported.lastTool; capturingBinding = null
+      applyPanelVisibility(); imguiAppliedStyle = null; automationDockInitialized = false
+      focusDefaultAutomation = true
+      ImGui.loadIniSettingsFromMemory(decoded.layout)
+    }.onSuccess { state = t("Preset applied", "マイプリセットを適用しました") }
+        .onFailure { state = t("Preset could not be applied: ${it.message}", "プリセットの適用に失敗しました: ${it.message}") }
+  }
+
+  private fun renderPersonalPresets() {
+    if (personalPresets == null) personalPresets = runCatching { presetStore.list() }.getOrDefault(emptyList())
+    val selected = personalPresets.orEmpty().firstOrNull { it.id == selectedPreset }
+    ImGui.textWrapped(t("Save your settings, colors, keymap and window layout together in this Minecraft profile.", "設定・配色・キーマップ・ウィンドウ配置を、このMinecraftプロファイルのマイプリセットとして保存します。"))
+    if (ImGui.beginCombo("${t("Saved presets", "保存済み")}###PERSONAL_PRESETS", selected?.name ?: t("Choose a preset", "プリセットを選択"))) {
+      personalPresets.orEmpty().forEach { preset ->
+        if (ImGui.selectable("${preset.name.replace("##", "# #")}###preset_${preset.id}", preset.id == selectedPreset)) {
+          selectedPreset = preset.id; imPresetName.set(preset.name)
+        }
+      }
+      ImGui.endCombo()
+    }
+    ImGui.inputText("${t("Name", "名前")}###PRESET_NAME", imPresetName); renderImePreeditOverlay()
+    fun save(action: () -> EditorPreset) {
+      runCatching(action).onSuccess { preset ->
+        personalPresets = presetStore.list(); selectedPreset = preset.id; imPresetName.set(preset.name)
+        state = t("Preset saved: ${preset.name}", "マイプリセットを保存しました: ${preset.name}")
+      }.onFailure { state = t("Preset save failed: ${it.message}", "プリセットの保存に失敗しました: ${it.message}") }
+    }
+    if (ImGui.button("${t("SAVE AS NEW", "新規保存")}###PRESET_CREATE")) {
+      save { presetStore.create(imPresetName.get(), settings.copy(lastTool = tool), ImGui.saveIniSettingsToMemory()) }
+    }
+    if (selected != null) {
+      ImGui.sameLine()
+      if (ImGui.button("${t("APPLY", "適用")}###PRESET_APPLY")) {
+        runCatching { presetStore.read(selected.id).bundle }.onSuccess { pendingPreset = it }
+            .onFailure { state = t("Preset could not be read", "プリセットを読み込めませんでした") }
+      }
+      ImGui.sameLine()
+      if (ImGui.button("${t("UPDATE", "現在の設定で更新")}###PRESET_UPDATE")) {
+        save { presetStore.update(selected.id, settings.copy(lastTool = tool), ImGui.saveIniSettingsToMemory()) }
+      }
+      ImGui.sameLine()
+      if (ImGui.button("${t("RENAME", "名前変更")}###PRESET_RENAME")) save { presetStore.rename(selected.id, imPresetName.get()) }
+    }
+  }
+
   private fun renderImGuiSettings(io: ImGuiIO) {
     ImGui.setNextWindowPos(max(10f, io.displaySizeX - 720f), 72f, ImGuiCond.FirstUseEver)
     ImGui.setNextWindowSize(700f, min(760f, io.displaySizeY - 90f).coerceAtLeast(520f), ImGuiCond.FirstUseEver)
@@ -3089,8 +3358,10 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
       ImGui.sameLine(); if(ImGui.button("${t("LAYOUT", "レイアウト")}###LAYOUT")) settingsPage=SettingsPage.LAYOUT
       ImGui.sameLine(); if(ImGui.button("${t("KEYMAP", "キーマップ")}###KEYMAP")) settingsPage=SettingsPage.KEYMAP
       ImGui.sameLine(); if(ImGui.button("${t("SHARE", "共有")}###SHARE")) settingsPage=SettingsPage.SHARE
+      ImGui.sameLine(); if(ImGui.button("${t("MY PRESETS", "マイプリセット")}###MY_PRESETS")) settingsPage=SettingsPage.PRESETS
       ImGui.spacing()
       when(settingsPage) {
+        SettingsPage.PRESETS -> renderPersonalPresets()
         SettingsPage.GENERAL -> {
           val scale = intArrayOf(settings.uiScalePercent)
           if (ImGui.sliderInt("${t("OMMT UI scale", "OMMT UIスケール")}###uiScale", scale, 75, 150, "%d%%")) { settings = settings.copy(uiScalePercent = (scale[0] / 5 * 5).coerceIn(75, 150)); changed = true }
@@ -3100,6 +3371,11 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
           ImGui.textDisabled(t("Text-only size; combined with the UI scale above", "文字だけの大きさです。上のUIスケールと掛け合わせます"))
           if (ImGui.button("${t("Grid", "グリッド")}: ${settings.gridDensity}###GRID")) { cycleGridDensity(); changed = true }
           if (ImGui.checkbox("${t("Compact toolbar", "コンパクトツールバー")}###compactToolbar", settings.compactToolbar)) { settings = settings.copy(compactToolbar = !settings.compactToolbar); changed = true }
+          if (ImGui.checkbox("${t("Audition visible part only", "表示パートのみ試聴")}###AUDITION_VISIBLE_PART", settings.auditionVisiblePartOnly)) {
+            settings = settings.copy(auditionVisiblePartOnly = !settings.auditionVisiblePartOnly)
+            syncViewAudition(); changed = true
+          }
+          ImGui.textWrapped(t("In a single-part view, audition only that part without changing M/S. ALL restores the normal audition scope.", "パート単独表示中はそのパートだけを試聴します。M/Sの状態は変更せず、全体表示で通常の再生対象に戻ります。"))
           val lead = intArrayOf(settings.followLead)
           if (ImGui.sliderInt("${t("Follow lead", "追従開始位置")}###FOLLOW_LEAD", lead, 20, 70, "%d%%")) { settings = settings.copy(followLead = lead[0].coerceIn(20,70)); changed = true }
           ImGui.spacing()
@@ -3109,7 +3385,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
         SettingsPage.LAYOUT -> if (renderLayoutSettings(io)) changed = true
         SettingsPage.KEYMAP -> {
           capturingBinding?.let{ImGui.textColored(.73f,.91f,.41f,1f,t("Press a key combination; Backspace clears; Esc cancels", "割り当てるキーを押す / Backspaceで解除 / Escで中止"))}
-          EditorAction.entries.forEach{action->ImGui.text(actionName(action));ImGui.sameLine(220f);if(ImGui.button("${settings.keymap[action].encode()}##key_${action.name}"))capturingBinding=action}
+          EditorAction.entries.forEach{action->ImGui.text(actionName(action));ImGui.sameLine(220f);if(ImGui.button("${settings.keymap[action].encode()}##key_${action.name}")){capturingBinding=action;imeComposing=false;imePreeditText=""}}
           ImGui.spacing();ImGui.text(t("Mouse wheel", "マウスホイール"))
           fun wheelRow(label:String,value:WheelAction,set:(WheelAction)->Unit){ImGui.text(label);ImGui.sameLine(220f);if(ImGui.button("${t(value.english,value.japanese)}##wheel_$label")){set(WheelAction.entries[(value.ordinal+1)%WheelAction.entries.size]);changed=true}}
           wheelRow(t("No modifier", "修飾キーなし"),settings.wheelPlain){settings=settings.copy(wheelPlain=it)}
@@ -3189,6 +3465,13 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
         colorRow("Hovered frame", "ホバー中の入力欄", style.frameHoveredColor) { current, value -> current.copy(frameHoveredColor = value) }
         colorRow("Headers", "見出し", style.headerColor) { current, value -> current.copy(headerColor = value) }
         colorRow("Buttons", "ボタン", style.buttonColor) { current, value -> current.copy(buttonColor = value) }
+        val mutedOpacity = intArrayOf(style.mutedOpacityPercent)
+        if (ImGui.sliderInt("${t("Muted opacity (%)", "ミュート時の不透明度 (%)")}###MUTED_OPACITY", mutedOpacity, 0, 100)) {
+          settings = settings.copy(style = settings.style.copy(mutedOpacityPercent = mutedOpacity[0]))
+          changed = true
+        }
+        colorRow("Mute", "ミュート", style.muteColor) { current, value -> current.copy(muteColor = value) }
+        colorRow("Solo", "ソロ", style.soloColor) { current, value -> current.copy(soloColor = value) }
         colorRow("Accent", "アクセント", style.accentColor) { current, value -> current.copy(accentColor = value) }
         colorRow("Inactive title", "非選択タイトル", style.inactiveTitleBackgroundColor) { current, value -> current.copy(inactiveTitleBackgroundColor = value) }
         colorRow("Check mark", "チェックマーク", style.checkMarkColor) { current, value -> current.copy(checkMarkColor = value) }
@@ -3469,6 +3752,8 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
       // Closing must remain safe even if an unfinished inspector value cannot be committed.
       runCatching { applySelected() }
       pausePlayback()
+      PreviewSoundPlayer.stopInaudibleEditorParts { false }
+      PreviewSoundPlayer.stopBrowserPreview()
       editorSession.save(currentSnapshot())
       EditorSettingsStore.save(settings.copy(lastTool = tool))
       runCatching { ImGui.getIO().clearEventsQueue(); ImGui.getIO().clearInputKeys(); ImGui.getIO().clearInputMouse() }

@@ -33,6 +33,10 @@ data class EditorNote(
     var pitchCents: Int = pitch * 100,
 )
 
+enum class PartDisplayMode { AUTO, FLAT, INSTRUMENT }
+data class NbsPartLeaf(val partIndex: Int, val sourceLayer: Int)
+data class NbsPartGroup(val sourceInstrument: Int, val label: String, val leaves: List<NbsPartLeaf>)
+
 data class EditorSnapshot(
     val notes: List<EditorNote>, val selectedIds: Set<Long>, val selected: Int,
     val title: String, val bpm: Int, val offset: Int, val span: Int,
@@ -43,6 +47,8 @@ data class EditorSnapshot(
     val tempoControls: List<TempoControlPoint> = emptyList(),
     val globalRetrigger: RetriggerProfile = RetriggerProfile(),
     val partRetriggers: Map<Int, RetriggerProfile> = emptyMap(),
+    val partDisplayMode: PartDisplayMode = PartDisplayMode.AUTO,
+    val importedPartGroups: List<NbsPartGroup> = emptyList(),
 )
 
 data class TempoMark(val tick: Long, val timeMs: Int, val microsPerQuarter: Int)
@@ -50,6 +56,7 @@ data class SignatureMark(val tick: Long, val numerator: Int, val denominator: In
 data class GridMark(val tick: Long, val timeMs: Int, val bar: Int, val beat: Int, val subdivision: Int, val isBar: Boolean, val isBeat: Boolean)
 
 object EditorSession {
+  val audition = PartAuditionState()
   private var nextId = 1L
   private var snapshot: EditorSnapshot? = null
   /** Process-lifetime editing auxiliaries survive closing/reopening a Screen. */

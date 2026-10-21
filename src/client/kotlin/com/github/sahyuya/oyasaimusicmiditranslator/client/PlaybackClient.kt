@@ -8,8 +8,10 @@ import java.nio.charset.CodingErrorAction
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
 import java.util.zip.InflaterInputStream
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking
 import net.minecraft.client.Minecraft
@@ -74,6 +76,7 @@ object PlaybackClient {
       val data: Array<ByteArray?>,
       var joined: ByteArray? = null,
       var decoded: Decoded? = null,
+      var decoding: Boolean = false,
   )
 
   private var pending: Pending? = null
@@ -86,6 +89,13 @@ object PlaybackClient {
   private var startedAckSent = false
   private var initialized = false
   private var answeredProbeNonce: String? = null
+  // At most one decode in flight and one queued, including across rapid song replacements.
+  private val decoder = java.util.concurrent.ThreadPoolExecutor(
+      1, 1, 0L, java.util.concurrent.TimeUnit.MILLISECONDS,
+      java.util.concurrent.ArrayBlockingQueue<Runnable>(1),
+      java.util.concurrent.ThreadFactory { runnable -> Thread(runnable, "OMMT-PlaybackDecode").apply { isDaemon = true } },
+      java.util.concurrent.ThreadPoolExecutor.AbortPolicy(),
+  )
   @Volatile private var pendingOutdatedNotice = false
 
   fun initialize() {
@@ -94,6 +104,7 @@ object PlaybackClient {
     PlaybackPayload.registerCodec()
     ClientPlayNetworking.registerGlobalReceiver(PlaybackPayload.ID) { payload, _ -> receive(payload.bytes) }
     ClientTickEvents.END_CLIENT_TICK.register { tick() }
+    ClientLifecycleEvents.CLIENT_STOPPING.register { decoder.shutdownNow() }
     ClientPlayConnectionEvents.DISCONNECT.register { _, _ ->
       if (pending != null || sessionId != null) logger.info("Buffered playback state cleared because the server connection closed")
       clearPlayback()
@@ -182,7 +193,11 @@ object PlaybackClient {
     val nonce = input.readUTF()
     if (input.available() != 0 || !nonce.matches(Regex("[A-Za-z0-9_-]{22}"))) return
     if (nonce == answeredProbeNonce || !ClientPlayNetworking.canSend(PlaybackPayload.ID)) return
+    // Report actual active bank bytes for this discovery, independently of stored consent.
+    SoundBankManifest.invalidateCache()
+    val bankHash = SoundBankManifest.activeHash() ?: ByteArray(32)
     val caps = clientCapabilities()
+    ClientPlayNetworking.send(PlaybackPayload(OmmtPluginWire.playbackClientBankManifest(nonce, bankHash)))
     ClientPlayNetworking.send(PlaybackPayload(OmmtPluginWire.playbackClientCapabilities(nonce, caps)))
     ClientPlayNetworking.send(PlaybackPayload(OmmtPluginWire.playbackProbeResponse(nonce)))
     answeredProbeNonce = nonce
@@ -213,7 +228,10 @@ object PlaybackClient {
     val length = input.readUnsignedShort()
     val bytes = input.readNBytes(length)
     if (input.available() != 0 || total != active.chunks || sequence !in 0 until active.chunks || length != bytes.size || length !in 1..24 * 1024) return
-    if (active.data[sequence] == null) active.data[sequence] = bytes
+    val previous = active.data[sequence]
+    if (previous != null && !previous.contentEquals(bytes)) { clearPlayback(); return }
+    if (active.decoding || active.decoded != null) return
+    if (previous == null) active.data[sequence] = bytes
     if (active.data.any { it == null }) return
 
     val joined = ByteArray(active.compressedBytes)
@@ -224,15 +242,29 @@ object PlaybackClient {
       value.copyInto(joined, offset)
       offset += value.size
     }
-    if (offset != joined.size || !MessageDigest.isEqual(MessageDigest.getInstance("SHA-256").digest(joined), active.hash)) { clearPlayback(); return }
-
-    val value = try {
+    if (offset != joined.size) { clearPlayback(); return }
+    active.decoding = true
+    // Only immutable bytes and metadata cross this boundary. Resource/world checks and
+    // READY stay on the client thread; a replaced/disconnected session discards the result.
+    try { CompletableFuture.supplyAsync({
+      require(MessageDigest.isEqual(MessageDigest.getInstance("SHA-256").digest(joined), active.hash))
       if (active.mode == 0) decodeV1(inflate(joined)) else decodeV2(inflate(joined))
-    } catch (error: Exception) {
-      logger.warn("Rejected OYPB payload before READY: session={}", id, error)
+    }, decoder).whenComplete { value, error ->
+      Minecraft.getInstance().execute {
+        if (pending !== active) return@execute
+        if (error != null) {
+          logger.warn("Rejected OYPB payload before READY: session={}", id, error)
+          clearPlayback()
+        } else completeBuffer(active, joined, value)
+      }
+    } } catch (_: java.util.concurrent.RejectedExecutionException) {
+      logger.warn("Playback decoder is busy; retaining ordinary Paper fallback")
       clearPlayback()
-      return
     }
+  }
+
+  private fun completeBuffer(active: Pending, joined: ByteArray, value: Decoded) {
+    val id = active.id
     val preflightGate = preflightFailure(value)
     if (value.duration != active.duration || preflightGate != null) {
       val reason = if (value.bankPolicy == 1 && !SoundBankManifest.matchesActiveHash(value.manifestHash)) 1 else 2
@@ -252,8 +284,8 @@ object PlaybackClient {
     val delay = input.readInt()
     val position = input.readInt()
     if (input.available() != 0 || delay !in 0..30_000 || position < 0 || active.data.any { it == null }) return
-    val joined = active.joined ?: return
-    if (!MessageDigest.isEqual(MessageDigest.getInstance("SHA-256").digest(joined), active.hash)) return
+    // This buffer was hash-checked by the worker before READY and is never mutated.
+    active.joined ?: return
     val value = active.decoded ?: return
     decoded = value
     sessionId = id
@@ -282,7 +314,7 @@ object PlaybackClient {
     val position = input.readInt()
     if (input.available() == 0 && delay in 0..30_000 && position >= 0) {
       val value = decoded ?: return
-      cursor = value.notes.indexOfFirst { it.time >= position }.let { if (it < 0) value.notes.size else it }
+      cursor = maxOf(cursor, value.notes.indexOfFirst { it.time >= position }.let { if (it < 0) value.notes.size else it })
       pausedAtMs = position
       startAtNanos = System.nanoTime() + delay * 1_000_000L - position * 1_000_000L
       logger.info("Buffered playback resumed: session={}, positionMs={}, startDelayMs={}", id, position, delay)
@@ -298,7 +330,7 @@ object PlaybackClient {
     }
   }
 
-  private fun tick() {
+  fun tick() {
     if (pendingOutdatedNotice) {
       val client = Minecraft.getInstance()
       if (client.player != null && client.level != null) {
@@ -318,17 +350,16 @@ object PlaybackClient {
     val elapsed = bufferedElapsedMillis(System.nanoTime(), startAtNanos) ?: return
     val client = Minecraft.getInstance()
     if (client.player == null || client.level == null) { fail(activeId, 4, elapsed, "client world is unavailable"); return }
-    var sent = 0
-    while (cursor < value.notes.size && value.notes[cursor].time <= elapsed) {
-      if (sent >= MAX_NOTES_PER_TICK) break
+    val batchEnd = playbackBatchEnd(cursor, value.notes.size, elapsed, MAX_NOTES_PER_TICK) { value.notes[it].time }
+    while (cursor < batchEnd) {
       val note = value.notes[cursor]
       cursor += 1
-      // Volume 0 is display-only: advance without sound and without counting toward per-tick limit
+      // Silent notes consume bounded work too, without generating audio or a START ACK.
       if (note.volume == 0) continue
       if (!startedAckSent && !ClientPlayNetworking.canSend(PlaybackPayload.ID)) { fail(activeId, 5, elapsed, "plugin channel disappeared before START ACK"); return }
       val resolved = resolve(note, value) ?: run { fail(activeId, if (value.bankPolicy == 1) 1 else 2, elapsed, "sound route disappeared"); return }
       try {
-        if (!PreviewSoundPlayer.playId(resolved.eventId, note.volume / 100f, resolved.pitch, resolved.seed, if (value.spatialMode == 1) note.pan else 0)) {
+        if (!PreviewSoundPlayer.playId(resolved.eventId, note.volume / 100f, resolved.pitch, resolved.seed, if (value.spatialMode == 1) note.pan else 0, requireStart = !startedAckSent)) {
           fail(activeId, 2, elapsed, "sound event is no longer available")
           return
         }
@@ -336,8 +367,7 @@ object PlaybackClient {
         fail(activeId, 3, elapsed, "SoundManager dispatch failed", error)
         return
       }
-      sent += 1
-      if (!startedAckSent) {
+      if (!startedAckSent && PreviewSoundPlayer.lastDispatchStarted) {
         ClientPlayNetworking.send(PlaybackPayload(OmmtPluginWire.playbackStartedAck(activeId, sessionHash, note.time)))
         startedAckSent = true
         logger.info("Local playback START acknowledged after first dispatch: session={}, firstNoteMs={}", activeId, note.time)
@@ -413,7 +443,7 @@ object PlaybackClient {
       }
     }
     require(input.available() == 0)
-    Decoded(duration, notes, 1, 0, ByteArray(32))
+    Decoded(duration, MusicVoicePolicy.onsetOrder(notes, { it.time }, { it.volume }), 1, 0, ByteArray(32))
   }
 
   private fun decodeV2(bytes: ByteArray): Decoded = DataInputStream(ByteArrayInputStream(bytes)).use { input ->
@@ -464,7 +494,7 @@ object PlaybackClient {
       }
     }
     require(input.available() == 0)
-    Decoded(duration, notes, spatialMode, bankPolicy, manifestHash)
+    Decoded(duration, MusicVoicePolicy.onsetOrder(notes, { it.time }, { it.volume }), spatialMode, bankPolicy, manifestHash)
   }
 
   private fun decodeUtf8(bytes: ByteArray): String = StandardCharsets.UTF_8.newDecoder()
