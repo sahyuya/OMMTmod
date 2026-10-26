@@ -54,7 +54,6 @@ import net.minecraft.registry.Registries
 import net.minecraft.sound.SoundEvents
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
-import org.lwjgl.glfw.GLFW
 import com.github.sahyuya.oyasaimusicmiditranslator.NoteBlockPitch
 
 fun editorPlaybackPositionMs(
@@ -380,7 +379,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     setFocused(null)
     // Vanilla IME contract (EditBox/Sign editor equivalent): without startTextInput the
     // per-tick TextInputManager forces OS IME off, so preedit/committed CJK never arrives.
-    runCatching { Minecraft.getInstance().textInputManager().startTextInput() }
+    runCatching { EditorPlatformRendering.startTextInput(this) }
     selectionStart = null; selectionEnd = null; draggingNotes = false; noteDragArmed = false
     noteResizeArmed = false; resizingNote = false; resizeNoteId = null; draggingReleasePoint = false
     automationDragId = null; laneGesture = false; panning = false; imguiRightPanning = false
@@ -1146,17 +1145,12 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     if (playheadMs >= durationMs() && nextPlaybackIndex >= playbackEvents.size) { playing = false; state = t("Playback finished", "再生が完了しました") }
   }
 
-  /**
-   * Windows JIS IME toggle scancodes. Only keys GLFW cannot identify (UNKNOWN) are passed
-   * through, so other platforms are unaffected: there these scancodes belong to named keys.
-   */
-  private val imeToggleScancodes = setOf(0x29, 0x70, 0x79, 0x7B, 0x3A) // Zenkaku/Hankaku, Kana, Henkan, Muhenkan, EISU
-
+  /** Platform IME toggles pass through before the hidden legacy widgets consume input. */
   override fun keyPressed(input: KeyInput): Boolean {
     // The visible editor consumes ImGui key edges in-frame. Do not dispatch the same
-    // GLFW press again through the hidden legacy Screen widgets.
+    // platform press again through the hidden legacy Screen widgets.
     if (imguiConfigured && ImGui.getIO().wantTextInput &&
-        input.key() == GLFW.GLFW_KEY_UNKNOWN && input.scancode() in imeToggleScancodes) {
+        EditorPlatformInput.isImeToggle(input)) {
       // OS-level IME toggles must reach the game/OS. Swallowing them here leaves IME permanently
       // off, so only half-width input ever works.
       return super.keyPressed(input)
@@ -1164,15 +1158,15 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     if (imguiConfigured) return true
     val modifiers = currentKeyModifiers()
     capturingBinding?.let { action ->
-      when (input.key()) {
-        GLFW.GLFW_KEY_ESCAPE -> state = t("Key binding cancelled", "キー設定をキャンセルしました")
-        GLFW.GLFW_KEY_BACKSPACE, GLFW.GLFW_KEY_DELETE -> {
+      when (EditorPlatformInput.keyCode(input)) {
+        EditorKeys.KEY_ESCAPE -> state = t("Key binding cancelled", "キー設定をキャンセルしました")
+        EditorKeys.KEY_BACKSPACE, EditorKeys.KEY_DELETE -> {
           settings = settings.copy(keymap = settings.keymap.with(action, EditorKeyStroke.UNBOUND)); saveSettings()
           state = t("${actionName(action)} is unbound", "${actionName(action)}の割り当てを解除しました")
         }
-        GLFW.GLFW_KEY_LEFT_CONTROL, GLFW.GLFW_KEY_RIGHT_CONTROL, GLFW.GLFW_KEY_LEFT_SHIFT, GLFW.GLFW_KEY_RIGHT_SHIFT, GLFW.GLFW_KEY_LEFT_ALT, GLFW.GLFW_KEY_RIGHT_ALT -> return true
+        EditorKeys.KEY_LEFT_CONTROL, EditorKeys.KEY_RIGHT_CONTROL, EditorKeys.KEY_LEFT_SHIFT, EditorKeys.KEY_RIGHT_SHIFT, EditorKeys.KEY_LEFT_ALT, EditorKeys.KEY_RIGHT_ALT -> return true
         else -> {
-          settings = settings.copy(keymap = settings.keymap.with(action, EditorKeyStroke(input.key(), modifiers.control, modifiers.shift, modifiers.alt))); saveSettings()
+          settings = settings.copy(keymap = settings.keymap.with(action, EditorKeyStroke(EditorPlatformInput.keyCode(input), modifiers.control, modifiers.shift, modifiers.alt))); saveSettings()
           state = t("Bound ${actionName(action)}", "${actionName(action)}のキーを設定しました")
         }
       }
@@ -1181,8 +1175,8 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     }
     if (imguiConfigured && ImGui.getIO().wantTextInput) return true
     if (focused is TextFieldWidget) return super.keyPressed(input)
-    settings.keymap.matching(input.key(), modifiers.control, modifiers.shift, modifiers.alt)?.let { return executeAction(it) }
-    return if (input.key() == GLFW.GLFW_KEY_ESCAPE && playing) { pausePlayback(); true } else super.keyPressed(input)
+    settings.keymap.matching(EditorPlatformInput.keyCode(input), modifiers.control, modifiers.shift, modifiers.alt)?.let { return executeAction(it) }
+    return if (EditorPlatformInput.keyCode(input) == EditorKeys.KEY_ESCAPE && playing) { pausePlayback(); true } else super.keyPressed(input)
   }
 
   /** Uncommitted IME composition, rendered as an overlay since imgui-java has no IME API. */
@@ -1198,7 +1192,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
 
   override fun charTyped(input: CharacterEvent): Boolean {
     if (imguiConfigured && ImGui.getIO().wantTextInput) {
-      // Single delivery: the GLFW backend already forwards every committed char to ImGui.
+      // Single delivery: the platform backend already forwards every committed char to ImGui.
       // The old manual >=0x80 forward duplicated CJK input (あ→ああ).
       imeComposing = false
       imePreeditText = ""
@@ -1241,7 +1235,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     val io = ImGui.getIO()
     if (io.keyCtrl != stroke.control || io.keyShift != stroke.shift || io.keyAlt != stroke.alt) return false
     // An ENTER binding covers both main and keypad Enter, matching the old behavior.
-    if (stroke.key == GLFW.GLFW_KEY_ENTER) {
+    if (stroke.key == EditorKeys.KEY_ENTER) {
       return ImGui.isKeyPressed(ImGuiKey.Enter) || ImGui.isKeyPressed(ImGuiKey.KeypadEnter)
     }
     return glfwToImGuiKey(stroke.key)?.let { ImGui.isKeyPressed(it) } == true
@@ -1254,14 +1248,14 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     // A cancelled composition must not lock shortcuts after its text field loses focus.
     if (!io.wantTextInput) { imeComposing = false; imePreeditText = "" }
     if (!EditorKeyboard.ownsShortcut(capturingBinding != null, io.wantTextInput, imeComposing)) return
-    for (key in GLFW.GLFW_KEY_SPACE..GLFW.GLFW_KEY_LAST) {
+    for (key in EditorKeys.KEY_SPACE..EditorKeys.KEY_LAST) {
       val imguiKey = EditorKeyboard.imguiKey(key) ?: continue
       if (!ImGui.isKeyPressed(imguiKey, false)) continue
       val action = capturingBinding
       if (action != null) {
         when (key) {
-          GLFW.GLFW_KEY_ESCAPE -> state = t("Key binding cancelled", "キー設定をキャンセルしました")
-          GLFW.GLFW_KEY_BACKSPACE, GLFW.GLFW_KEY_DELETE -> {
+          EditorKeys.KEY_ESCAPE -> state = t("Key binding cancelled", "キー設定をキャンセルしました")
+          EditorKeys.KEY_BACKSPACE, EditorKeys.KEY_DELETE -> {
             settings = settings.copy(keymap = settings.keymap.with(action, EditorKeyStroke.UNBOUND))
             saveSettings(); state = t("Binding cleared", "割り当てを解除しました")
           }
@@ -1276,7 +1270,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
       val bound = settings.keymap.matching(key, io.keyCtrl, io.keyShift, io.keyAlt)
       if (bound != null) {
         if (bound != EditorAction.CONFIRM) executeAction(bound)
-      } else if (key == GLFW.GLFW_KEY_ESCAPE) {
+      } else if (key == EditorKeys.KEY_ESCAPE) {
         if (playing) pausePlayback() else if (settingsOpen) settingsOpen = false else onClose()
         return
       }
@@ -1290,8 +1284,8 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     if (want == imeOsEnabled) return
     imeOsEnabled = want
     runCatching {
-      if (want) Minecraft.getInstance().textInputManager().startTextInput()
-      else Minecraft.getInstance().textInputManager().stopTextInput()
+      if (want) EditorPlatformRendering.startTextInput(this)
+      else EditorPlatformRendering.stopTextInput(this)
     }
   }
 
@@ -1324,8 +1318,8 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
 
   private fun currentKeyModifiers(): KeyModifiers {
     val handle = client?.window?.handle ?: 0L
-    fun down(left: Int, right: Int) = handle != 0L && (GLFW.glfwGetKey(handle, left) == GLFW.GLFW_PRESS || GLFW.glfwGetKey(handle, right) == GLFW.GLFW_PRESS)
-    return KeyModifiers(down(GLFW.GLFW_KEY_LEFT_CONTROL, GLFW.GLFW_KEY_RIGHT_CONTROL), down(GLFW.GLFW_KEY_LEFT_SHIFT, GLFW.GLFW_KEY_RIGHT_SHIFT), down(GLFW.GLFW_KEY_LEFT_ALT, GLFW.GLFW_KEY_RIGHT_ALT))
+    fun down(left: Int, right: Int) = handle != 0L && (EditorPlatformInput.isKeyDown(handle, left) || EditorPlatformInput.isKeyDown(handle, right))
+    return KeyModifiers(down(EditorKeys.KEY_LEFT_CONTROL, EditorKeys.KEY_RIGHT_CONTROL), down(EditorKeys.KEY_LEFT_SHIFT, EditorKeys.KEY_RIGHT_SHIFT), down(EditorKeys.KEY_LEFT_ALT, EditorKeys.KEY_RIGHT_ALT))
   }
 
   private fun executeAction(action: EditorAction): Boolean {
@@ -1576,7 +1570,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
       inspectorFields.forEach { it.setFocused(false) }
       setFocused(null)
       // setFocused(false) stops OS IME as a side effect; ImGui still owns text input.
-      runCatching { Minecraft.getInstance().textInputManager().startTextInput() }
+      runCatching { EditorPlatformRendering.startTextInput(this) }
     }
   }
   private fun visibleSpan() = viewSpanMs.coerceAtLeast(2_000)
@@ -1763,7 +1757,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
 
   private fun resetNativeCursor() {
     runCatching { ImGui.setMouseCursor(ImGuiMouseCursor.Arrow) }
-    runCatching { MinecraftClient.getInstance().window.handle.takeIf { it != 0L }?.let { GLFW.glfwSetCursor(it, 0L) } }
+    runCatching { MinecraftClient.getInstance().window.handle.takeIf { it != 0L }?.let { EditorPlatformInput.resetCursor(it) } }
   }
 
   private fun defaultDurationAt(time: Int): Int {
@@ -1857,8 +1851,8 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
         }
       }.minByOrNull { kotlin.math.abs(timeToX(it.value.time) - click.x()) }
       val handle = client?.window?.handle ?: 0L
-      val ctrl = handle != 0L && (GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS)
-      val shift = handle != 0L && (GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS)
+      val ctrl = handle != 0L && (EditorPlatformInput.isKeyDown(handle, EditorKeys.KEY_LEFT_CONTROL) || EditorPlatformInput.isKeyDown(handle, EditorKeys.KEY_RIGHT_CONTROL))
+      val shift = handle != 0L && (EditorPlatformInput.isKeyDown(handle, EditorKeys.KEY_LEFT_SHIFT) || EditorPlatformInput.isKeyDown(handle, EditorKeys.KEY_RIGHT_SHIFT))
       // Shift drag is a marquee gesture even when it starts above a note.
       if (shift) { selectionStart = snap(xToTime(click.x())) to pitchAt(click.y()); selectionEnd = selectionStart; return true }
       if (nearest != null) {
@@ -1917,7 +1911,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
       selectedNotes().forEach { if (lane == 0) it.volume = value else it.pan = value * 2 - 100 }; return true
     }
     if (draggingNotes) {
-      val handle = client?.window?.handle ?: 0L; val pitchFixed = handle != 0L && (GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS)
+      val handle = client?.window?.handle ?: 0L; val pitchFixed = handle != 0L && (EditorPlatformInput.isKeyDown(handle, EditorKeys.KEY_LEFT_SHIFT) || EditorPlatformInput.isKeyDown(handle, EditorKeys.KEY_RIGHT_SHIFT))
       val deltaTime = snap(xToTime(click.x())) - dragOriginTime; var deltaPitch = if (pitchFixed) 0 else pitchAt(click.y()) - dragMousePitch
       val base = dragBase.values; val minTime = base.minOfOrNull { it.first } ?: 0; val minPitch = base.minOfOrNull { it.second } ?: 0; val maxPitch = base.maxOfOrNull { it.second } ?: 24
       val clampedTime = deltaTime.coerceAtLeast(-minTime); deltaPitch = deltaPitch.coerceIn(-minPitch, 24-maxPitch)
@@ -1934,7 +1928,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     if (externalUiActive) return true
     if (selectionStart != null) {
       val (t1, p1) = selectionStart!!; val (t2, p2) = selectionEnd!!
-      val handle = client?.window?.handle ?: 0L; val ctrl = handle != 0L && (GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS)
+      val handle = client?.window?.handle ?: 0L; val ctrl = handle != 0L && (EditorPlatformInput.isKeyDown(handle, EditorKeys.KEY_LEFT_CONTROL) || EditorPlatformInput.isKeyDown(handle, EditorKeys.KEY_RIGHT_CONTROL))
       if (!ctrl) selectedIds.clear(); notes.filter { EditorSelection.intersectsMarquee(it.time, it.duration, it.pitch, t1, t2, p1, p2) }.forEach { selectedIds += it.id }
       state = t("Selected ${selectedIds.size} notes", "${selectedIds.size}音を選択しました"); selectionStart = null; selectionEnd = null
     }
@@ -1948,9 +1942,9 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
     if (settings.showLibrary && mouseX < libraryWidth() && mouseY >= 72 && mouseY < height - 76) { libraryScroll = (libraryScroll - verticalAmount.roundToInt()).coerceIn(0, (midiFiles.size - 1).coerceAtLeast(0)); return true }
     if (mouseY >= rollTop() && mouseY <= rollBottom()) {
       val handle = client?.window?.handle ?: 0L
-      val ctrl = handle != 0L && (GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_CONTROL) == GLFW.GLFW_PRESS || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_CONTROL) == GLFW.GLFW_PRESS)
-      val alt = handle != 0L && (GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_ALT) == GLFW.GLFW_PRESS || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_ALT) == GLFW.GLFW_PRESS)
-      val shift = handle != 0L && (GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_LEFT_SHIFT) == GLFW.GLFW_PRESS || GLFW.glfwGetKey(handle, GLFW.GLFW_KEY_RIGHT_SHIFT) == GLFW.GLFW_PRESS)
+      val ctrl = handle != 0L && (EditorPlatformInput.isKeyDown(handle, EditorKeys.KEY_LEFT_CONTROL) || EditorPlatformInput.isKeyDown(handle, EditorKeys.KEY_RIGHT_CONTROL))
+      val alt = handle != 0L && (EditorPlatformInput.isKeyDown(handle, EditorKeys.KEY_LEFT_ALT) || EditorPlatformInput.isKeyDown(handle, EditorKeys.KEY_RIGHT_ALT))
+      val shift = handle != 0L && (EditorPlatformInput.isKeyDown(handle, EditorKeys.KEY_LEFT_SHIFT) || EditorPlatformInput.isKeyDown(handle, EditorKeys.KEY_RIGHT_SHIFT))
       if (ctrl) zoomTimeline(if (verticalAmount > 0) 0.8 else 1.25, mouseX)
       else if (shift) { visiblePitchCount = (visiblePitchCount + if (verticalAmount > 0) -1 else 1).coerceIn(5, 25); pitchMin = pitchMin.coerceIn(0, 25 - visiblePitchCount); followPlayback = false }
       else if (alt) { pitchMin = (pitchMin - verticalAmount.roundToInt()).coerceIn(0, 25 - visiblePitchCount); followPlayback = false }
@@ -1967,7 +1961,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
   }
 
   override fun render(io: ImGuiIO) {
-    // In Minecraft 26.2 the visible editor is rendered through Fabric GUI ImGui's callback.
+    // In Minecraft 26.x the visible editor is rendered through Fabric GUI ImGui's callback.
     // Advance the visual clock here so the playhead is refreshed every rendered frame.
     updateVisualPlayback()
     configureImGui(io)
@@ -3404,8 +3398,8 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
           if (ImGui.button("${t("EXPORT", "エクスポート")}###EXPORT_SETTINGS")) {
             runCatching { EditorSettingsStore.exportText(settings.copy(lastTool=tool)) }.onSuccess { imSettingsText.set(it); state=t("Settings exported to text", "設定を文字列へエクスポートしました") }.onFailure { state=t("Settings export failed: ${it.message}", "設定のエクスポートに失敗しました: ${it.message}") }
           }
-          ImGui.sameLine(); if (ImGui.button("${t("COPY", "コピー")}###COPY_SETTINGS")) { GLFW.glfwSetClipboardString(MinecraftClient.getInstance().window.handle, imSettingsText.get()); state=t("Settings text copied", "設定文字列をコピーしました") }
-          ImGui.sameLine(); if (ImGui.button("${t("PASTE", "貼り付け")}###PASTE_SETTINGS")) { imSettingsText.set(GLFW.glfwGetClipboardString(MinecraftClient.getInstance().window.handle).orEmpty().take(1024*1024)) }
+          ImGui.sameLine(); if (ImGui.button("${t("COPY", "コピー")}###COPY_SETTINGS")) { EditorPlatformInput.setClipboard(MinecraftClient.getInstance().window.handle, imSettingsText.get()); state=t("Settings text copied", "設定文字列をコピーしました") }
+          ImGui.sameLine(); if (ImGui.button("${t("PASTE", "貼り付け")}###PASTE_SETTINGS")) { imSettingsText.set(EditorPlatformInput.getClipboard(MinecraftClient.getInstance().window.handle).orEmpty().take(1024*1024)) }
           ImGui.sameLine(); if (ImGui.button("${t("IMPORT", "インポート")}###IMPORT_SETTINGS")) {
             runCatching { EditorSettingsStore.importText(imSettingsText.get()) }.onSuccess { imported -> settings=imported; tool=imported.lastTool; applyPanelVisibility(); imguiAppliedStyle=null; automationDockInitialized=false; focusDefaultAutomation=true; ImGui.loadIniSettingsFromDisk(EditorSettingsStore.layoutPath.toString()); state=t("Settings and layout imported", "設定とレイアウトをインポートしました") }.onFailure { state=t("Settings import failed: ${it.message}", "設定のインポートに失敗しました: ${it.message}") }
           }
@@ -3757,7 +3751,7 @@ class OyasaiEditorScreen(private val editorSession: EditorSession = EditorSessio
       editorSession.save(currentSnapshot())
       EditorSettingsStore.save(settings.copy(lastTool = tool))
       runCatching { ImGui.getIO().clearEventsQueue(); ImGui.getIO().clearInputKeys(); ImGui.getIO().clearInputMouse() }
-      runCatching { Minecraft.getInstance().textInputManager().stopTextInput() }
+      runCatching { EditorPlatformRendering.stopTextInput(this) }
     } finally {
       resetNativeCursor()
       super.removed()

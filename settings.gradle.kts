@@ -10,3 +10,6 @@ pluginManagement {
 // Keep the IDE and Gradle project identity stable. The root is the maintained Java-25/26.2
 // project; versions/adapter-26 contributes only the thin official-name compatibility source.
 rootProject.name = "OMMT"
+
+include("mc263")
+project(":mc263").projectDir = file("versions/mc263")

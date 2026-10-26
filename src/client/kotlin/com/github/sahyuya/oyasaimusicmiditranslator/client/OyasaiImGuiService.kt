@@ -229,19 +229,7 @@ class OyasaiImGuiService : DefaultImGui("ommt-imgui-layout") {
      * Returns false when invalidation was impossible (caller keeps upscale fallback).
      */
     private fun OyasaiImGuiService.invalidateTextures(): Boolean {
-      val impl = FabricImGui.IMGUI as? DefaultImGui ?: return false
-      impl.imGuiImplGl3?.let {
-        runCatching { it.destroyFontsTexture() }.onFailure { _ -> return false }
-        return true
-      }
-      impl.imGuiImplBlaze3D?.let { blaze ->
-        return runCatching {
-          blaze.javaClass.getDeclaredMethod("disposeFontResources").apply { isAccessible = true }.invoke(blaze)
-          blaze.javaClass.getDeclaredField("fontTexture").apply { isAccessible = true }.set(blaze, null)
-          true
-        }.getOrDefault(false)
-      }
-      return false
+      return EditorPlatformRendering.invalidateFontTexture()
     }
   }
 }

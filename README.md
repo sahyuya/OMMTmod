@@ -38,16 +38,15 @@ OMMT本体と同じMinecraft版向けの、次のMODをクライアントへ導�
 - Fabric Language Kotlin
 - Fabric GUI ImGui
 
-Minecraft 26.2 の現在の開発・検証構成は次の通りです。OMMT 3.0.0 以降の維持対象は 26.2 のみです。
+OMMT 3.0.5 は Minecraft 26.2 と 26.3 向けに別々の JAR を生成します。使用する Minecraft と同じバージョンの JAR と依存 MOD を選び、OMMT の JAR は一つだけ入れてください。ビルドと共通検証は両方で実行していますが、26.3 の実ゲームでの起動・描画・入力・音声・サーバー連携は未確認です。
 
-| 項目 | バージョン |
-|---|---:|
-| Minecraft | 26.2 |
-| Java | 25 |
-| Fabric Loader | 0.19.3 |
-| Fabric API | 0.158.0+26.2 |
-| Fabric Language Kotlin | 1.13.13+kotlin.2.4.10 |
-| Fabric GUI ImGui | 26.2-1.1.0+imgui.1.92.0 |
+| 項目 | Minecraft 26.2 | Minecraft 26.3 |
+|---|---|---|
+| Java | 25 | 25 |
+| Fabric Loader | 0.19.3 | 0.20.1 |
+| Fabric API | 0.158.0+26.2 | 0.165.0+26.3 |
+| Fabric Language Kotlin | 1.13.13+kotlin.2.4.10 | 1.14.2+kotlin.2.4.21 |
+| Fabric GUI ImGui | 26.2-1.1.0+imgui.1.92.0 | 26.3-1.2.1+imgui.1.92.7.1 |
 
 サーバーへ下書きを送る場合は、接続先のバックエンドに対応版 OyasaiMusic と `oyasaimusic.import` 権限が必要です。MIDI／NBSの読込・編集・ローカル試聴だけであれば、OyasaiMusicがないサーバーやシングルプレイでも利用できます。
 
@@ -78,13 +77,14 @@ Minecraft 26.2 で使用可能なラッパ系ノートブロック音は、通�
 
 ## Minecraftバージョン
 
-OMMT 3.0.0 の維持対象は Minecraft 26.2 です。1.21.11 と26.1.2 向けの新しい成果物は生成しません。
+OMMT 3.0.5 の対象は Minecraft 26.2 と 26.3 です。1.21.11 と26.1.2 向けの新しい成果物は生成しません。
 
 | クライアント版 | 状態 | 成果物 |
 |---|---|---|
-| 26.2 | 維持対象 | `OyasaiMusicMidiTranslator-3.0.0-fabric26.2.jar` |
+| 26.2 | 維持対象 | `OyasaiMusicMidiTranslator-3.0.5-fabric26.2.jar` |
+| 26.3 | ビルド・共通検証済み、実機未確認 | `OyasaiMusicMidiTranslator-3.0.5-fabric26.3.jar` |
 
-`versions/adapter-26/` には、26.2の公式名APIと共通エディターを接続する最小アダプターだけを置いています。
+`versions/adapter-26/` は 26.2 用、`versions/mc263/` は 26.3 用のアダプターです。26.3 では SDL3 の入力を既存の編集キーマップへ変換し、保存済みのキー値を変更しません。
 
 ## 開発者向けビルド
 
@@ -92,7 +92,7 @@ OMMT 3.0.0 の維持対象は Minecraft 26.2 です。1.21.11 と26.1.2 向け�
 
 JARのバージョンを変更するには、ルートの `gradle.properties` にある `mod_version` を変更します。
 
-成果物名は `OyasaiMusicMidiTranslator-<mod_version>-fabric26.2.jar` の形で自動生成されます。今回のリリース値は `3.0.0` です。
+成果物名は `OyasaiMusicMidiTranslator-<mod_version>-fabric<Minecraftのバージョン>.jar` の形で自動生成されます。両方のビルドはルートの `mod_version=3.0.5` を参照します。ビルドの入口はルートの Gradle プロジェクトです。
 
 ## IntelliJ IDEA で開く場合
 
@@ -100,20 +100,21 @@ JARのバージョンを変更するには、ルートの `gradle.properties` �
 **Gradle プロジェクトとして**開き、Gradle JVM を Java 25 に設定してから Gradle の再読み込みを完了させてください。
 Minecraft・Fabric・Kotlin・ImGui の依存関係は Gradle が提供するため、個別の JAR を IDE のライブラリへ手動追加しません。
 
-`versions/adapter-26` のソースはルートGradleプロジェクトから自動で取り込まれるため、別プロジェクトとしてリンクする必要はありません。
+`versions/adapter-26` のソースと `mc263` サブプロジェクトはルートから自動で読み込まれるため、IDE で別プロジェクトとしてリンクする必要はありません。
 
 古い `.idea` がある状態で Minecraft/Fabric の import エラーが大量に出る場合は、IDE を閉じたうえで `OMMT/.idea` を削除し、
 このディレクトリを再度 Gradle プロジェクトとして開いてください。legacy の `gradlew idea` は使用せず、IntelliJ の
 通常の Gradle 再読み込みで source-set module を生成します。本リポジトリでは古い IDE メタデータを退避してから削除済みです。
-Java 25 で次を実行します。`buildAllSupported` と `verifyAllSupported` も現在は26.2のみを対象にします。
+Java 25 で次を実行します。`build262` と `build263` はそれぞれの JAR と共通検証を実行し、`buildAllSupported` と `verifyAllSupported` は両方を対象にします。JUnit の test タスクは無効で、共通検証は `verifyUploadCodec` の実行結果を確認します。
 
 ```powershell
 .\gradlew.bat --no-daemon build262
+.\gradlew.bat --no-daemon build263
 .\gradlew.bat --no-daemon buildAllSupported
 .\gradlew.bat --no-daemon verifyAllSupported
 ```
 
-成果物は `build/libs/OyasaiMusicMidiTranslator-3.0.0-fabric26.2.jar` です。ビルド・codec検証の成功は、実ゲームでの描画・入力・接続確認を代替しません。
+26.2 の成果物は `build/libs/OyasaiMusicMidiTranslator-3.0.5-fabric26.2.jar`、26.3 は `versions/mc263/build/26.3/libs/OyasaiMusicMidiTranslator-3.0.5-fabric26.3.jar` です。ビルド・codec検証の成功は、実ゲームでの描画・入力・接続確認を代替しません。
 
 共有通信仕様、サイズ上限、互換性、失敗時のフォールバックは [`../docs/interop/INTEROP_CONTRACT.md`](../docs/interop/INTEROP_CONTRACT.md) を参照してください。
 

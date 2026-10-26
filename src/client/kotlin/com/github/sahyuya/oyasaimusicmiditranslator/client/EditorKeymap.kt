@@ -1,6 +1,6 @@
 package com.github.sahyuya.oyasaimusicmiditranslator.client
 
-import org.lwjgl.glfw.GLFW
+import com.github.sahyuya.oyasaimusicmiditranslator.client.EditorKeys
 
 data class EditorKeyStroke(
     val key: Int,
@@ -29,72 +29,72 @@ data class EditorKeyStroke(
     }
 
     private fun keyName(key: Int): String = when (key) {
-      GLFW.GLFW_KEY_SPACE -> "SPACE"
-      GLFW.GLFW_KEY_HOME -> "HOME"
-      GLFW.GLFW_KEY_DELETE -> "DELETE"
-      GLFW.GLFW_KEY_BACKSPACE -> "BACKSPACE"
-      GLFW.GLFW_KEY_ESCAPE -> "ESCAPE"
-      GLFW.GLFW_KEY_ENTER -> "ENTER"
-      GLFW.GLFW_KEY_TAB -> "TAB"
-      GLFW.GLFW_KEY_EQUAL -> "EQUAL"
-      GLFW.GLFW_KEY_MINUS -> "MINUS"
-      GLFW.GLFW_KEY_LEFT_BRACKET -> "LEFT_BRACKET"
-      GLFW.GLFW_KEY_RIGHT_BRACKET -> "RIGHT_BRACKET"
-      GLFW.GLFW_KEY_BACKSLASH -> "BACKSLASH"
-      GLFW.GLFW_KEY_COMMA -> "COMMA"
-      GLFW.GLFW_KEY_PERIOD -> "PERIOD"
-      in GLFW.GLFW_KEY_A..GLFW.GLFW_KEY_Z, in GLFW.GLFW_KEY_0..GLFW.GLFW_KEY_9 -> key.toChar().toString()
+      EditorKeys.KEY_SPACE -> "SPACE"
+      EditorKeys.KEY_HOME -> "HOME"
+      EditorKeys.KEY_DELETE -> "DELETE"
+      EditorKeys.KEY_BACKSPACE -> "BACKSPACE"
+      EditorKeys.KEY_ESCAPE -> "ESCAPE"
+      EditorKeys.KEY_ENTER -> "ENTER"
+      EditorKeys.KEY_TAB -> "TAB"
+      EditorKeys.KEY_EQUAL -> "EQUAL"
+      EditorKeys.KEY_MINUS -> "MINUS"
+      EditorKeys.KEY_LEFT_BRACKET -> "LEFT_BRACKET"
+      EditorKeys.KEY_RIGHT_BRACKET -> "RIGHT_BRACKET"
+      EditorKeys.KEY_BACKSLASH -> "BACKSLASH"
+      EditorKeys.KEY_COMMA -> "COMMA"
+      EditorKeys.KEY_PERIOD -> "PERIOD"
+      in EditorKeys.KEY_A..EditorKeys.KEY_Z, in EditorKeys.KEY_0..EditorKeys.KEY_9 -> key.toChar().toString()
       else -> "KEY_$key"
     }
 
     private fun keyCode(name: String): Int? = when (name) {
-      "SPACE" -> GLFW.GLFW_KEY_SPACE
-      "HOME" -> GLFW.GLFW_KEY_HOME
-      "DELETE" -> GLFW.GLFW_KEY_DELETE
-      "BACKSPACE" -> GLFW.GLFW_KEY_BACKSPACE
-      "ESCAPE" -> GLFW.GLFW_KEY_ESCAPE
-      "ENTER" -> GLFW.GLFW_KEY_ENTER
-      "TAB" -> GLFW.GLFW_KEY_TAB
-      "EQUAL", "+" -> GLFW.GLFW_KEY_EQUAL
-      "MINUS", "-" -> GLFW.GLFW_KEY_MINUS
-      "LEFT_BRACKET" -> GLFW.GLFW_KEY_LEFT_BRACKET
-      "RIGHT_BRACKET" -> GLFW.GLFW_KEY_RIGHT_BRACKET
-      "BACKSLASH" -> GLFW.GLFW_KEY_BACKSLASH
-      "COMMA" -> GLFW.GLFW_KEY_COMMA
-      "PERIOD" -> GLFW.GLFW_KEY_PERIOD
+      "SPACE" -> EditorKeys.KEY_SPACE
+      "HOME" -> EditorKeys.KEY_HOME
+      "DELETE" -> EditorKeys.KEY_DELETE
+      "BACKSPACE" -> EditorKeys.KEY_BACKSPACE
+      "ESCAPE" -> EditorKeys.KEY_ESCAPE
+      "ENTER" -> EditorKeys.KEY_ENTER
+      "TAB" -> EditorKeys.KEY_TAB
+      "EQUAL", "+" -> EditorKeys.KEY_EQUAL
+      "MINUS", "-" -> EditorKeys.KEY_MINUS
+      "LEFT_BRACKET" -> EditorKeys.KEY_LEFT_BRACKET
+      "RIGHT_BRACKET" -> EditorKeys.KEY_RIGHT_BRACKET
+      "BACKSLASH" -> EditorKeys.KEY_BACKSLASH
+      "COMMA" -> EditorKeys.KEY_COMMA
+      "PERIOD" -> EditorKeys.KEY_PERIOD
       else -> if (name.length == 1 && name[0] in 'A'..'Z' || name.length == 1 && name[0] in '0'..'9') name[0].code else name.removePrefix("KEY_").toIntOrNull()
     }
   }
 }
 
 enum class EditorAction(val english: String, val japanese: String, val default: EditorKeyStroke) {
-  PLAY_PAUSE("Play / Pause", "再生 / 一時停止", EditorKeyStroke(GLFW.GLFW_KEY_SPACE)),
-  REWIND("Return to start", "先頭へ戻る", EditorKeyStroke(GLFW.GLFW_KEY_HOME)),
-  FIT("Fit song", "曲全体を表示", EditorKeyStroke(GLFW.GLFW_KEY_F)),
-  ZOOM_IN("Time zoom in", "時間方向を拡大", EditorKeyStroke(GLFW.GLFW_KEY_EQUAL, control = true)),
-  ZOOM_OUT("Time zoom out", "時間方向を縮小", EditorKeyStroke(GLFW.GLFW_KEY_MINUS, control = true)),
-  COPY("Copy", "コピー", EditorKeyStroke(GLFW.GLFW_KEY_C, control = true)),
-  CUT("Cut", "切り取り", EditorKeyStroke(GLFW.GLFW_KEY_X, control = true)),
-  PASTE("Paste", "貼り付け", EditorKeyStroke(GLFW.GLFW_KEY_V, control = true)),
-  DUPLICATE("Duplicate", "複製", EditorKeyStroke(GLFW.GLFW_KEY_D, control = true)),
-  UNDO("Undo", "元に戻す", EditorKeyStroke(GLFW.GLFW_KEY_Z, control = true)),
-  REDO("Redo", "やり直し", EditorKeyStroke(GLFW.GLFW_KEY_Y, control = true)),
-  DELETE("Delete", "削除", EditorKeyStroke(GLFW.GLFW_KEY_DELETE)),
-  SELECT_ALL("Select all in view", "表示中を全選択", EditorKeyStroke(GLFW.GLFW_KEY_A, control = true)),
-  SNAP_CYCLE("Cycle snap", "スナップ切替", EditorKeyStroke(GLFW.GLFW_KEY_S)),
-  FOLLOW_TOGGLE("Toggle follow", "追従切替", EditorKeyStroke(GLFW.GLFW_KEY_L)),
-  SETTINGS("Editor settings", "エディター設定", EditorKeyStroke(GLFW.GLFW_KEY_COMMA, control = true)),
-  PREVIOUS_PART("Previous part", "前のパート", EditorKeyStroke(GLFW.GLFW_KEY_LEFT_BRACKET)),
-  NEXT_PART("Next part", "次のパート", EditorKeyStroke(GLFW.GLFW_KEY_RIGHT_BRACKET)),
-  ALL_PARTS("All-parts view", "全パート表示", EditorKeyStroke(GLFW.GLFW_KEY_BACKSLASH)),
-  PREVIEW("Preview selected", "選択音の試聴", EditorKeyStroke(GLFW.GLFW_KEY_P)),
+  PLAY_PAUSE("Play / Pause", "再生 / 一時停止", EditorKeyStroke(EditorKeys.KEY_SPACE)),
+  REWIND("Return to start", "先頭へ戻る", EditorKeyStroke(EditorKeys.KEY_HOME)),
+  FIT("Fit song", "曲全体を表示", EditorKeyStroke(EditorKeys.KEY_F)),
+  ZOOM_IN("Time zoom in", "時間方向を拡大", EditorKeyStroke(EditorKeys.KEY_EQUAL, control = true)),
+  ZOOM_OUT("Time zoom out", "時間方向を縮小", EditorKeyStroke(EditorKeys.KEY_MINUS, control = true)),
+  COPY("Copy", "コピー", EditorKeyStroke(EditorKeys.KEY_C, control = true)),
+  CUT("Cut", "切り取り", EditorKeyStroke(EditorKeys.KEY_X, control = true)),
+  PASTE("Paste", "貼り付け", EditorKeyStroke(EditorKeys.KEY_V, control = true)),
+  DUPLICATE("Duplicate", "複製", EditorKeyStroke(EditorKeys.KEY_D, control = true)),
+  UNDO("Undo", "元に戻す", EditorKeyStroke(EditorKeys.KEY_Z, control = true)),
+  REDO("Redo", "やり直し", EditorKeyStroke(EditorKeys.KEY_Y, control = true)),
+  DELETE("Delete", "削除", EditorKeyStroke(EditorKeys.KEY_DELETE)),
+  SELECT_ALL("Select all in view", "表示中を全選択", EditorKeyStroke(EditorKeys.KEY_A, control = true)),
+  SNAP_CYCLE("Cycle snap", "スナップ切替", EditorKeyStroke(EditorKeys.KEY_S)),
+  FOLLOW_TOGGLE("Toggle follow", "追従切替", EditorKeyStroke(EditorKeys.KEY_L)),
+  SETTINGS("Editor settings", "エディター設定", EditorKeyStroke(EditorKeys.KEY_COMMA, control = true)),
+  PREVIOUS_PART("Previous part", "前のパート", EditorKeyStroke(EditorKeys.KEY_LEFT_BRACKET)),
+  NEXT_PART("Next part", "次のパート", EditorKeyStroke(EditorKeys.KEY_RIGHT_BRACKET)),
+  ALL_PARTS("All-parts view", "全パート表示", EditorKeyStroke(EditorKeys.KEY_BACKSLASH)),
+  PREVIEW("Preview selected", "選択音の試聴", EditorKeyStroke(EditorKeys.KEY_P)),
   NEW_PART("Create part", "パート作成", EditorKeyStroke.UNBOUND),
   LOAD_SELECTED("Load selected MIDI", "選択MIDIを読込", EditorKeyStroke.UNBOUND),
   UPLOAD_DRAFT("Upload draft", "下書きを送信", EditorKeyStroke.UNBOUND),
   REFRESH_LIBRARY("Refresh library", "ライブラリ更新", EditorKeyStroke.UNBOUND),
   OPEN_MIDI_FOLDER("Open MIDI folder", "MIDIフォルダーを開く", EditorKeyStroke.UNBOUND),
   // Keep last: the share bundle stores bindings positionally, so appending preserves old slots.
-  CONFIRM("Confirm / Apply", "確定・適用", EditorKeyStroke(GLFW.GLFW_KEY_ENTER)),
+  CONFIRM("Confirm / Apply", "確定・適用", EditorKeyStroke(EditorKeys.KEY_ENTER)),
 }
 
 data class EditorKeymap(val bindings: Map<EditorAction, EditorKeyStroke> = EditorAction.entries.associateWith { it.default }) {

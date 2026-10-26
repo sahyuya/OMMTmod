@@ -45,6 +45,7 @@ import javax.sound.midi.ShortMessage
 
 object UploadV2CodecVerification {
   @JvmStatic fun main(args: Array<String>) {
+    EditorInputCompatibilityVerification.run()
     editor304CompatibilityAndSearch()
     verifyMuteSolo()
     editorKeyboardPresetsAndVoices()

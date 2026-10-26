@@ -1,11 +1,11 @@
 package com.github.sahyuya.oyasaimusicmiditranslator.client
 
 import imgui.flag.ImGuiKey
-import org.lwjgl.glfw.GLFW
+import com.github.sahyuya.oyasaimusicmiditranslator.client.EditorKeys
 
 object EditorKeyboard {
   fun ownsShortcut(capturing: Boolean, textInput: Boolean, composing: Boolean): Boolean = capturing || (!textInput && !composing)
-  fun isModifier(key: Int): Boolean = key in GLFW.GLFW_KEY_LEFT_SHIFT..GLFW.GLFW_KEY_RIGHT_SUPER
+  fun isModifier(key: Int): Boolean = key in EditorKeys.KEY_LEFT_SHIFT..EditorKeys.KEY_RIGHT_SUPER
 
   /** Full GLFW keyboard range, including non-printable rebind targets. No native lookup. */
   fun imguiKey(key: Int): Int? = when (key) {

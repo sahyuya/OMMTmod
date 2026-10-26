@@ -6,7 +6,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper
 import net.minecraft.client.KeyMapping
 import net.minecraft.resources.Identifier
-import org.lwjgl.glfw.GLFW
+import com.github.sahyuya.oyasaimusicmiditranslator.client.EditorKeys
 
 class OyasaimusicmiditranslatorClient : ClientModInitializer {
   override fun onInitializeClient() {
@@ -18,7 +18,7 @@ class OyasaimusicmiditranslatorClient : ClientModInitializer {
             KeyMapping(
                 "key.oyasaimusicmiditranslator.open_editor",
                 InputConstants.Type.KEYSYM,
-                GLFW.GLFW_KEY_O,
+                EditorKeys.KEY_O,
                 KeyMapping.Category.register(
                     Identifier.fromNamespaceAndPath("oyasaimusicmiditranslator", "general"),
                 ),

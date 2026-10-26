@@ -4,7 +4,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     kotlin("jvm") version "2.4.10"
-    id("net.fabricmc.fabric-loom") version "1.17-SNAPSHOT"
+    id("net.fabricmc.fabric-loom") version "1.17.21"
     id("maven-publish")
 }
 
@@ -155,16 +155,41 @@ tasks.register("verify262") {
     dependsOn(tasks.named("build262"))
 }
 
+tasks.register("build263") {
+    group = "ommt"
+    description = "Builds and verifies the Minecraft 26.3 OMMT artifact."
+    dependsOn(":mc263:build", ":mc263:verifyUploadCodec")
+}
+
+tasks.register("verify263") {
+    group = "verification"
+    description = "Verifies the Minecraft 26.3 OMMT artifact and shared codec."
+    dependsOn(tasks.named("build263"))
+}
+
+tasks.register("prepareTargetDependencies") {
+    group = "ommt"
+    description = "Resolves both target dependency sets without running tests or verifiers."
+    doLast {
+        allprojects.forEach { target ->
+            listOf("runtimeClasspath", "clientCompileClasspath", "clientRuntimeClasspath",
+                "testCompileClasspath", "testRuntimeClasspath").forEach { name ->
+                target.configurations.findByName(name)?.takeIf { it.isCanBeResolved }?.resolve()
+            }
+        }
+    }
+}
+
 tasks.register("buildAllSupported") {
     group = "ommt"
-    description = "Builds every supported OMMT target (Minecraft 26.2 only)."
-    dependsOn(tasks.named("build262"))
+    description = "Builds the Minecraft 26.2 and 26.3 OMMT artifacts."
+    dependsOn(tasks.named("build262"), tasks.named("build263"))
 }
 
 tasks.register("verifyAllSupported") {
     group = "verification"
-    description = "Verifies every supported OMMT target (Minecraft 26.2 only)."
-    dependsOn(tasks.named("verify262"))
+    description = "Verifies the Minecraft 26.2 and 26.3 artifacts and shared codecs."
+    dependsOn(tasks.named("verify262"), tasks.named("verify263"))
 }
 
 tasks.jar {

@@ -13,8 +13,8 @@ await mkdir(output, {recursive:true});
 const version = (await readFile(path.join(root,'gradle.properties'),'utf8')).match(/^mod_version=(.+)$/m)[1].trim();
 const index = [];
 const labels = {
-  ja: {home:'ホーム', menu:'ページ一覧', search:'Wiki内を検索', close:'閉じる', toc:'このページ', next:'次のページ', prev:'前のページ', lang:'English', theme:'配色', support:'不具合を報告', nojs:'検索にはJavaScriptが必要です。ページ一覧からも記事を探せます。', hint:'例：音が出ない、パート移動、リリース', footer:'おやさいサーバー専用 · Minecraft 26.2', skip:'本文へ移動'},
-  en: {home:'Home', menu:'Contents', search:'Search the handbook', close:'Close', toc:'On this page', next:'Next', prev:'Previous', lang:'日本語', theme:'Theme', support:'Report an issue', nojs:'Search needs JavaScript. All articles are available in the contents menu.', hint:'Try: no sound, move parts, release', footer:'For the Oyasai Server · Minecraft 26.2', skip:'Skip to content'}
+  ja: {home:'ホーム', menu:'ページ一覧', search:'Wiki内を検索', close:'閉じる', toc:'このページ', next:'次のページ', prev:'前のページ', lang:'English', theme:'配色', support:'不具合を報告', nojs:'検索にはJavaScriptが必要です。ページ一覧からも記事を探せます。', hint:'例：音が出ない、パート移動、リリース', footer:'おやさいサーバー専用 · Minecraft 26.2 / 26.3', skip:'本文へ移動'},
+  en: {home:'Home', menu:'Contents', search:'Search the handbook', close:'Close', toc:'On this page', next:'Next', prev:'Previous', lang:'日本語', theme:'Theme', support:'Report an issue', nojs:'Search needs JavaScript. All articles are available in the contents menu.', hint:'Try: no sound, move parts, release', footer:'For the Oyasai Server · Minecraft 26.2 / 26.3', skip:'Skip to content'}
 };
 for (const lang of ['ja','en']) {
   const l = labels[lang];
@@ -42,7 +42,7 @@ for (const lang of ['ja','en']) {
 <button class="search-button" data-search-open aria-haspopup="dialog">${l.search}<kbd>/</kbd></button>
 <a class="language" lang="${lang==='ja'?'en':'ja'}" href="${filename(p.id,lang==='ja'?'en':'ja')}">${l.lang}</a>
 <button class="theme-button" aria-label="${l.theme}" title="${l.theme}">${l.theme}</button></header>
-<div class="layout"><aside class="sidebar" id="sidebar"><nav aria-label="${l.menu}">${nav}</nav><div class="sidebar-footer">OMMT ${esc(version)}<br>Minecraft 26.2</div></aside>
+<div class="layout"><aside class="sidebar" id="sidebar"><nav aria-label="${l.menu}">${nav}</nav><div class="sidebar-footer">OMMT ${esc(version)}<br>Minecraft 26.2 / 26.3</div></aside>
 <main id="main" tabindex="-1"><nav class="breadcrumbs" aria-label="${lang==='ja'?'パンくず':'Breadcrumb'}"><ol><li><a href="${filename('index',lang)}">${l.home}</a></li><li>${esc(group)}</li><li aria-current="page">${esc(title)}</li></ol></nav>
 <article><header class="article-header"><h1>${esc(title)}</h1><p class="intro">${esc(intro)}</p></header>
 <details class="mobile-toc"><summary>${l.toc}</summary><ul>${sections.map(s=>`<li><a href="#${s.id}">${esc(s.title)}</a></li>`).join('')}</ul></details>
