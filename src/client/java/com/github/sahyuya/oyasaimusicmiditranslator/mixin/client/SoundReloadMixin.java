@@ -12,5 +12,6 @@ public abstract class SoundReloadMixin {
     @Inject(method = "apply(Lnet/minecraft/client/sounds/SoundManager$Preparations;Lnet/minecraft/server/packs/resources/ResourceManager;Lnet/minecraft/util/profiling/ProfilerFiller;)V", at = @At("TAIL"))
     private void ommt$invalidateBankCache(CallbackInfo ci) {
         SoundBankManifest.INSTANCE.invalidateCache();
+        com.github.sahyuya.oyasaimusicmiditranslator.client.PlaybackClient.INSTANCE.resourceReloaded();
     }
 }

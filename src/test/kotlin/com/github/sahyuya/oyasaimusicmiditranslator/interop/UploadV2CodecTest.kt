@@ -45,6 +45,7 @@ import javax.sound.midi.ShortMessage
 
 object UploadV2CodecVerification {
   @JvmStatic fun main(args: Array<String>) {
+    PlaybackGoldenVerification.run()
     EditorInputCompatibilityVerification.run()
     editor304CompatibilityAndSearch()
     verifyMuteSolo()
@@ -214,6 +215,11 @@ object UploadV2CodecVerification {
     } finally { Files.list(dir).use { it.forEach { path -> Files.delete(path) } }; Files.delete(dir) }
     println("MuteSoloVerification: PASS (both examples, group/leaf latest edit, reset, alpha, part propagation, unchanged notes, draw/hit ordering, v6/v7/v8 golden/v9 view-audition preset)")
   }
+  private fun readBase64Fixture(name: String): ByteArray =
+      checkNotNull(javaClass.getResourceAsStream("/$name")).bufferedReader().use {
+        Base64.getDecoder().decode(it.readText().trim())
+      }
+
   private fun verifyImportFile(path: Path) {
     when (path.fileName.toString().substringAfterLast('.', "").lowercase()) {
       "nbs" -> {
@@ -342,13 +348,13 @@ object UploadV2CodecVerification {
     val canonical = oymi(); val compact = UploadV2Codec.compactFromOymi(canonical)
     check(canonical.contentEquals(UploadV2Codec.reconstructOymi(compact)))
     // This checked-in v1 vector is shared with Paper; both sides must reconstruct these exact bytes.
-    val fixture = Base64.getDecoder().decode(Files.readString(Path.of("..", "docs", "interop", "fixtures", "minimal-oymi-v1.oyasai.base64")).trim())
+    val fixture = readBase64Fixture("minimal-oymi-v1.oyasai.base64")
     check(fixture.contentEquals(UploadV2Codec.reconstructOymi(UploadV2Codec.compactFromOymi(fixture))))
-    val customFixture = Base64.getDecoder().decode(Files.readString(Path.of("..", "docs", "interop", "fixtures", "minimal-oymi-v2-custom.oyasai.base64")).trim())
+    val customFixture = readBase64Fixture("minimal-oymi-v2-custom.oyasai.base64")
     check(customFixture.contentEquals(UploadV2Codec.reconstructOymi(UploadV2Codec.compactFromOymi(customFixture))))
-    val fixedPatternFixture = Base64.getDecoder().decode(Files.readString(Path.of("..", "docs", "interop", "fixtures", "minimal-oymi-v3-custom-pattern.oyasai.base64")).trim())
+    val fixedPatternFixture = readBase64Fixture("minimal-oymi-v3-custom-pattern.oyasai.base64")
     check(fixedPatternFixture.contentEquals(UploadV2Codec.reconstructOymi(UploadV2Codec.compactFromOymi(fixedPatternFixture))))
-    val pitchCentsFixture = Base64.getDecoder().decode(Files.readString(Path.of("..", "docs", "interop", "fixtures", "minimal-oymi-v4-pitch-cents.oyasai.base64")).trim())
+    val pitchCentsFixture = readBase64Fixture("minimal-oymi-v4-pitch-cents.oyasai.base64")
     check(pitchCentsFixture.contentEquals(UploadV2Codec.reconstructOymi(UploadV2Codec.compactFromOymi(pitchCentsFixture))))
     rejects { UploadV2Codec.reconstructOymi(compact + byteArrayOf(0)) }
     val overlong = compact.copyOfRange(0, 5) + byteArrayOf(0x80.toByte(), 0x80.toByte(), 0x80.toByte(), 0x80.toByte(), 0x80.toByte(), 0) 
@@ -554,7 +560,7 @@ object UploadV2CodecVerification {
     check(UploadV2Codec.formatVersion(false, false, false) == 1)
     check(UploadV2Codec.formatVersion(false, false, true) == 3)
     check(UploadV2Codec.formatVersion(true, false, false) == 4)
-    val brassFixture = Base64.getDecoder().decode(Files.readString(Path.of("..", "docs", "interop", "fixtures", "nbs-20-instruments-oymi-v4.base64")).trim())
+    val brassFixture = readBase64Fixture("nbs-20-instruments-oymi-v4.base64")
     check(brassFixture.contentEquals(UploadV2Codec.reconstructOymi(UploadV2Codec.compactFromOymi(brassFixture))))
     val expectedIds = listOf(0,1,2,3,4,7,5,6,8,9,10,11,12,13,14,15,16,17,19,18)
     check((0..19).map { NbsFileCodec.toOmmtInstrument(it, 20) } == expectedIds)

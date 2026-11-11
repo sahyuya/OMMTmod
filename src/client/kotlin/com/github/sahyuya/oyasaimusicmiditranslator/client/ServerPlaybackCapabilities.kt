@@ -17,6 +17,8 @@ object ServerPlaybackCapabilities {
   val supportsBankManifest: Boolean
     get() = received && bits and OmmtPluginWire.CAP_BANK_MANIFEST_V1 != 0
 
+  val supportsMultiSession: Boolean get() = received && bits and (1 shl 4) != 0
+
   internal fun update(value: Int) {
     bits = value
     received = true

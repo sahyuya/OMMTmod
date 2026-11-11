@@ -20,6 +20,14 @@ interface OmmtMusicSound {
 /** Minecraft 26 adapter for the shared deterministic local audition API. */
 object PreviewSoundPlayer {
   private val editorVoices = mutableMapOf<SoundInstance, Int>()
+  private val sessionVoices = mutableMapOf<java.util.UUID, MutableSet<SoundInstance>>()
+  fun stopSession(id: java.util.UUID) { sessionVoices.remove(id)?.forEach { Minecraft.getInstance().soundManager.stop(it) } }
+  fun stopAllSessions() { sessionVoices.keys.toList().forEach(::stopSession) }
+  fun pruneSessionVoices() {
+    val manager = Minecraft.getInstance().soundManager
+    sessionVoices.values.forEach { voices -> voices.removeAll { !manager.isActive(it) } }
+    sessionVoices.entries.removeAll { it.value.isEmpty() }
+  }
   private var browserVoice: SoundInstance? = null
 
   fun stopBrowserPreview() {
@@ -73,6 +81,7 @@ object PreviewSoundPlayer {
       requireStart: Boolean = false,
       editorPart: Int? = null,
       browserPreview: Boolean = false,
+      session: java.util.UUID? = null,
   ): Boolean {
     lastDispatchStarted = false
     val id = Identifier.tryParse(eventId) ?: return false
@@ -110,6 +119,7 @@ object PreviewSoundPlayer {
           override var omittedForPolyphony = false
         }
     val result = client.soundManager.play(instance)
+    if (session != null && result != net.minecraft.client.sounds.SoundEngine.PlayResult.NOT_STARTED) sessionVoices.getOrPut(session) { mutableSetOf() }.add(instance)
     if (browserPreview) browserVoice = instance
     if (editorPart != null) {
       editorVoices.keys.removeAll { !client.soundManager.isActive(it) }
